@@ -271,6 +271,11 @@ window.doLogin = function(){
   currentMerk=merken.find(m=>m.id===user.merkId);
   selections={};
   document.getElementById('user-badge').textContent=currentMerk?currentMerk.naam:username;
+  // Auto-invullen blok 1 velden vanuit gebruikersprofiel
+  document.getElementById('f-supplier').value = user.supplier||currentMerk?.naam||'';
+  document.getElementById('f-am-name').value  = user.displayNaam||'';
+  document.getElementById('f-am-phone').value = user.tel||'';
+  document.getElementById('f-am-email').value = user.email||'';
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app-screen').style.display='block';
   renderBlocks();

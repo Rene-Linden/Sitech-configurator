@@ -219,6 +219,7 @@ tr:hover td{background:var(--gray-bg)}
     <div class="modal-header"><h3 id="modal-user-title">Nieuwe gebruiker</h3><button class="modal-close" onclick="closeModal('modal-user')">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="user-edit-id" />
+      <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Inloggegevens</div>
       <div class="form-row cols2">
         <div class="fg"><label>Gebruikersnaam *</label><input type="text" id="user-naam" placeholder="jan.de.vries" /></div>
         <div class="fg"><label>Wachtwoord *</label><input type="text" id="user-pw" placeholder="Wachtwoord" /></div>
@@ -226,6 +227,15 @@ tr:hover td{background:var(--gray-bg)}
       <div class="form-row cols2">
         <div class="fg"><label>Merk *</label><select id="user-merk"></select></div>
         <div class="fg"><label>Status</label><select id="user-status"><option value="actief">Actief</option><option value="inactief">Inactief</option></select></div>
+      </div>
+      <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin-bottom:8px;margin-top:4px">Profiel — wordt automatisch ingevuld op de gegevenspagina</div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Weergavenaam</label><input type="text" id="user-display" placeholder="Voor- en achternaam" /></div>
+        <div class="fg"><label>E-mailadres</label><input type="email" id="user-email" placeholder="naam@bedrijf.nl" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Telefoonnummer</label><input type="tel" id="user-tel" placeholder="+31 6 …" /></div>
+        <div class="fg"><label>Naam leverancier / OEM</label><input type="text" id="user-supplier" placeholder="Bijv. Volvo CE" /></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -430,14 +440,44 @@ function renderGebruikers(){
       </td></tr>`;
   }).join('')||'<tr><td colspan="5" style="color:var(--gray-text);text-align:center;padding:1.5rem">Nog geen gebruikers</td></tr>';
 }
-window.openAddUser = ()=>{ document.getElementById('user-edit-id').value=''; document.getElementById('user-naam').value=''; document.getElementById('user-pw').value=''; document.getElementById('user-status').value='actief'; document.getElementById('modal-user-title').textContent='Nieuwe gebruiker'; openModal('modal-user'); };
-window.editUser = id=>{ const u=gebruikers.find(x=>x.id===id); document.getElementById('user-edit-id').value=id; document.getElementById('user-naam').value=u.naam; document.getElementById('user-pw').value=u.pw; document.getElementById('user-merk').value=u.merkId; document.getElementById('user-status').value=u.status; document.getElementById('modal-user-title').textContent='Gebruiker bewerken'; openModal('modal-user'); };
+window.openAddUser = ()=>{
+  document.getElementById('user-edit-id').value='';
+  document.getElementById('user-naam').value='';
+  document.getElementById('user-pw').value='';
+  document.getElementById('user-status').value='actief';
+  document.getElementById('user-display').value='';
+  document.getElementById('user-email').value='';
+  document.getElementById('user-tel').value='';
+  document.getElementById('user-supplier').value='';
+  document.getElementById('modal-user-title').textContent='Nieuwe gebruiker';
+  openModal('modal-user');
+};
+window.editUser = id=>{
+  const u=gebruikers.find(x=>x.id===id);
+  document.getElementById('user-edit-id').value=id;
+  document.getElementById('user-naam').value=u.naam;
+  document.getElementById('user-pw').value=u.pw;
+  document.getElementById('user-merk').value=u.merkId;
+  document.getElementById('user-status').value=u.status;
+  document.getElementById('user-display').value=u.displayNaam||'';
+  document.getElementById('user-email').value=u.email||'';
+  document.getElementById('user-tel').value=u.tel||'';
+  document.getElementById('user-supplier').value=u.supplier||'';
+  document.getElementById('modal-user-title').textContent='Gebruiker bewerken';
+  openModal('modal-user');
+};
 window.saveUser = async ()=>{
-  const naam=document.getElementById('user-naam').value.trim(), pw=document.getElementById('user-pw').value.trim();
-  const merkId=document.getElementById('user-merk').value, status=document.getElementById('user-status').value;
+  const naam=document.getElementById('user-naam').value.trim();
+  const pw=document.getElementById('user-pw').value.trim();
+  const merkId=document.getElementById('user-merk').value;
+  const status=document.getElementById('user-status').value;
+  const displayNaam=document.getElementById('user-display').value.trim();
+  const email=document.getElementById('user-email').value.trim();
+  const tel=document.getElementById('user-tel').value.trim();
+  const supplier=document.getElementById('user-supplier').value.trim();
   if(!naam||!pw){alert('Vul gebruikersnaam en wachtwoord in');return}
   const id=document.getElementById('user-edit-id').value||'u'+Date.now();
-  await setDoc(doc(db,'gebruikers',id),{naam,pw,merkId,status});
+  await setDoc(doc(db,'gebruikers',id),{naam,pw,merkId,status,displayNaam,email,tel,supplier});
   showSaving(); closeModal('modal-user');
 };
 window.deleteUser = async id=>{ if(!confirm('Gebruiker verwijderen?'))return; await deleteDoc(doc(db,'gebruikers',id)); showSaving(); };
