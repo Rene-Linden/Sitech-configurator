@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sitech — Beheerpaneel</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -57,15 +58,16 @@ tr:hover td{background:var(--gray-bg)}
 .btn-blue:hover{background:#0C447C}
 .btn-red{background:var(--red-light);color:var(--red);border-color:rgba(163,45,45,.3)}
 .btn-red:hover{background:#F7C1C1}
+.btn-green{background:var(--green-light);color:var(--green);border-color:rgba(59,109,17,.3)}
 .btn-sm{padding:4px 10px;font-size:12px}
 .form-row{display:grid;gap:12px;margin-bottom:12px}
 .form-row.cols2{grid-template-columns:1fr 1fr}
 .fg label{display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--gray-text)}
-.fg input,.fg select,.fg textarea{width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px;background:var(--white);outline:none}
+.fg input,.fg select{width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px;background:var(--white);outline:none}
 .fg input:focus,.fg select:focus{border-color:var(--blue-mid);box-shadow:0 0 0 2px rgba(55,138,221,.12)}
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:100;align-items:center;justify-content:center;padding:1rem}
 .modal-bg.open{display:flex}
-.modal{background:var(--white);border-radius:12px;border:0.5px solid var(--gray-border);width:100%;max-width:540px;max-height:90vh;overflow-y:auto}
+.modal{background:var(--white);border-radius:12px;border:0.5px solid var(--gray-border);width:100%;max-width:580px;max-height:90vh;overflow-y:auto}
 .modal-header{padding:16px 20px;border-bottom:0.5px solid var(--gray-border);display:flex;align-items:center;justify-content:space-between}
 .modal-header h3{font-size:15px;font-weight:500}
 .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray-text);line-height:1}
@@ -77,6 +79,14 @@ tr:hover td{background:var(--gray-bg)}
 .option-row input{padding:7px 10px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none;width:100%}
 .option-row input:focus{border-color:var(--blue-mid)}
 .saving-indicator{position:fixed;bottom:1.5rem;right:1.5rem;background:#1a1a1a;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;display:none;z-index:200}
+.upload-zone{border:1.5px dashed var(--gray-border);border-radius:8px;padding:1.5rem;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.upload-zone:hover{border-color:var(--blue-mid);background:var(--blue-light)}
+.upload-zone input{display:none}
+.upload-zone p{font-size:13px;color:var(--gray-text);margin-top:6px}
+.preview-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+.preview-table th{background:var(--gray-bg);padding:6px 10px;border:0.5px solid var(--gray-border);font-weight:500;color:var(--gray-text)}
+.preview-table td{padding:5px 10px;border:0.5px solid var(--gray-border)}
+.info-box{background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--blue);margin-bottom:12px}
 @media(max-width:640px){.sidebar{display:none}.form-row.cols2{grid-template-columns:1fr}}
 </style>
 </head>
@@ -133,13 +143,16 @@ tr:hover td{background:var(--gray-bg)}
 
       <div class="panel" id="panel-prijslijsten">
         <div class="panel-title">Prijslijsten</div>
-        <div class="panel-sub">Beheer productblokken per merk.</div>
-        <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px">
+        <div class="panel-sub">Upload een Excel-bestand per merk of beheer blokken handmatig.</div>
+        <div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <select id="sel-merk-filter" onchange="renderPrijslijst()" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
             <option value="">— Selecteer merk —</option>
           </select>
-          <button class="btn btn-blue" onclick="openAddBlock()">+ Blok toevoegen</button>
+          <button class="btn btn-blue" onclick="openAddBlock()">+ Blok handmatig</button>
+          <button class="btn btn-green" onclick="document.getElementById('excel-upload').click()">Excel uploaden</button>
+          <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelUpload(event)" />
         </div>
+        <div class="info-box" id="excel-info" style="display:none"></div>
         <div id="prijslijst-editor"></div>
       </div>
 
@@ -194,8 +207,8 @@ tr:hover td{background:var(--gray-bg)}
         <div class="fg"><label>Bloknaam *</label><input type="text" id="block-naam" placeholder="Bijv. Type verwarmingsunit" /></div>
         <div class="fg"><label>Verplicht?</label><select id="block-req"><option value="1">Ja — verplicht</option><option value="0">Nee — optioneel</option></select></div>
       </div>
-      <div style="display:grid;grid-template-columns:2fr 2fr 1fr auto;gap:6px;font-size:11px;font-weight:500;color:var(--gray-text);padding:0 2px;margin-bottom:4px;margin-top:8px">
-        <span>Naam optie</span><span>Omschrijving</span><span>Adviesprijs (€)</span><span></span>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:6px;font-size:11px;font-weight:500;color:var(--gray-text);padding:0 2px;margin-bottom:4px;margin-top:8px">
+        <span>Omschrijving</span><span>Artikelnummer</span><span>Inkoopprijs (€)</span><span>Verkoopadvies (€)</span><span></span>
       </div>
       <div id="block-options-editor"></div>
       <button class="btn btn-sm" onclick="addOptionRow()" style="margin-top:8px">+ Optie toevoegen</button>
@@ -207,15 +220,29 @@ tr:hover td{background:var(--gray-bg)}
   </div>
 </div>
 
+<!-- MODAL EXCEL PREVIEW -->
+<div class="modal-bg" id="modal-excel">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header"><h3>Excel importeren</h3><button class="modal-close" onclick="closeModal('modal-excel')">×</button></div>
+    <div class="modal-body">
+      <div id="excel-preview-info" style="font-size:13px;color:var(--gray-text);margin-bottom:12px"></div>
+      <div style="overflow-x:auto;max-height:350px;overflow-y:auto">
+        <table class="preview-table" id="excel-preview-table"></table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-excel')">Annuleren</button>
+      <button class="btn btn-blue" onclick="confirmExcelImport()">Importeren &amp; overschrijven</button>
+    </div>
+  </div>
+</div>
+
 <div class="saving-indicator" id="saving">Opslaan...</div>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-// ============================================================
-// FIREBASE CONFIG
-// ============================================================
 const firebaseConfig = {
   apiKey: "AIzaSyBktIXqssmyaVo_VRuPXkDAPiytsSn QjjM",
   authDomain: "sitech-configurator.firebaseapp.com",
@@ -225,17 +252,14 @@ const firebaseConfig = {
   appId: "1:220701109022:web:bd7d53aa4c2d49d372f70f"
 };
 
-const ADMIN_ACCOUNTS = {
-  'admin':   'Sitech@2024!',
-  'verkoop': 'Verkoop@123',
-  'beheer':  'Beheer@456',
-};
+const ADMIN_ACCOUNTS = { 'admin':'Sitech@2024!', 'verkoop':'Verkoop@123', 'beheer':'Beheer@456' };
 
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
 let merken = [], gebruikers = [], prijslijsten = {};
 let unsubMerken, unsubGebruikers, unsubPrijslijsten;
+let pendingExcelBlocks = null;
 
 // ============================================================
 // AUTH
@@ -247,99 +271,79 @@ window.doLogin = function(){
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     startListeners();
-  } else {
-    document.getElementById('login-err').style.display = 'block';
-  }
+  } else { document.getElementById('login-err').style.display = 'block'; }
 };
 window.doLogout = function(){
-  if(unsubMerken) unsubMerken();
-  if(unsubGebruikers) unsubGebruikers();
-  if(unsubPrijslijsten) unsubPrijslijsten();
+  [unsubMerken,unsubGebruikers,unsubPrijslijsten].forEach(u=>u&&u());
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('adm-user').value = '';
   document.getElementById('adm-pw').value = '';
 };
 
-// ============================================================
-// REALTIME LISTENERS
-// ============================================================
 function startListeners(){
   unsubMerken = onSnapshot(collection(db,'merken'), snap => {
-    merken = snap.docs.map(d => ({id:d.id,...d.data()}));
+    merken = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderMerken(); renderMerkFilterOpties();
   });
   unsubGebruikers = onSnapshot(collection(db,'gebruikers'), snap => {
-    gebruikers = snap.docs.map(d => ({id:d.id,...d.data()}));
+    gebruikers = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderGebruikers();
   });
   unsubPrijslijsten = onSnapshot(collection(db,'prijslijsten'), snap => {
     prijslijsten = {};
-    snap.docs.forEach(d => { prijslijsten[d.id] = d.data().blocks || []; });
+    snap.docs.forEach(d=>{ prijslijsten[d.id] = d.data().blocks||[]; });
     renderMerken(); renderPrijslijst();
   });
 }
 
-function showSaving(){ const s=document.getElementById('saving'); s.style.display='block'; setTimeout(()=>s.style.display='none',1500); }
+function showSaving(msg='Opgeslagen'){
+  const s = document.getElementById('saving');
+  s.textContent = msg; s.style.display = 'block';
+  setTimeout(()=>s.style.display='none', 1800);
+}
 
-// ============================================================
-// NAVIGATION
-// ============================================================
-window.showPanel = function(name, el){
+window.showPanel = function(name,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
   if(el) el.classList.add('active');
   if(name==='prijslijsten') renderMerkFilterOpties();
 };
-window.openModal  = function(id){ document.getElementById(id).classList.add('open'); };
-window.closeModal = function(id){ document.getElementById(id).classList.remove('open'); };
+window.openModal  = id => document.getElementById(id).classList.add('open');
+window.closeModal = id => document.getElementById(id).classList.remove('open');
 
 // ============================================================
 // MERKEN
 // ============================================================
 function renderMerken(){
-  const tbody = document.getElementById('tbl-merken');
-  tbody.innerHTML = merken.map(m => {
-    const aantalUsers = gebruikers.filter(u=>u.merkId===m.id).length;
-    const blokken = (prijslijsten[m.id]||[]).length;
+  document.getElementById('tbl-merken').innerHTML = merken.map(m=>{
+    const u = gebruikers.filter(x=>x.merkId===m.id).length;
+    const b = (prijslijsten[m.id]||[]).length;
     return `<tr>
       <td><strong style="font-size:13px">${m.naam}</strong></td>
-      <td>${blokken ? `<span class="badge-green">${blokken} blok${blokken!==1?'ken':''}</span>` : '<span class="badge-red">Geen prijslijst</span>'}</td>
-      <td><span class="badge-blue">${aantalUsers} gebruiker${aantalUsers!==1?'s':''}</span></td>
+      <td>${b?`<span class="badge-green">${b} blok${b!==1?'ken':''}</span>`:'<span class="badge-red">Geen prijslijst</span>'}</td>
+      <td><span class="badge-blue">${u} gebruiker${u!==1?'s':''}</span></td>
       <td style="text-align:right">
         <button class="btn btn-sm" onclick="editMerk('${m.id}')">Bewerken</button>
         <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteMerk('${m.id}')">Verwijderen</button>
       </td></tr>`;
-  }).join('') || '<tr><td colspan="4" style="color:var(--gray-text);text-align:center;padding:1.5rem">Nog geen merken</td></tr>';
+  }).join('')||'<tr><td colspan="4" style="color:var(--gray-text);text-align:center;padding:1.5rem">Nog geen merken</td></tr>';
 }
-window.openAddMerk = function(){
-  document.getElementById('merk-edit-id').value = '';
-  document.getElementById('merk-naam').value = '';
-  document.getElementById('modal-merk-title').textContent = 'Nieuw merk';
-  openModal('modal-merk');
-};
-window.editMerk = function(id){
-  const m = merken.find(x=>x.id===id);
-  document.getElementById('merk-edit-id').value = id;
-  document.getElementById('merk-naam').value = m.naam;
-  document.getElementById('modal-merk-title').textContent = 'Merk bewerken';
-  openModal('modal-merk');
-};
-window.saveMerk = async function(){
-  const naam = document.getElementById('merk-naam').value.trim();
+window.openAddMerk = ()=>{ document.getElementById('merk-edit-id').value=''; document.getElementById('merk-naam').value=''; document.getElementById('modal-merk-title').textContent='Nieuw merk'; openModal('modal-merk'); };
+window.editMerk = id=>{ const m=merken.find(x=>x.id===id); document.getElementById('merk-edit-id').value=id; document.getElementById('merk-naam').value=m.naam; document.getElementById('modal-merk-title').textContent='Merk bewerken'; openModal('modal-merk'); };
+window.saveMerk = async ()=>{
+  const naam=document.getElementById('merk-naam').value.trim();
   if(!naam){alert('Vul een merknaam in');return}
-  const id = document.getElementById('merk-edit-id').value || 'm'+Date.now();
-  await setDoc(doc(db,'merken',id), {naam});
+  const id=document.getElementById('merk-edit-id').value||'m'+Date.now();
+  await setDoc(doc(db,'merken',id),{naam});
   showSaving(); closeModal('modal-merk');
 };
-window.deleteMerk = async function(id){
-  if(!confirm('Merk verwijderen? Gebruikers en prijslijst worden ook verwijderd.'))return;
+window.deleteMerk = async id=>{
+  if(!confirm('Merk verwijderen?'))return;
   await deleteDoc(doc(db,'merken',id));
   await deleteDoc(doc(db,'prijslijsten',id));
-  for(const u of gebruikers.filter(x=>x.merkId===id)){
-    await deleteDoc(doc(db,'gebruikers',u.id));
-  }
+  for(const u of gebruikers.filter(x=>x.merkId===id)) await deleteDoc(doc(db,'gebruikers',u.id));
   showSaving();
 };
 
@@ -347,11 +351,9 @@ window.deleteMerk = async function(id){
 // GEBRUIKERS
 // ============================================================
 function renderGebruikers(){
-  const tbody = document.getElementById('tbl-users');
-  const sel = document.getElementById('user-merk');
-  sel.innerHTML = merken.map(m=>`<option value="${m.id}">${m.naam}</option>`).join('');
-  tbody.innerHTML = gebruikers.map(u => {
-    const m = merken.find(x=>x.id===u.merkId);
+  document.getElementById('user-merk').innerHTML = merken.map(m=>`<option value="${m.id}">${m.naam}</option>`).join('');
+  document.getElementById('tbl-users').innerHTML = gebruikers.map(u=>{
+    const m=merken.find(x=>x.id===u.merkId);
     return `<tr>
       <td><strong style="font-size:13px">${u.naam}</strong></td>
       <td>${m?m.naam:'<em style="color:var(--gray-text)">Onbekend</em>'}</td>
@@ -361,58 +363,35 @@ function renderGebruikers(){
         <button class="btn btn-sm" onclick="editUser('${u.id}')">Bewerken</button>
         <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteUser('${u.id}')">Verwijderen</button>
       </td></tr>`;
-  }).join('') || '<tr><td colspan="5" style="color:var(--gray-text);text-align:center;padding:1.5rem">Nog geen gebruikers</td></tr>';
+  }).join('')||'<tr><td colspan="5" style="color:var(--gray-text);text-align:center;padding:1.5rem">Nog geen gebruikers</td></tr>';
 }
-window.openAddUser = function(){
-  document.getElementById('user-edit-id').value = '';
-  document.getElementById('user-naam').value = '';
-  document.getElementById('user-pw').value = '';
-  document.getElementById('user-status').value = 'actief';
-  document.getElementById('modal-user-title').textContent = 'Nieuwe gebruiker';
-  openModal('modal-user');
-};
-window.editUser = function(id){
-  const u = gebruikers.find(x=>x.id===id);
-  document.getElementById('user-edit-id').value = id;
-  document.getElementById('user-naam').value = u.naam;
-  document.getElementById('user-pw').value = u.pw;
-  document.getElementById('user-merk').value = u.merkId;
-  document.getElementById('user-status').value = u.status;
-  document.getElementById('modal-user-title').textContent = 'Gebruiker bewerken';
-  openModal('modal-user');
-};
-window.saveUser = async function(){
-  const naam   = document.getElementById('user-naam').value.trim();
-  const pw     = document.getElementById('user-pw').value.trim();
-  const merkId = document.getElementById('user-merk').value;
-  const status = document.getElementById('user-status').value;
+window.openAddUser = ()=>{ document.getElementById('user-edit-id').value=''; document.getElementById('user-naam').value=''; document.getElementById('user-pw').value=''; document.getElementById('user-status').value='actief'; document.getElementById('modal-user-title').textContent='Nieuwe gebruiker'; openModal('modal-user'); };
+window.editUser = id=>{ const u=gebruikers.find(x=>x.id===id); document.getElementById('user-edit-id').value=id; document.getElementById('user-naam').value=u.naam; document.getElementById('user-pw').value=u.pw; document.getElementById('user-merk').value=u.merkId; document.getElementById('user-status').value=u.status; document.getElementById('modal-user-title').textContent='Gebruiker bewerken'; openModal('modal-user'); };
+window.saveUser = async ()=>{
+  const naam=document.getElementById('user-naam').value.trim(), pw=document.getElementById('user-pw').value.trim();
+  const merkId=document.getElementById('user-merk').value, status=document.getElementById('user-status').value;
   if(!naam||!pw){alert('Vul gebruikersnaam en wachtwoord in');return}
-  const id = document.getElementById('user-edit-id').value || 'u'+Date.now();
-  await setDoc(doc(db,'gebruikers',id), {naam,pw,merkId,status});
+  const id=document.getElementById('user-edit-id').value||'u'+Date.now();
+  await setDoc(doc(db,'gebruikers',id),{naam,pw,merkId,status});
   showSaving(); closeModal('modal-user');
 };
-window.deleteUser = async function(id){
-  if(!confirm('Gebruiker verwijderen?'))return;
-  await deleteDoc(doc(db,'gebruikers',id));
-  showSaving();
-};
+window.deleteUser = async id=>{ if(!confirm('Gebruiker verwijderen?'))return; await deleteDoc(doc(db,'gebruikers',id)); showSaving(); };
 
 // ============================================================
-// PRIJSLIJSTEN
+// PRIJSLIJSTEN — render
 // ============================================================
 function renderMerkFilterOpties(){
-  const sel = document.getElementById('sel-merk-filter');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">— Selecteer merk —</option>' + merken.map(m=>`<option value="${m.id}">${m.naam}</option>`).join('');
-  if(cur) sel.value = cur;
+  const sel=document.getElementById('sel-merk-filter'), cur=sel.value;
+  sel.innerHTML='<option value="">— Selecteer merk —</option>'+merken.map(m=>`<option value="${m.id}">${m.naam}</option>`).join('');
+  if(cur) sel.value=cur;
   renderPrijslijst();
 }
 function renderPrijslijst(){
-  const merkId = document.getElementById('sel-merk-filter').value;
-  const container = document.getElementById('prijslijst-editor');
+  const merkId=document.getElementById('sel-merk-filter').value;
+  const container=document.getElementById('prijslijst-editor');
   if(!merkId){container.innerHTML='<div style="color:var(--gray-text);font-size:14px">Selecteer eerst een merk.</div>';return}
-  const blocks = prijslijsten[merkId] || [];
-  if(!blocks.length){container.innerHTML='<div style="color:var(--gray-text);font-size:14px;padding:1rem 0">Nog geen blokken. Klik op "+ Blok toevoegen".</div>';return}
+  const blocks=prijslijsten[merkId]||[];
+  if(!blocks.length){container.innerHTML='<div style="color:var(--gray-text);font-size:14px;padding:1rem 0">Nog geen blokken. Upload een Excel of klik op "+ Blok handmatig".</div>';return}
   container.innerHTML = blocks.map(b=>`
     <div class="block-editor">
       <div class="block-editor-header">
@@ -423,81 +402,148 @@ function renderPrijslijst(){
       </div>
       <div class="block-editor-body">
         <table style="font-size:12px;width:100%">
-          <thead><tr><th>Naam</th><th>Omschrijving</th><th style="text-align:right">Adviesprijs</th></tr></thead>
+          <thead><tr><th>Omschrijving</th><th>Artikelnr.</th><th style="text-align:right">Inkoop</th><th style="text-align:right">Verkoopadvies</th></tr></thead>
           <tbody>${b.options.map(o=>`<tr>
             <td style="font-weight:500">${o.name}</td>
-            <td style="color:var(--gray-text)">${o.desc||''}</td>
-            <td style="text-align:right;color:var(--blue)">${o.price?'€\u00a0'+parseFloat(o.price).toFixed(2):'<span style="color:var(--gray-text);font-style:italic">—</span>'}</td>
+            <td style="color:var(--gray-text)">${o.artikelnr||''}</td>
+            <td style="text-align:right;color:var(--gray-text)">${o.inkoop?'€\u00a0'+parseFloat(o.inkoop).toFixed(2):'—'}</td>
+            <td style="text-align:right;color:var(--blue)">${o.price?'€\u00a0'+parseFloat(o.price).toFixed(2):'—'}</td>
           </tr>`).join('')}</tbody>
         </table>
       </div>
     </div>`).join('');
 }
-window.openAddBlock = function(){
+
+// ============================================================
+// EXCEL IMPORT
+// ============================================================
+window.handleExcelUpload = function(event){
   const merkId = document.getElementById('sel-merk-filter').value;
+  if(!merkId){alert('Selecteer eerst een merk');event.target.value='';return}
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = new Uint8Array(e.target.result);
+    const wb   = XLSX.read(data, {type:'uint8array'});
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    // Sla rij 1 over als header (controleer of A1 tekst is)
+    const startRow = (rows[0] && isNaN(rows[0][0]) && rows[0][0]!=='') ? 1 : 0;
+    const dataRows = rows.slice(startRow).filter(r => r[0]||r[4]);
+    if(!dataRows.length){alert('Geen data gevonden in het Excel bestand.');return}
+    // Groepeer op kolom E (index 4) = bloknaam
+    const blokMap = {};
+    const blokOrder = [];
+    dataRows.forEach(r => {
+      const omschrijving = String(r[0]||'').trim();
+      const artikelnr    = String(r[1]||'').trim();
+      const inkoop       = String(r[2]||'').trim();
+      const verkoop      = String(r[3]||'').trim();
+      const bloknaam     = String(r[4]||'Overig').trim();
+      if(!omschrijving) return;
+      if(!blokMap[bloknaam]){ blokMap[bloknaam]=[]; blokOrder.push(bloknaam); }
+      blokMap[bloknaam].push({name:omschrijving, artikelnr, inkoop, price:verkoop});
+    });
+    pendingExcelBlocks = blokOrder.map(titel=>({
+      id: 'b'+Date.now()+Math.random().toString(36).slice(2,6),
+      title: titel, required: true,
+      options: blokMap[titel]
+    }));
+    // Toon preview
+    const totalOpties = pendingExcelBlocks.reduce((s,b)=>s+b.options.length,0);
+    document.getElementById('excel-preview-info').textContent =
+      `${pendingExcelBlocks.length} blokken gevonden met in totaal ${totalOpties} opties. Bestaande prijslijst wordt overschreven.`;
+    const thead = `<thead><tr><th>Blok</th><th>Omschrijving</th><th>Artikelnr.</th><th>Inkoop</th><th>Verkoopadvies</th></tr></thead>`;
+    const tbody = '<tbody>'+pendingExcelBlocks.map(b=>
+      b.options.map((o,i)=>`<tr>
+        ${i===0?`<td rowspan="${b.options.length}" style="font-weight:500;vertical-align:top;background:var(--gray-bg)">${b.title}</td>`:''}
+        <td>${o.name}</td><td>${o.artikelnr}</td>
+        <td style="text-align:right">${o.inkoop?'€ '+o.inkoop:''}</td>
+        <td style="text-align:right">${o.price?'€ '+o.price:''}</td>
+      </tr>`).join('')
+    ).join('')+'</tbody>';
+    document.getElementById('excel-preview-table').innerHTML = thead+tbody;
+    openModal('modal-excel');
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
+};
+
+window.confirmExcelImport = async function(){
+  const merkId = document.getElementById('sel-merk-filter').value;
+  if(!pendingExcelBlocks||!merkId) return;
+  await setDoc(doc(db,'prijslijsten',merkId), {blocks: pendingExcelBlocks});
+  pendingExcelBlocks = null;
+  showSaving('Prijslijst geïmporteerd');
+  closeModal('modal-excel');
+};
+
+// ============================================================
+// BLOK HANDMATIG
+// ============================================================
+window.openAddBlock = ()=>{
+  const merkId=document.getElementById('sel-merk-filter').value;
   if(!merkId){alert('Selecteer eerst een merk');return}
-  document.getElementById('block-edit-id').value = '';
-  document.getElementById('block-naam').value = '';
-  document.getElementById('block-req').value = '1';
-  document.getElementById('modal-block-title').textContent = 'Blok toevoegen';
-  const ed = document.getElementById('block-options-editor');
-  ed.innerHTML = '';
+  document.getElementById('block-edit-id').value='';
+  document.getElementById('block-naam').value='';
+  document.getElementById('block-req').value='1';
+  document.getElementById('modal-block-title').textContent='Blok toevoegen';
+  const ed=document.getElementById('block-options-editor');
+  ed.innerHTML='';
   addOptionRow(); addOptionRow();
   openModal('modal-block');
 };
-window.editBlock = function(merkId, blockId){
-  const block = (prijslijsten[merkId]||[]).find(b=>b.id===blockId);
+window.editBlock = (merkId,blockId)=>{
+  const block=(prijslijsten[merkId]||[]).find(b=>b.id===blockId);
   if(!block) return;
-  document.getElementById('block-edit-id').value = blockId;
-  document.getElementById('block-naam').value = block.title;
-  document.getElementById('block-req').value = block.required?'1':'0';
-  document.getElementById('modal-block-title').textContent = 'Blok bewerken';
-  const ed = document.getElementById('block-options-editor');
-  ed.innerHTML = '';
-  block.options.forEach(o => addOptionRow(o.name, o.desc||'', o.price||''));
+  document.getElementById('block-edit-id').value=blockId;
+  document.getElementById('block-naam').value=block.title;
+  document.getElementById('block-req').value=block.required?'1':'0';
+  document.getElementById('modal-block-title').textContent='Blok bewerken';
+  const ed=document.getElementById('block-options-editor');
+  ed.innerHTML='';
+  block.options.forEach(o=>addOptionRow(o.name,o.artikelnr||'',o.inkoop||'',o.price||''));
   openModal('modal-block');
 };
-window.addOptionRow = function(name='', desc='', price=''){
-  const ed = document.getElementById('block-options-editor');
-  const row = document.createElement('div');
-  row.className = 'option-row';
-  row.style.cssText = 'display:grid;grid-template-columns:2fr 2fr 1fr auto;gap:6px;align-items:center;margin-bottom:6px';
-  row.innerHTML = `
-    <input type="text" placeholder="Naam optie" value="${name}" />
-    <input type="text" placeholder="Omschrijving" value="${desc}" />
+window.addOptionRow = (name='',artikelnr='',inkoop='',price='')=>{
+  const ed=document.getElementById('block-options-editor');
+  const row=document.createElement('div');
+  row.className='option-row';
+  row.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:6px;align-items:center;margin-bottom:6px';
+  row.innerHTML=`
+    <input type="text" placeholder="Omschrijving" value="${name}" />
+    <input type="text" placeholder="Artikelnummer" value="${artikelnr}" />
+    <input type="number" placeholder="0.00" min="0" step="0.01" value="${inkoop}" style="text-align:right" />
     <input type="number" placeholder="0.00" min="0" step="0.01" value="${price}" style="text-align:right" />
     <button class="btn btn-sm btn-red" onclick="this.parentElement.remove()">×</button>`;
   ed.appendChild(row);
 };
-window.saveBlock = async function(){
-  const merkId  = document.getElementById('sel-merk-filter').value;
-  const title   = document.getElementById('block-naam').value.trim();
-  const required= document.getElementById('block-req').value === '1';
-  const editId  = document.getElementById('block-edit-id').value;
+window.saveBlock = async ()=>{
+  const merkId=document.getElementById('sel-merk-filter').value;
+  const title=document.getElementById('block-naam').value.trim();
+  const required=document.getElementById('block-req').value==='1';
+  const editId=document.getElementById('block-edit-id').value;
   if(!title){alert('Vul een bloknaam in');return}
-  const rows = document.querySelectorAll('#block-options-editor .option-row');
-  const options = [];
+  const rows=document.querySelectorAll('#block-options-editor .option-row');
+  const options=[];
   rows.forEach(r=>{
-    const inputs = r.querySelectorAll('input');
-    const name = inputs[0].value.trim();
-    if(name) options.push({name, desc:inputs[1].value.trim(), price:inputs[2].value.trim()});
+    const inp=r.querySelectorAll('input');
+    const name=inp[0].value.trim();
+    if(name) options.push({name,artikelnr:inp[1].value.trim(),inkoop:inp[2].value.trim(),price:inp[3].value.trim()});
   });
   if(!options.length){alert('Voeg minimaal één optie toe');return}
-  const blocks = [...(prijslijsten[merkId]||[])];
-  const newBlock = {id: editId||'b'+Date.now(), title, required, options};
-  if(editId){
-    const idx = blocks.findIndex(b=>b.id===editId);
-    if(idx>-1) blocks[idx] = newBlock; else blocks.push(newBlock);
-  } else {
-    blocks.push(newBlock);
-  }
-  await setDoc(doc(db,'prijslijsten',merkId), {blocks});
+  const blocks=[...(prijslijsten[merkId]||[])];
+  const nb={id:editId||'b'+Date.now(),title,required,options};
+  if(editId){const idx=blocks.findIndex(b=>b.id===editId);if(idx>-1)blocks[idx]=nb;else blocks.push(nb);}
+  else blocks.push(nb);
+  await setDoc(doc(db,'prijslijsten',merkId),{blocks});
   showSaving(); closeModal('modal-block');
 };
-window.deleteBlock = async function(merkId, blockId){
+window.deleteBlock = async (merkId,blockId)=>{
   if(!confirm('Blok verwijderen?'))return;
-  const blocks = (prijslijsten[merkId]||[]).filter(b=>b.id!==blockId);
-  await setDoc(doc(db,'prijslijsten',merkId), {blocks});
+  const blocks=(prijslijsten[merkId]||[]).filter(b=>b.id!==blockId);
+  await setDoc(doc(db,'prijslijsten',merkId),{blocks});
   showSaving();
 };
 </script>

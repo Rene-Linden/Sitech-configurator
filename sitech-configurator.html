@@ -11,6 +11,7 @@
   --blue:#185FA5;--blue-light:#E6F1FB;--blue-mid:#378ADD;
   --green:#3B6D11;--green-light:#EAF3DE;
   --red:#A32D2D;--red-light:#FCEBEB;
+  --amber:#854F0B;--amber-light:#FAEEDA;
   --gray-bg:#F7F7F6;--gray-border:rgba(0,0,0,0.12);--gray-text:#5F5E5A;
   --white:#fff;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 }
@@ -59,6 +60,17 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 .check-icon{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--blue);display:none;align-items:center;justify-content:center}
 .product-option.selected .check-icon{display:flex}
 .check-icon svg{width:10px;height:10px}
+/* TOTAALKAART */
+.totaal-card{background:var(--white);border-radius:10px;border:0.5px solid var(--gray-border);margin-top:1.5rem;overflow:hidden}
+.totaal-header{padding:12px 18px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border);font-size:14px;font-weight:500}
+.totaal-row{display:flex;justify-content:space-between;align-items:center;padding:11px 18px;border-bottom:0.5px solid var(--gray-border);font-size:14px}
+.totaal-row:last-child{border-bottom:none}
+.totaal-row.sum{background:var(--blue-light);font-weight:500}
+.totaal-row.sum-green{background:var(--green-light);font-weight:500}
+.totaal-label{color:var(--gray-text)}
+.totaal-value{font-weight:500}
+.internal-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--amber-light);color:var(--amber);border:0.5px solid rgba(133,79,11,.2);margin-left:8px}
+/* FORM */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .form-group{display:flex;flex-direction:column;gap:6px}
 .form-group.full{grid-column:1/-1}
@@ -67,9 +79,9 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 .form-group input:focus,.form-group textarea:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(55,138,221,.15)}
 .req{color:var(--red)}
 .summary-block{background:var(--white);border-radius:10px;border:0.5px solid var(--gray-border);margin-bottom:1rem;overflow:hidden}
-.summary-row{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:0.5px solid var(--gray-border);font-size:14px}
+.summary-row{display:flex;justify-content:space-between;align-items:baseline;padding:11px 16px;border-bottom:0.5px solid var(--gray-border);font-size:14px}
 .summary-row:last-child{border-bottom:none}
-.summary-row .label{color:var(--gray-text)}
+.summary-row .label{color:var(--gray-text);flex-shrink:0;margin-right:12px}
 .summary-row .value{font-weight:500;text-align:right}
 .summary-row .value.none{color:var(--gray-text);font-style:italic;font-weight:400}
 .nav-bar{display:flex;align-items:center;justify-content:space-between;padding-top:1.5rem;border-top:0.5px solid var(--gray-border);margin-top:2rem}
@@ -92,6 +104,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 <body>
 
 <div id="loading-screen"><div class="spinner"></div></div>
+
 <div id="login-screen">
   <div class="login-card">
     <div class="logo">Sitech</div>
@@ -120,12 +133,34 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
     <div class="step-line"></div>
     <div class="step-item"><div class="step-dot" id="dot3">3</div><span class="step-label" id="lbl3">Bevestigen</span></div>
   </div>
+
+  <!-- STAP 1: Producten + totaal -->
   <div id="step1" class="content">
     <div class="section-title">Producten selecteren</div>
     <div class="section-sub">Maak per blok één keuze. Verplichte blokken moeten ingevuld worden.</div>
     <div id="blocks-container"></div>
+
+    <!-- Totaalkaart -->
+    <div class="totaal-card" id="totaal-card" style="display:none">
+      <div class="totaal-header">
+        Prijsoverzicht geselecteerde producten
+        <span class="internal-badge">Alleen intern zichtbaar</span>
+      </div>
+      <div id="totaal-regels"></div>
+      <div class="totaal-row sum">
+        <span class="totaal-label">Totaal inkoopprijs</span>
+        <span class="totaal-value" id="totaal-inkoop">€ 0,00</span>
+      </div>
+      <div class="totaal-row sum-green">
+        <span class="totaal-label">Totaal verkoopadviesprijs</span>
+        <span class="totaal-value" id="totaal-verkoop">€ 0,00</span>
+      </div>
+    </div>
+
     <div class="nav-bar"><div></div><button class="btn-next" onclick="goStep2()">Volgende →</button></div>
   </div>
+
+  <!-- STAP 2: Klantgegevens -->
   <div id="step2" class="content" style="display:none">
     <div class="section-title">Klantgegevens</div>
     <div class="section-sub">Vul de gegevens in van de eindklant.</div>
@@ -145,23 +180,31 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
       <button class="btn-next" onclick="goStep3()">Controleren →</button>
     </div>
   </div>
+
+  <!-- STAP 3: Overzicht -->
   <div id="step3" class="content" style="display:none">
     <div class="section-title">Overzicht &amp; verzenden</div>
-    <div class="section-sub">Controleer de aanvraag. De klant ontvangt een bevestiging zonder prijzen. Sitech ontvangt een volledige kopie.</div>
+    <div class="section-sub">Controleer de aanvraag. De klant ontvangt een bevestiging zonder prijzen. Sitech ontvangt een volledige kopie inclusief prijzen.</div>
     <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Geselecteerde producten</div>
     <div class="summary-block" id="summary-products"></div>
     <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px;margin-top:1.25rem">Klantgegevens</div>
     <div class="summary-block" id="summary-customer"></div>
+    <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px;margin-top:1.25rem">
+      Prijsoverzicht <span class="internal-badge" style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--amber-light);color:var(--amber);border:0.5px solid rgba(133,79,11,.2);margin-left:4px">Alleen intern</span>
+    </div>
+    <div class="summary-block" id="summary-prijzen"></div>
     <div class="nav-bar">
       <button class="btn-back" onclick="goStep2back()">← Terug</button>
       <button class="btn-submit" id="btn-submit" onclick="submitForm()">Aanvraag verzenden</button>
     </div>
   </div>
+
+  <!-- SUCCES -->
   <div id="step-success" class="content" style="display:none">
     <div class="success-card">
       <div class="success-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
       <h2>Aanvraag verstuurd</h2>
-      <p>De klant ontvangt een bevestiging op <strong id="success-email"></strong>.<br>Sitech heeft ook een kopie ontvangen.</p>
+      <p>De klant ontvangt een bevestiging op <strong id="success-email"></strong>.<br>Sitech heeft ook een kopie ontvangen inclusief prijzen.</p>
       <button class="btn-reset" onclick="resetAll()">Nieuwe aanvraag starten</button>
     </div>
   </div>
@@ -171,18 +214,12 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-// ============================================================
-// EMAILJS — pas deze waarden aan
-// ============================================================
 const EMAILJS_PUBLIC_KEY      = 'UW_PUBLIC_KEY';
 const EMAILJS_SERVICE_ID      = 'UW_SERVICE_ID';
 const EMAILJS_TEMPLATE_KLANT  = 'template_klant';
 const EMAILJS_TEMPLATE_SITECH = 'template_sitech';
 const SITECH_VERKOPER_EMAIL   = 'verkoper@sitech.nl';
 
-// ============================================================
-// FIREBASE CONFIG
-// ============================================================
 const firebaseConfig = {
   apiKey: "AIzaSyBktIXqssmyaVo_VRuPXkDAPiytsSn QjjM",
   authDomain: "sitech-configurator.firebaseapp.com",
@@ -195,64 +232,56 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
-let merken = [], gebruikers = [], prijslijsten = {};
-let currentUser = null, currentMerk = null, selections = {};
+let merken=[], gebruikers=[], prijslijsten={};
+let currentUser=null, currentMerk=null, selections={};
 
-// Laad data bij opstarten
 async function loadData(){
-  const [mSnap, uSnap, pSnap] = await Promise.all([
+  const [mS,uS,pS] = await Promise.all([
     getDocs(collection(db,'merken')),
     getDocs(collection(db,'gebruikers')),
     getDocs(collection(db,'prijslijsten')),
   ]);
-  merken      = mSnap.docs.map(d=>({id:d.id,...d.data()}));
-  gebruikers  = uSnap.docs.map(d=>({id:d.id,...d.data()}));
-  pSnap.docs.forEach(d=>{ prijslijsten[d.id] = d.data().blocks||[]; });
-  document.getElementById('loading-screen').style.display = 'none';
-  document.getElementById('login-screen').style.display   = 'flex';
+  merken     = mS.docs.map(d=>({id:d.id,...d.data()}));
+  gebruikers = uS.docs.map(d=>({id:d.id,...d.data()}));
+  pS.docs.forEach(d=>{ prijslijsten[d.id]=d.data().blocks||[]; });
+  document.getElementById('loading-screen').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
 }
 loadData();
 
-// ============================================================
-// AUTH
-// ============================================================
 window.doLogin = function(){
-  const username = document.getElementById('pw-user').value.trim();
-  const pw       = document.getElementById('pw-input').value;
-  const err      = document.getElementById('login-error');
-  const user     = gebruikers.find(u=>u.naam===username&&u.pw===pw&&u.status==='actief');
-  if(!user){err.style.display='block';return}
-  err.style.display = 'none';
-  currentUser = user;
-  currentMerk = merken.find(m=>m.id===user.merkId);
-  selections  = {};
-  document.getElementById('user-badge').textContent = currentMerk?currentMerk.naam:username;
-  document.getElementById('login-screen').style.display  = 'none';
-  document.getElementById('app-screen').style.display    = 'block';
+  const username=document.getElementById('pw-user').value.trim();
+  const pw=document.getElementById('pw-input').value;
+  const user=gebruikers.find(u=>u.naam===username&&u.pw===pw&&u.status==='actief');
+  if(!user){document.getElementById('login-error').style.display='block';return}
+  document.getElementById('login-error').style.display='none';
+  currentUser=user;
+  currentMerk=merken.find(m=>m.id===user.merkId);
+  selections={};
+  document.getElementById('user-badge').textContent=currentMerk?currentMerk.naam:username;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
   renderBlocks();
 };
 window.doLogout = function(){
-  currentUser = null; currentMerk = null; selections = {};
-  document.getElementById('pw-user').value  = '';
-  document.getElementById('pw-input').value = '';
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('app-screen').style.display   = 'none';
+  currentUser=null; currentMerk=null; selections={};
+  document.getElementById('pw-user').value='';
+  document.getElementById('pw-input').value='';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app-screen').style.display='none';
   showStep('step1');
 };
 
-// ============================================================
-// BLOCKS
-// ============================================================
-function getBlocks(){ return currentMerk ? (prijslijsten[currentMerk.id]||[]) : []; }
+function getBlocks(){ return currentMerk?(prijslijsten[currentMerk.id]||[]):[] }
 
 function renderBlocks(){
-  const blocks = getBlocks();
-  const container = document.getElementById('blocks-container');
+  const blocks=getBlocks();
+  const container=document.getElementById('blocks-container');
   if(!blocks.length){
     container.innerHTML='<div style="color:var(--gray-text);font-size:14px;padding:1rem 0">Er zijn nog geen producten geconfigureerd voor dit merk.</div>';
     return;
   }
-  container.innerHTML = blocks.map((b,bi)=>`
+  container.innerHTML=blocks.map((b,bi)=>`
     <div class="block-card">
       <div class="block-header">
         <div class="block-number">${bi+1}</div>
@@ -264,97 +293,160 @@ function renderBlocks(){
           <div class="product-option" id="opt-${bi}-${oi}" onclick="selectOption(${bi},${oi})">
             <div class="check-icon"><svg viewBox="0 0 10 8" fill="none" stroke="#fff" stroke-width="1.8"><polyline points="1 4 3.5 7 9 1"/></svg></div>
             <div class="prod-name">${opt.name}</div>
-            <div class="prod-desc">${opt.desc||''}</div>
+            <div class="prod-desc">${opt.artikelnr?'Art: '+opt.artikelnr:''}</div>
           </div>`).join('')}
       </div>
     </div>`).join('');
+  updateTotaal();
 }
+
 window.selectOption = function(bi,oi){
-  const blocks = getBlocks();
+  const blocks=getBlocks();
   blocks[bi].options.forEach((_,i)=>document.getElementById(`opt-${bi}-${i}`).classList.remove('selected'));
   document.getElementById(`opt-${bi}-${oi}`).classList.add('selected');
-  selections[bi] = {block:blocks[bi].title, option:blocks[bi].options[oi].name};
+  selections[bi]={block:blocks[bi].title, option:blocks[bi].options[oi]};
+  updateTotaal();
 };
 
-// ============================================================
-// STEPS
-// ============================================================
+function updateTotaal(){
+  const blocks=getBlocks();
+  if(!blocks.length) return;
+  let totalInkoop=0, totalVerkoop=0;
+  const regels=[];
+  blocks.forEach((b,bi)=>{
+    const s=selections[bi];
+    if(s){
+      const inkoop=parseFloat(s.option.inkoop||0);
+      const verkoop=parseFloat(s.option.price||0);
+      totalInkoop+=inkoop;
+      totalVerkoop+=verkoop;
+      regels.push({blok:b.title, naam:s.option.name, inkoop, verkoop});
+    }
+  });
+  const card=document.getElementById('totaal-card');
+  if(!regels.length){card.style.display='none';return}
+  card.style.display='block';
+  document.getElementById('totaal-regels').innerHTML=regels.map(r=>`
+    <div class="totaal-row">
+      <span class="totaal-label">${r.blok}: <strong style="color:#1a1a1a">${r.naam}</strong></span>
+      <span class="totaal-value" style="display:flex;gap:24px">
+        <span style="color:var(--gray-text);font-weight:400">${r.inkoop?'€\u00a0'+r.inkoop.toFixed(2):''}</span>
+        <span style="color:var(--blue)">${r.verkoop?'€\u00a0'+r.verkoop.toFixed(2):''}</span>
+      </span>
+    </div>`).join('');
+  document.getElementById('totaal-inkoop').textContent='€\u00a0'+totalInkoop.toFixed(2).replace('.',',');
+  document.getElementById('totaal-verkoop').textContent='€\u00a0'+totalVerkoop.toFixed(2).replace('.',',');
+}
+
 function showStep(id){
   ['step1','step2','step3','step-success'].forEach(s=>{
-    document.getElementById(s).style.display = s===id?'':'none';
+    document.getElementById(s).style.display=s===id?'':'none';
   });
 }
 function updateStepper(a){
   [1,2,3].forEach(n=>{
-    document.getElementById('dot'+n).className = 'step-dot'+(n===a?' active':n<a?' done':'');
-    document.getElementById('lbl'+n).className = 'step-label'+(n===a?' active':'');
+    document.getElementById('dot'+n).className='step-dot'+(n===a?' active':n<a?' done':'');
+    document.getElementById('lbl'+n).className='step-label'+(n===a?' active':'');
   });
 }
-window.goStep2 = function(){
-  const blocks = getBlocks();
+
+window.goStep2=function(){
+  const blocks=getBlocks();
   for(let i=0;i<blocks.length;i++){
     if(blocks[i].required&&!selections[i]){alert(`Maak een keuze bij: "${blocks[i].title}"`);return}
   }
   showStep('step2'); updateStepper(2);
 };
-window.goStep1     = function(){ showStep('step1'); updateStepper(1); };
-window.goStep2back = function(){ showStep('step2'); updateStepper(2); };
-window.goStep3 = function(){
+window.goStep1    =()=>{showStep('step1');updateStepper(1)};
+window.goStep2back=()=>{showStep('step2');updateStepper(2)};
+window.goStep3=function(){
   if(!['f-company','f-contact','f-email'].every(id=>document.getElementById(id).value.trim())){
-    alert('Vul alle verplichte velden in (*)'); return;
+    alert('Vul alle verplichte velden in (*)');return;
   }
   buildSummary(); showStep('step3'); updateStepper(3);
 };
+
 function buildSummary(){
-  const blocks = getBlocks();
-  document.getElementById('summary-products').innerHTML = blocks.map((b,bi)=>{
-    const s = selections[bi];
-    return `<div class="summary-row"><span class="label">${b.title}</span><span class="value ${s?'':'none'}">${s?s.option:'Geen keuze'}</span></div>`;
+  const blocks=getBlocks();
+  document.getElementById('summary-products').innerHTML=blocks.map((b,bi)=>{
+    const s=selections[bi];
+    return `<div class="summary-row"><span class="label">${b.title}</span><span class="value ${s?'':'none'}">${s?s.option.name:'Geen keuze'}</span></div>`;
   }).join('');
-  const fields = [['Bedrijfsnaam','f-company'],['Contactpersoon','f-contact'],['E-mailadres','f-email'],['Telefoon','f-phone'],['Referentie','f-ref'],['Leverdatum','f-date'],['Opmerkingen','f-notes']];
-  document.getElementById('summary-customer').innerHTML = fields.map(([l,id])=>{
-    const v = document.getElementById(id).value.trim();
+  const fields=[['Bedrijfsnaam','f-company'],['Contactpersoon','f-contact'],['E-mailadres','f-email'],['Telefoon','f-phone'],['Referentie','f-ref'],['Leverdatum','f-date'],['Opmerkingen','f-notes']];
+  document.getElementById('summary-customer').innerHTML=fields.map(([l,id])=>{
+    const v=document.getElementById(id).value.trim();
     return v?`<div class="summary-row"><span class="label">${l}</span><span class="value">${v}</span></div>`:'';
   }).join('');
+  let totalInkoop=0, totalVerkoop=0;
+  const prijsHTML=blocks.map((b,bi)=>{
+    const s=selections[bi];
+    if(!s) return '';
+    const inkoop=parseFloat(s.option.inkoop||0);
+    const verkoop=parseFloat(s.option.price||0);
+    totalInkoop+=inkoop;
+    totalVerkoop+=verkoop;
+    return `<div class="summary-row">
+      <span class="label">${b.title}: ${s.option.name}</span>
+      <span class="value" style="display:flex;gap:20px">
+        <span style="color:var(--gray-text);font-weight:400">${inkoop?'Inkoop: €\u00a0'+inkoop.toFixed(2):''}</span>
+        <span style="color:var(--blue)">${verkoop?'Advies: €\u00a0'+verkoop.toFixed(2):''}</span>
+      </span>
+    </div>`;
+  }).join('');
+  document.getElementById('summary-prijzen').innerHTML=prijsHTML+
+    `<div class="summary-row" style="background:var(--blue-light)"><span class="label">Totaal inkoop</span><span class="value">€\u00a0${totalInkoop.toFixed(2)}</span></div>`+
+    `<div class="summary-row" style="background:var(--green-light)"><span class="label">Totaal verkoopadvies</span><span class="value">€\u00a0${totalVerkoop.toFixed(2)}</span></div>`;
 }
 
-// ============================================================
-// SUBMIT
-// ============================================================
-window.submitForm = function(){
-  const btn = document.getElementById('btn-submit');
-  btn.disabled = true; btn.textContent = 'Versturen…';
-  emailjs.init({publicKey: EMAILJS_PUBLIC_KEY});
-  const klantEmail = document.getElementById('f-email').value.trim();
-  const products = getBlocks().map((b,bi)=>{
-    const s = selections[bi];
-    return `${b.title}: ${s?s.option:'geen keuze'}`;
+window.submitForm=function(){
+  const btn=document.getElementById('btn-submit');
+  btn.disabled=true; btn.textContent='Versturen…';
+  emailjs.init({publicKey:EMAILJS_PUBLIC_KEY});
+  const klantEmail=document.getElementById('f-email').value.trim();
+  const blocks=getBlocks();
+  const productsKlant=blocks.map((b,bi)=>{
+    const s=selections[bi];
+    return s?`${b.title}: ${s.option.name}`:`${b.title}: geen keuze`;
   }).join('\n');
-  const params = {
-    company: document.getElementById('f-company').value.trim(),
-    contact: document.getElementById('f-contact').value.trim(),
-    email:   klantEmail,
-    phone:   document.getElementById('f-phone').value.trim(),
-    ref:     document.getElementById('f-ref').value.trim(),
-    date:    document.getElementById('f-date').value,
-    notes:   document.getElementById('f-notes').value.trim(),
-    user_brand: currentMerk?currentMerk.naam:'',
-    products,
+  const productsSitech=blocks.map((b,bi)=>{
+    const s=selections[bi];
+    if(!s) return `${b.title}: geen keuze`;
+    const inkoop=parseFloat(s.option.inkoop||0);
+    const verkoop=parseFloat(s.option.price||0);
+    return `${b.title}: ${s.option.name}${s.option.artikelnr?' ['+s.option.artikelnr+']':''} | Inkoop: €${inkoop.toFixed(2)} | Advies: €${verkoop.toFixed(2)}`;
+  }).join('\n');
+  let totInkoop=0, totVerkoop=0;
+  blocks.forEach((_,bi)=>{ const s=selections[bi]; if(s){totInkoop+=parseFloat(s.option.inkoop||0);totVerkoop+=parseFloat(s.option.price||0);} });
+  const baseParams={
+    company:document.getElementById('f-company').value.trim(),
+    contact:document.getElementById('f-contact').value.trim(),
+    email:klantEmail,
+    phone:document.getElementById('f-phone').value.trim(),
+    ref:document.getElementById('f-ref').value.trim(),
+    date:document.getElementById('f-date').value,
+    notes:document.getElementById('f-notes').value.trim(),
+    user_brand:currentMerk?currentMerk.naam:'',
   };
   Promise.all([
-    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_KLANT,  {...params, to_email:klantEmail}),
-    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_SITECH, {...params, to_email:SITECH_VERKOPER_EMAIL}),
+    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_KLANT,
+      {...baseParams, products:productsKlant, to_email:klantEmail}),
+    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_SITECH,
+      {...baseParams, products:productsSitech,
+       totaal_inkoop:'€ '+totInkoop.toFixed(2),
+       totaal_verkoop:'€ '+totVerkoop.toFixed(2),
+       to_email:SITECH_VERKOPER_EMAIL}),
   ]).then(()=>{
-    document.getElementById('success-email').textContent = klantEmail;
+    document.getElementById('success-email').textContent=klantEmail;
     showStep('step-success'); updateStepper(4);
   }).catch(err=>{
     console.error(err);
-    alert('Fout bij verzenden. Controleer de EmailJS-instellingen.\n\n'+JSON.stringify(err));
-    btn.disabled = false; btn.textContent = 'Aanvraag verzenden';
+    alert('Fout bij verzenden.\n\n'+JSON.stringify(err));
+    btn.disabled=false; btn.textContent='Aanvraag verzenden';
   });
 };
-window.resetAll = function(){
-  selections = {};
+
+window.resetAll=function(){
+  selections={};
   ['f-company','f-contact','f-email','f-phone','f-ref','f-date','f-notes'].forEach(id=>document.getElementById(id).value='');
   renderBlocks(); showStep('step1'); updateStepper(1);
 };
