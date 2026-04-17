@@ -232,7 +232,7 @@ tr:hover td{background:var(--gray-bg)}
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-excel')">Annuleren</button>
-      <button class="btn btn-blue" onclick="confirmExcelImport()">Importeren &amp; overschrijven</button>
+      <button class="btn btn-blue" id="btn-confirm-excel">Importeren &amp; overschrijven</button>
     </div>
   </div>
 </div>
@@ -482,6 +482,16 @@ window.deleteBlock = async (merkId,blockId)=>{
   showSaving();
 };
 
+// Confirm Excel import
+document.getElementById('btn-confirm-excel').addEventListener('click', async ()=>{
+  const merkId = document.getElementById('sel-merk-filter').value;
+  if(!pendingExcelBlocks||!merkId) return;
+  await setDoc(doc(db,'prijslijsten',merkId), {blocks: pendingExcelBlocks});
+  pendingExcelBlocks = null;
+  showSaving('Prijslijst geïmporteerd');
+  closeModal('modal-excel');
+});
+
 // Wire Excel upload button after DOM is ready
 document.getElementById('btn-excel-upload').addEventListener('click', ()=>{
   const merkId = document.getElementById('sel-merk-filter').value;
@@ -507,7 +517,7 @@ document.getElementById('excel-upload').addEventListener('change', (event)=>{
   reader.onload = e => {
     try {
       const data = new Uint8Array(e.target.result);
-      const wb   = XLSX.read(data, {type:'uint8array'});
+      const wb   = XLSX.read(data, {type:'array'});
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
       const firstCell = String(rows[0]?.[0]||'');
