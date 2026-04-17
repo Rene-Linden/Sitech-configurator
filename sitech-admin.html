@@ -143,7 +143,7 @@ tr:hover td{background:var(--gray-bg)}
 
       <div class="panel" id="panel-prijslijsten">
         <div class="panel-title">Prijslijsten</div>
-        <div class="panel-sub">Upload een Excel-bestand per merk of beheer blokken handmatig.</div>
+        <div class="panel-sub">Upload een Excel-bestand per merk of beheer blokken handmatig. Kolom E = bloknummer, kolom F = kleuraccent (blue/yellow, alleen blok 1).</div>
         <div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <select id="sel-merk-filter" onchange="renderPrijslijst()" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
             <option value="">— Selecteer merk —</option>
@@ -153,6 +153,14 @@ tr:hover td{background:var(--gray-bg)}
           <button class="btn" id="btn-pdf-download" style="border-color:rgba(133,79,11,.3);color:var(--amber);background:var(--amber-light)">PDF prijslijst</button>
           <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none" />
           <span id="excel-status" style="font-size:13px;color:var(--gray-text)"></span>
+        </div>
+        <!-- BLOKNAMEN EDITOR -->
+        <div id="bloknamen-editor" style="display:none;margin-bottom:1.25rem">
+          <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Bloknamen — pas de weergavenaam per blok aan</div>
+          <div class="card" style="padding:14px">
+            <div id="bloknamen-rows"></div>
+            <div style="margin-top:8px;font-size:12px;color:var(--gray-text)">Bloknamen worden automatisch aangemaakt vanuit de Excel. Pas ze hier aan naar wens.</div>
+          </div>
         </div>
         <div class="info-box" id="excel-info" style="display:none"></div>
         <div id="prijslijst-editor"></div>
@@ -237,8 +245,8 @@ tr:hover td{background:var(--gray-bg)}
         <div class="fg"><label>Bloknaam *</label><input type="text" id="block-naam" placeholder="Bijv. Type verwarmingsunit" /></div>
         <div class="fg"><label>Verplicht?</label><select id="block-req"><option value="1">Ja — verplicht</option><option value="0">Nee — optioneel</option></select></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:6px;font-size:11px;font-weight:500;color:var(--gray-text);padding:0 2px;margin-bottom:4px;margin-top:8px">
-        <span>Omschrijving</span><span>Artikelnummer</span><span>Inkoopprijs (€)</span><span>Verkoopadvies (€)</span><span></span>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 80px auto;gap:6px;font-size:11px;font-weight:500;color:var(--gray-text);padding:0 2px;margin-bottom:4px;margin-top:8px">
+        <span>Omschrijving</span><span>Artikelnummer</span><span>Inkoopprijs (€)</span><span>Verkoopadvies (€)</span><span>Kleur</span><span></span>
       </div>
       <div id="block-options-editor"></div>
       <button class="btn btn-sm" onclick="addOptionRow()" style="margin-top:8px">+ Optie toevoegen</button>
@@ -445,15 +453,29 @@ function renderMerkFilterOpties(){
   if(cur) sel.value = cur;
   renderPrijslijst();
 }
+
 function renderPrijslijst(){
-  const merkId=document.getElementById('sel-merk-filter').value;
-  const container=document.getElementById('prijslijst-editor');
-  if(!merkId){container.innerHTML='<div style="color:var(--gray-text);font-size:14px">Selecteer eerst een merk.</div>';return}
-  const blocks=prijslijsten[merkId]||[];
-  if(!blocks.length){container.innerHTML='<div style="color:var(--gray-text);font-size:14px;padding:1rem 0">Nog geen blokken. Upload een Excel of klik op "+ Blok handmatig".</div>';return}
-  container.innerHTML = blocks.map(b=>`
-    <div class="block-editor">
+  const merkId = document.getElementById('sel-merk-filter').value;
+  const container = document.getElementById('prijslijst-editor');
+  const bloknamenEditor = document.getElementById('bloknamen-editor');
+  if(!merkId){
+    container.innerHTML='<div style="color:var(--gray-text);font-size:14px">Selecteer eerst een merk.</div>';
+    bloknamenEditor.style.display='none';
+    return;
+  }
+  const blocks = prijslijsten[merkId] || [];
+  if(!blocks.length){
+    container.innerHTML='<div style="color:var(--gray-text);font-size:14px;padding:1rem 0">Nog geen blokken. Upload een Excel of klik op "+ Blok handmatig".</div>';
+    bloknamenEditor.style.display='none';
+    return;
+  }
+  bloknamenEditor.style.display='block';
+  renderBloknamenRows(merkId, blocks);
+  container.innerHTML = blocks.map(b=>{
+    const isBlok1 = String(b.blokNr||'') === '1' || blocks.indexOf(b)===0;
+    return `<div class="block-editor">
       <div class="block-editor-header">
+        <span style="font-size:11px;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:20px;margin-right:6px">${b.blokNr||'?'}</span>
         <span style="font-size:13px;font-weight:500;flex:1">${b.title}</span>
         <span style="font-size:12px;color:var(--gray-text);margin-right:8px">${b.required?'Verplicht':'Optioneel'} · ${b.options.length} optie${b.options.length!==1?'s':''}</span>
         <button class="btn btn-sm" style="margin-right:4px" onclick="editBlock('${merkId}','${b.id}')">Bewerken</button>
@@ -461,17 +483,45 @@ function renderPrijslijst(){
       </div>
       <div class="block-editor-body">
         <table style="font-size:12px;width:100%">
-          <thead><tr><th>Omschrijving</th><th>Artikelnr.</th><th style="text-align:right">Inkoop</th><th style="text-align:right">Verkoopadvies</th></tr></thead>
-          <tbody>${b.options.map(o=>`<tr>
-            <td style="font-weight:500">${o.name}</td>
-            <td style="color:var(--gray-text)">${o.artikelnr||''}</td>
-            <td style="text-align:right;color:var(--gray-text)">${o.inkoop?'€\u00a0'+parseFloat(o.inkoop).toFixed(2):'—'}</td>
-            <td style="text-align:right;color:var(--blue)">${o.price?'€\u00a0'+parseFloat(o.price).toFixed(2):'—'}</td>
-          </tr>`).join('')}</tbody>
+          <thead><tr><th>Omschrijving</th><th>Artikelnr.</th><th style="text-align:right">Inkoop</th><th style="text-align:right">Verkoopadvies</th>${isBlok1?'<th>Kleur</th>':''}</tr></thead>
+          <tbody>${b.options.map(o=>{
+            const kleur = o.color==='yellow'
+              ? '<span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#FDE68A;border:1px solid #D97706;vertical-align:middle"></span>'
+              : o.color==='blue'
+              ? '<span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#BFDBFE;border:1px solid #185FA5;vertical-align:middle"></span>'
+              : '<span style="color:var(--gray-text)">—</span>';
+            return `<tr>
+              <td style="font-weight:500">${o.name}</td>
+              <td style="color:var(--gray-text)">${o.artikelnr||''}</td>
+              <td style="text-align:right;color:var(--gray-text)">${o.inkoop?'€\u00a0'+parseFloat(o.inkoop).toFixed(2):'—'}</td>
+              <td style="text-align:right;color:var(--blue)">${o.price?'€\u00a0'+parseFloat(o.price).toFixed(2):'—'}</td>
+              ${isBlok1?`<td>${kleur}</td>`:''}
+            </tr>`;
+          }).join('')}</tbody>
         </table>
       </div>
+    </div>`;
+  }).join('');
+}
+
+function renderBloknamenRows(merkId, blocks){
+  const container = document.getElementById('bloknamen-rows');
+  container.innerHTML = blocks.map(b=>`
+    <div style="display:grid;grid-template-columns:60px 1fr auto;gap:8px;align-items:center;margin-bottom:8px">
+      <div style="font-size:12px;background:var(--blue-light);color:var(--blue);padding:3px 8px;border-radius:20px;text-align:center;font-weight:500">Blok ${b.blokNr||'?'}</div>
+      <input type="text" value="${b.title}" onchange="renameBlock('${merkId}','${b.id}',this.value)"
+        style="padding:7px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px;outline:none" />
+      <span style="font-size:12px;color:var(--gray-text)">${b.options.length} optie${b.options.length!==1?'s':''}</span>
     </div>`).join('');
 }
+
+window.renameBlock = async function(merkId, blockId, newTitle){
+  const blocks = [...(prijslijsten[merkId]||[])];
+  const idx = blocks.findIndex(b=>b.id===blockId);
+  if(idx>-1){ blocks[idx] = {...blocks[idx], title: newTitle}; }
+  await setDoc(doc(db,'prijslijsten',merkId),{blocks});
+  showSaving('Bloknaam opgeslagen');
+};
 
 // ============================================================
 // AANVRAGEN
@@ -590,19 +640,24 @@ window.editBlock = (merkId,blockId)=>{
   document.getElementById('modal-block-title').textContent='Blok bewerken';
   const ed=document.getElementById('block-options-editor');
   ed.innerHTML='';
-  block.options.forEach(o=>addOptionRow(o.name,o.artikelnr||'',o.inkoop||'',o.price||''));
+  block.options.forEach(o=>addOptionRow(o.name,o.artikelnr||'',o.inkoop||'',o.price||'',o.color||''));
   openModal('modal-block');
 };
-window.addOptionRow = (name='',artikelnr='',inkoop='',price='')=>{
+window.addOptionRow = (name='',artikelnr='',inkoop='',price='',color='')=>{
   const ed=document.getElementById('block-options-editor');
   const row=document.createElement('div');
   row.className='option-row';
-  row.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:6px;align-items:center;margin-bottom:6px';
+  row.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr 1fr 80px auto;gap:6px;align-items:center;margin-bottom:6px';
   row.innerHTML=`
     <input type="text" placeholder="Omschrijving" value="${name}" />
     <input type="text" placeholder="Artikelnummer" value="${artikelnr}" />
     <input type="number" placeholder="0.00" min="0" step="0.01" value="${inkoop}" style="text-align:right" />
     <input type="number" placeholder="0.00" min="0" step="0.01" value="${price}" style="text-align:right" />
+    <select style="padding:5px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px">
+      <option value="" ${!color?'selected':''}>—</option>
+      <option value="blue" ${color==='blue'?'selected':''} style="background:#BFDBFE">Blauw</option>
+      <option value="yellow" ${color==='yellow'?'selected':''} style="background:#FDE68A">Geel</option>
+    </select>
     <button class="btn btn-sm btn-red" onclick="this.parentElement.remove()">×</button>`;
   ed.appendChild(row);
 };
@@ -616,12 +671,14 @@ window.saveBlock = async ()=>{
   const options=[];
   rows.forEach(r=>{
     const inp=r.querySelectorAll('input');
+    const sel=r.querySelector('select');
     const name=inp[0].value.trim();
-    if(name) options.push({name,artikelnr:inp[1].value.trim(),inkoop:inp[2].value.trim(),price:inp[3].value.trim()});
+    if(name) options.push({name,artikelnr:inp[1].value.trim(),inkoop:inp[2].value.trim(),price:inp[3].value.trim(),color:sel?sel.value:''});
   });
   if(!options.length){alert('Voeg minimaal één optie toe');return}
   const blocks=[...(prijslijsten[merkId]||[])];
-  const nb={id:editId||'b'+Date.now(),title,required,options};
+  const existingBlock = editId ? blocks.find(b=>b.id===editId) : null;
+  const nb={id:editId||'b'+Date.now(),title,required,options,blokNr:existingBlock?.blokNr||''};
   if(editId){const idx=blocks.findIndex(b=>b.id===editId);if(idx>-1)blocks[idx]=nb;else blocks.push(nb);}
   else blocks.push(nb);
   await setDoc(doc(db,'prijslijsten',merkId),{blocks});
@@ -746,29 +803,34 @@ document.getElementById('excel-upload').addEventListener('change', (event)=>{
         const artikelnr    = String(r[1]||'').trim();
         const inkoop       = String(r[2]||'').trim().replace(',','.');
         const verkoop      = String(r[3]||'').trim().replace(',','.');
-        const bloknaam     = String(r[4]||'Overig').trim();
+        const blokNr       = String(r[4]||'1').trim();
+        const color        = String(r[5]||'').trim().toLowerCase();
         if(!omschrijving) return;
-        if(!blokMap[bloknaam]){ blokMap[bloknaam]=[]; blokOrder.push(bloknaam); }
-        blokMap[bloknaam].push({name:omschrijving, artikelnr, inkoop, price:verkoop});
+        if(!blokMap[blokNr]){ blokMap[blokNr]=[]; blokOrder.push(blokNr); }
+        blokMap[blokNr].push({name:omschrijving, artikelnr, inkoop, price:verkoop,
+          color:['blue','yellow'].includes(color)?color:''});
       });
 
-      pendingExcelBlocks = blokOrder.map(titel=>({
+      pendingExcelBlocks = blokOrder.map(blokNr=>({
         id: 'b'+Date.now()+Math.random().toString(36).slice(2,6),
-        title: titel, required: true,
-        options: blokMap[titel]
+        title: `Blok ${blokNr}`,
+        blokNr,
+        required: true,
+        options: blokMap[blokNr]
       }));
 
       const totalOpties = pendingExcelBlocks.reduce((s,b)=>s+b.options.length,0);
       document.getElementById('excel-preview-info').textContent =
-        `${pendingExcelBlocks.length} blokken gevonden met in totaal ${totalOpties} opties. De bestaande prijslijst wordt overschreven.`;
+        `${pendingExcelBlocks.length} blokken gevonden (nrs: ${blokOrder.join(', ')}) met in totaal ${totalOpties} opties. De bestaande prijslijst wordt overschreven.`;
 
-      const thead = `<thead><tr><th>Blok</th><th>Omschrijving</th><th>Artikelnr.</th><th>Inkoop</th><th>Verkoopadvies</th></tr></thead>`;
+      const thead = `<thead><tr><th>Blok nr.</th><th>Omschrijving</th><th>Artikelnr.</th><th>Inkoop</th><th>Verkoopadvies</th><th>Kleur</th></tr></thead>`;
       const tbody = '<tbody>'+pendingExcelBlocks.map(b=>
         b.options.map((o,i)=>`<tr>
-          ${i===0?`<td rowspan="${b.options.length}" style="font-weight:500;vertical-align:top;background:var(--gray-bg)">${b.title}</td>`:''}
+          ${i===0?`<td rowspan="${b.options.length}" style="font-weight:500;vertical-align:top;background:var(--gray-bg);text-align:center">${b.blokNr}</td>`:''}
           <td>${o.name}</td><td>${o.artikelnr}</td>
           <td style="text-align:right">${o.inkoop?'€ '+parseFloat(o.inkoop).toFixed(2):''}</td>
           <td style="text-align:right">${o.price?'€ '+parseFloat(o.price).toFixed(2):''}</td>
+          <td style="text-align:center">${o.color==='blue'?'<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#BFDBFE;border:1px solid #185FA5"></span>':o.color==='yellow'?'<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#FDE68A;border:1px solid #D97706"></span>':'—'}</td>
         </tr>`).join('')
       ).join('')+'</tbody>';
       document.getElementById('excel-preview-table').innerHTML = thead+tbody;

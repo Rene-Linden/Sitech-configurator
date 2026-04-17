@@ -293,29 +293,47 @@ function renderBlocks(){
     container.innerHTML='<div style="color:var(--gray-text);font-size:14px;padding:1rem 0">Er zijn nog geen producten geconfigureerd voor dit merk.</div>';
     return;
   }
-  container.innerHTML=blocks.map((b,bi)=>`
-    <div class="block-card">
+  container.innerHTML=blocks.map((b,bi)=>{
+    const isBlok1 = String(b.blokNr||'')==='1' || bi===0;
+    return `<div class="block-card">
       <div class="block-header">
         <div class="block-number">${bi+1}</div>
         <div class="block-title">${b.title}</div>
         <div class="block-subtitle">${b.required?'Verplicht':'Optioneel'}</div>
       </div>
       <div class="product-grid">
-        ${b.options.map((opt,oi)=>`
-          <div class="product-option" id="opt-${bi}-${oi}" onclick="selectOption(${bi},${oi})">
+        ${b.options.map((opt,oi)=>{
+          const bgColor = isBlok1 && opt.color==='blue'  ? 'background:#EFF6FF;border-color:#93C5FD'
+                        : isBlok1 && opt.color==='yellow' ? 'background:#FFFBEB;border-color:#FCD34D'
+                        : '';
+          const dot = isBlok1 && opt.color==='blue'   ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#185FA5;margin-right:5px;flex-shrink:0"></span>'
+                    : isBlok1 && opt.color==='yellow'  ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#D97706;margin-right:5px;flex-shrink:0"></span>'
+                    : '';
+          return `<div class="product-option" id="opt-${bi}-${oi}" onclick="selectOption(${bi},${oi})" style="${bgColor}">
             <div class="check-icon"><svg viewBox="0 0 10 8" fill="none" stroke="#fff" stroke-width="1.8"><polyline points="1 4 3.5 7 9 1"/></svg></div>
-            <div class="prod-name">${opt.name}</div>
+            <div class="prod-name" style="display:flex;align-items:center">${dot}${opt.name}</div>
             <div class="prod-desc">${opt.artikelnr?'Art: '+opt.artikelnr:''}</div>
-          </div>`).join('')}
+          </div>`;
+        }).join('')}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   updateTotaal();
 }
 
 window.selectOption = function(bi,oi){
   const blocks=getBlocks();
-  blocks[bi].options.forEach((_,i)=>document.getElementById(`opt-${bi}-${i}`).classList.remove('selected'));
-  document.getElementById(`opt-${bi}-${oi}`).classList.add('selected');
+  const isBlok1 = String(blocks[bi].blokNr||'')==='1' || bi===0;
+  blocks[bi].options.forEach((opt,i)=>{
+    const el=document.getElementById(`opt-${bi}-${i}`);
+    el.classList.remove('selected');
+    if(isBlok1 && opt.color==='blue')   el.style.cssText='background:#EFF6FF;border-color:#93C5FD';
+    else if(isBlok1 && opt.color==='yellow') el.style.cssText='background:#FFFBEB;border-color:#FCD34D';
+    else el.style.cssText='';
+  });
+  const selEl=document.getElementById(`opt-${bi}-${oi}`);
+  selEl.classList.add('selected');
+  selEl.style.cssText=''; // selected class handles the blue highlight
   selections[bi]={block:blocks[bi].title, option:blocks[bi].options[oi]};
   updateTotaal();
 };
