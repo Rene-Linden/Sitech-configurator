@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sitech — Beheerpaneel</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -149,8 +148,9 @@ tr:hover td{background:var(--gray-bg)}
             <option value="">— Selecteer merk —</option>
           </select>
           <button class="btn btn-blue" onclick="openAddBlock()">+ Blok handmatig</button>
-          <button class="btn btn-green" onclick="document.getElementById('excel-upload').click()">Excel uploaden</button>
-          <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelUpload(event)" />
+          <button class="btn btn-green" id="btn-excel-upload">Excel uploaden</button>
+          <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none" />
+          <span id="excel-status" style="font-size:13px;color:var(--gray-text)"></span>
         </div>
         <div class="info-box" id="excel-info" style="display:none"></div>
         <div id="prijslijst-editor"></div>
@@ -415,71 +415,6 @@ function renderPrijslijst(){
 }
 
 // ============================================================
-// EXCEL IMPORT
-// ============================================================
-window.handleExcelUpload = function(event){
-  const merkId = document.getElementById('sel-merk-filter').value;
-  if(!merkId){alert('Selecteer eerst een merk');event.target.value='';return}
-  const file = event.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const data = new Uint8Array(e.target.result);
-    const wb   = XLSX.read(data, {type:'uint8array'});
-    const ws   = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-    // Sla rij 1 over als header (controleer of A1 tekst is)
-    const startRow = (rows[0] && isNaN(rows[0][0]) && rows[0][0]!=='') ? 1 : 0;
-    const dataRows = rows.slice(startRow).filter(r => r[0]||r[4]);
-    if(!dataRows.length){alert('Geen data gevonden in het Excel bestand.');return}
-    // Groepeer op kolom E (index 4) = bloknaam
-    const blokMap = {};
-    const blokOrder = [];
-    dataRows.forEach(r => {
-      const omschrijving = String(r[0]||'').trim();
-      const artikelnr    = String(r[1]||'').trim();
-      const inkoop       = String(r[2]||'').trim();
-      const verkoop      = String(r[3]||'').trim();
-      const bloknaam     = String(r[4]||'Overig').trim();
-      if(!omschrijving) return;
-      if(!blokMap[bloknaam]){ blokMap[bloknaam]=[]; blokOrder.push(bloknaam); }
-      blokMap[bloknaam].push({name:omschrijving, artikelnr, inkoop, price:verkoop});
-    });
-    pendingExcelBlocks = blokOrder.map(titel=>({
-      id: 'b'+Date.now()+Math.random().toString(36).slice(2,6),
-      title: titel, required: true,
-      options: blokMap[titel]
-    }));
-    // Toon preview
-    const totalOpties = pendingExcelBlocks.reduce((s,b)=>s+b.options.length,0);
-    document.getElementById('excel-preview-info').textContent =
-      `${pendingExcelBlocks.length} blokken gevonden met in totaal ${totalOpties} opties. Bestaande prijslijst wordt overschreven.`;
-    const thead = `<thead><tr><th>Blok</th><th>Omschrijving</th><th>Artikelnr.</th><th>Inkoop</th><th>Verkoopadvies</th></tr></thead>`;
-    const tbody = '<tbody>'+pendingExcelBlocks.map(b=>
-      b.options.map((o,i)=>`<tr>
-        ${i===0?`<td rowspan="${b.options.length}" style="font-weight:500;vertical-align:top;background:var(--gray-bg)">${b.title}</td>`:''}
-        <td>${o.name}</td><td>${o.artikelnr}</td>
-        <td style="text-align:right">${o.inkoop?'€ '+o.inkoop:''}</td>
-        <td style="text-align:right">${o.price?'€ '+o.price:''}</td>
-      </tr>`).join('')
-    ).join('')+'</tbody>';
-    document.getElementById('excel-preview-table').innerHTML = thead+tbody;
-    openModal('modal-excel');
-  };
-  reader.readAsArrayBuffer(file);
-  event.target.value = '';
-};
-
-window.confirmExcelImport = async function(){
-  const merkId = document.getElementById('sel-merk-filter').value;
-  if(!pendingExcelBlocks||!merkId) return;
-  await setDoc(doc(db,'prijslijsten',merkId), {blocks: pendingExcelBlocks});
-  pendingExcelBlocks = null;
-  showSaving('Prijslijst geïmporteerd');
-  closeModal('modal-excel');
-};
-
-// ============================================================
 // BLOK HANDMATIG
 // ============================================================
 window.openAddBlock = ()=>{
@@ -546,6 +481,85 @@ window.deleteBlock = async (merkId,blockId)=>{
   await setDoc(doc(db,'prijslijsten',merkId),{blocks});
   showSaving();
 };
+
+// Wire Excel upload button after DOM is ready
+document.getElementById('btn-excel-upload').addEventListener('click', ()=>{
+  const merkId = document.getElementById('sel-merk-filter').value;
+  if(!merkId){ alert('Selecteer eerst een merk voordat je een Excel uploadt.'); return; }
+  document.getElementById('excel-upload').click();
+});
+
+document.getElementById('excel-upload').addEventListener('change', (event)=>{
+  const merkId = document.getElementById('sel-merk-filter').value;
+  const status = document.getElementById('excel-status');
+  if(!merkId){ alert('Selecteer eerst een merk.'); event.target.value=''; return; }
+  const file = event.target.files[0];
+  if(!file){ return; }
+
+  if(typeof XLSX === 'undefined'){
+    alert('Excel-library is nog niet geladen. Wacht even en probeer opnieuw.');
+    event.target.value=''; return;
+  }
+
+  status.textContent = 'Bestand lezen…';
+  const reader = new FileReader();
+  reader.onerror = () => { status.textContent = 'Fout bij lezen van bestand.'; };
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb   = XLSX.read(data, {type:'uint8array'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      const firstCell = String(rows[0]?.[0]||'');
+      const startRow  = (firstCell && isNaN(firstCell)) ? 1 : 0;
+      const dataRows  = rows.slice(startRow).filter(r => String(r[0]||'').trim());
+      if(!dataRows.length){ status.textContent=''; alert('Geen data gevonden in het bestand.'); return; }
+
+      const blokMap = {}, blokOrder = [];
+      dataRows.forEach(r => {
+        const omschrijving = String(r[0]||'').trim();
+        const artikelnr    = String(r[1]||'').trim();
+        const inkoop       = String(r[2]||'').trim().replace(',','.');
+        const verkoop      = String(r[3]||'').trim().replace(',','.');
+        const bloknaam     = String(r[4]||'Overig').trim();
+        if(!omschrijving) return;
+        if(!blokMap[bloknaam]){ blokMap[bloknaam]=[]; blokOrder.push(bloknaam); }
+        blokMap[bloknaam].push({name:omschrijving, artikelnr, inkoop, price:verkoop});
+      });
+
+      pendingExcelBlocks = blokOrder.map(titel=>({
+        id: 'b'+Date.now()+Math.random().toString(36).slice(2,6),
+        title: titel, required: true,
+        options: blokMap[titel]
+      }));
+
+      const totalOpties = pendingExcelBlocks.reduce((s,b)=>s+b.options.length,0);
+      document.getElementById('excel-preview-info').textContent =
+        `${pendingExcelBlocks.length} blokken gevonden met in totaal ${totalOpties} opties. De bestaande prijslijst wordt overschreven.`;
+
+      const thead = `<thead><tr><th>Blok</th><th>Omschrijving</th><th>Artikelnr.</th><th>Inkoop</th><th>Verkoopadvies</th></tr></thead>`;
+      const tbody = '<tbody>'+pendingExcelBlocks.map(b=>
+        b.options.map((o,i)=>`<tr>
+          ${i===0?`<td rowspan="${b.options.length}" style="font-weight:500;vertical-align:top;background:var(--gray-bg)">${b.title}</td>`:''}
+          <td>${o.name}</td><td>${o.artikelnr}</td>
+          <td style="text-align:right">${o.inkoop?'€ '+parseFloat(o.inkoop).toFixed(2):''}</td>
+          <td style="text-align:right">${o.price?'€ '+parseFloat(o.price).toFixed(2):''}</td>
+        </tr>`).join('')
+      ).join('')+'</tbody>';
+      document.getElementById('excel-preview-table').innerHTML = thead+tbody;
+      status.textContent = '';
+      openModal('modal-excel');
+    } catch(err) {
+      console.error(err);
+      status.textContent = '';
+      alert('Fout bij verwerken van Excel: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value='';
+});
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </body>
 </html>
