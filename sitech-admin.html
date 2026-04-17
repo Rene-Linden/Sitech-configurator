@@ -339,7 +339,9 @@ function startListeners(){
   unsubPrijslijsten = onSnapshot(collection(db,'prijslijsten'), snap => {
     prijslijsten = {};
     snap.docs.forEach(d=>{ prijslijsten[d.id] = d.data().blocks||[]; });
-    renderMerken(); renderPrijslijst();
+    renderMerken();
+    renderMerkFilterOpties();
+    renderPrijslijst();
   });
   unsubAanvragen = onSnapshot(collection(db,'aanvragen'), snap => {
     aanvragen = snap.docs.map(d=>({id:d.id,...d.data()}))
@@ -359,8 +361,11 @@ window.showPanel = function(name,el){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
   if(el) el.classList.add('active');
-  if(name==='prijslijsten') renderMerkFilterOpties();
-  if(name==='aanvragen') { renderFilterMerkAanvragen(); renderAanvragen(); }
+  if(name==='prijslijsten'){
+    renderMerkFilterOpties();
+    renderPrijslijst();
+  }
+  if(name==='aanvragen'){ renderFilterMerkAanvragen(); renderAanvragen(); }
 };
 window.openModal  = id => document.getElementById(id).classList.add('open');
 window.closeModal = id => document.getElementById(id).classList.remove('open');
@@ -433,9 +438,11 @@ window.deleteUser = async id=>{ if(!confirm('Gebruiker verwijderen?'))return; aw
 // PRIJSLIJSTEN — render
 // ============================================================
 function renderMerkFilterOpties(){
-  const sel=document.getElementById('sel-merk-filter'), cur=sel.value;
-  sel.innerHTML='<option value="">— Selecteer merk —</option>'+merken.map(m=>`<option value="${m.id}">${m.naam}</option>`).join('');
-  if(cur) sel.value=cur;
+  const sel = document.getElementById('sel-merk-filter');
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Selecteer merk —</option>'+merken.map(m=>`<option value="${m.id}">${m.naam}</option>`).join('');
+  if(cur) sel.value = cur;
   renderPrijslijst();
 }
 function renderPrijslijst(){
