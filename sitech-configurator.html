@@ -162,7 +162,14 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
           <div class="form-group"><label>Telefoonnummer</label><input type="tel" id="p-tel" placeholder="+31 6 …" /></div>
           <div class="form-group"><label>Naam leverancier / OEM</label><input type="text" id="p-supplier" placeholder="Bijv. Volvo CE" /></div>
         </div>
-        <div style="margin-top:4px;padding:10px 12px;background:var(--gray-bg);border-radius:8px;font-size:13px;color:var(--gray-text)">
+        <div style="border-top:0.5px solid var(--gray-border);margin:14px 0 12px"></div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:10px">Wachtwoord wijzigen <span style="font-size:12px;color:var(--gray-text);font-weight:400">(laat leeg om huidig wachtwoord te behouden)</span></div>
+        <div class="form-grid">
+          <div class="form-group"><label>Nieuw wachtwoord</label><input type="password" id="p-pw1" placeholder="Nieuw wachtwoord" autocomplete="new-password" /></div>
+          <div class="form-group"><label>Bevestig wachtwoord</label><input type="password" id="p-pw2" placeholder="Herhaal wachtwoord" autocomplete="new-password" /></div>
+        </div>
+        <div id="pw-error" style="display:none;font-size:13px;color:var(--red);margin-top:4px">Wachtwoorden komen niet overeen.</div>
+        <div style="margin-top:12px;padding:10px 12px;background:var(--gray-bg);border-radius:8px;font-size:13px;color:var(--gray-text)">
           Merk: <strong style="color:#1a1a1a" id="p-merk-naam">—</strong> <span style="font-size:12px">(niet aanpasbaar)</span>
         </div>
       </div>
@@ -366,6 +373,9 @@ window.openProfiel = function(){
   document.getElementById('p-email').value    = currentUser.email||'';
   document.getElementById('p-tel').value      = currentUser.tel||'';
   document.getElementById('p-supplier').value = currentUser.supplier||'';
+  document.getElementById('p-pw1').value      = '';
+  document.getElementById('p-pw2').value      = '';
+  document.getElementById('pw-error').style.display = 'none';
   document.getElementById('p-merk-naam').textContent = currentMerk?currentMerk.naam:'—';
   document.getElementById('profiel-saved').style.display='none';
   document.getElementById('profiel-screen').style.display='block';
@@ -383,15 +393,29 @@ window.saveProfiel = async function(){
   const email       = document.getElementById('p-email').value.trim();
   const tel         = document.getElementById('p-tel').value.trim();
   const supplier    = document.getElementById('p-supplier').value.trim();
+  const pw1         = document.getElementById('p-pw1').value;
+  const pw2         = document.getElementById('p-pw2').value;
+  const pwErr       = document.getElementById('pw-error');
+
+  if(pw1 && pw1 !== pw2){
+    pwErr.style.display='block';
+    document.getElementById('p-pw2').focus();
+    return;
+  }
+  pwErr.style.display='none';
+
+  const updates = {...currentUser, displayNaam, email, tel, supplier};
+  if(pw1) updates.pw = pw1;
+
   try {
-    await setDoc(doc(db,'gebruikers',currentUser.id), {
-      ...currentUser, displayNaam, email, tel, supplier
-    });
-    currentUser = {...currentUser, displayNaam, email, tel, supplier};
+    await setDoc(doc(db,'gebruikers',currentUser.id), updates);
+    currentUser = updates;
     document.getElementById('f-am-name').value    = displayNaam;
     document.getElementById('f-am-email').value   = email;
     document.getElementById('f-am-phone').value   = tel;
     document.getElementById('f-supplier').value   = supplier;
+    document.getElementById('p-pw1').value = '';
+    document.getElementById('p-pw2').value = '';
     document.getElementById('profiel-saved').style.display='block';
     setTimeout(()=>document.getElementById('profiel-saved').style.display='none', 3000);
   } catch(e){
