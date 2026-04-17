@@ -116,6 +116,7 @@ tr:hover td{background:var(--gray-bg)}
     <div class="sidebar">
       <a class="nav-item active" onclick="showPanel('merken',this)">Merken</a>
       <a class="nav-item" onclick="showPanel('gebruikers',this)">Gebruikers</a>
+      <a class="nav-item" onclick="showPanel('sitech',this)">Sitech medewerkers</a>
       <a class="nav-item" onclick="showPanel('prijslijsten',this)">Prijslijsten</a>
       <a class="nav-item" onclick="showPanel('aanvragen',this)">Aanvragen</a>
     </div>
@@ -139,6 +140,16 @@ tr:hover td{background:var(--gray-bg)}
           <table><thead><tr><th>Gebruikersnaam</th><th>Merk</th><th>Wachtwoord</th><th>Status</th><th></th></tr></thead>
           <tbody id="tbl-users"><tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden...</td></tr></tbody></table>
         </div>
+      </div>
+
+      <div class="panel" id="panel-sitech">
+        <div class="panel-title">Sitech medewerkers</div>
+        <div class="panel-sub">Sitech-medewerkers kunnen inloggen op het salesportaal en zelf een merk kiezen voor elke aanvraag.</div>
+        <div style="margin-bottom:12px"><button class="btn btn-blue" onclick="openAddSitech()">+ Nieuwe medewerker</button></div>
+        <div class="card">
+          <table><thead><tr><th>Naam</th><th>Gebruikersnaam</th><th>Wachtwoord</th><th>Status</th><th></th></tr></thead>
+          <tbody id="tbl-sitech"><tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden...</td></tr></tbody>
+        </table></div>
       </div>
 
       <div class="panel" id="panel-prijslijsten">
@@ -245,6 +256,32 @@ tr:hover td{background:var(--gray-bg)}
   </div>
 </div>
 
+<!-- MODAL SITECH MEDEWERKER -->
+<div class="modal-bg" id="modal-sitech">
+  <div class="modal">
+    <div class="modal-header"><h3 id="modal-sitech-title">Nieuwe Sitech medewerker</h3><button class="modal-close" onclick="closeModal('modal-sitech')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="sitech-edit-id" />
+      <div class="form-row cols2">
+        <div class="fg"><label>Volledige naam *</label><input type="text" id="sitech-naam" placeholder="Voor- en achternaam" /></div>
+        <div class="fg"><label>Gebruikersnaam *</label><input type="text" id="sitech-login" placeholder="bijv. jan.sitech" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Wachtwoord *</label><input type="text" id="sitech-pw" placeholder="Wachtwoord" /></div>
+        <div class="fg"><label>E-mailadres</label><input type="email" id="sitech-email" placeholder="naam@sitech.nl" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Telefoonnummer</label><input type="tel" id="sitech-tel" placeholder="+31 6 …" /></div>
+        <div class="fg"><label>Status</label><select id="sitech-status"><option value="actief">Actief</option><option value="inactief">Inactief</option></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-sitech')">Annuleren</button>
+      <button class="btn btn-blue" onclick="saveSitech()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL BLOK -->
 <div class="modal-bg" id="modal-block">
   <div class="modal">
@@ -320,7 +357,8 @@ const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
 let merken = [], gebruikers = [], prijslijsten = {};
-let unsubMerken, unsubGebruikers, unsubPrijslijsten, unsubAanvragen;
+let sitechMedewerkers = [];
+let unsubMerken, unsubGebruikers, unsubPrijslijsten, unsubAanvragen, unsubSitech;
 let pendingExcelBlocks = null;
 let aanvragen = [];
 let chartInstance = null;
@@ -338,7 +376,7 @@ window.doLogin = function(){
   } else { document.getElementById('login-err').style.display = 'block'; }
 };
 window.doLogout = function(){
-  [unsubMerken,unsubGebruikers,unsubPrijslijsten,unsubAanvragen].forEach(u=>u&&u());
+  [unsubMerken,unsubGebruikers,unsubPrijslijsten,unsubAanvragen,unsubSitech].forEach(u=>u&&u());
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('adm-user').value = '';
@@ -360,6 +398,10 @@ function startListeners(){
     renderMerken();
     renderMerkFilterOpties();
     renderPrijslijst();
+  });
+  unsubSitech = onSnapshot(collection(db,'sitech_medewerkers'), snap => {
+    sitechMedewerkers = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderSitech();
   });
   unsubAanvragen = onSnapshot(collection(db,'aanvragen'), snap => {
     aanvragen = snap.docs.map(d=>({id:d.id,...d.data()}))
@@ -489,6 +531,59 @@ window.saveUser = async ()=>{
   showSaving(); closeModal('modal-user');
 };
 window.deleteUser = async id=>{ if(!confirm('Gebruiker verwijderen?'))return; await deleteDoc(doc(db,'gebruikers',id)); showSaving(); };
+
+// ============================================================
+// SITECH MEDEWERKERS
+// ============================================================
+function renderSitech(){
+  const tbody = document.getElementById('tbl-sitech');
+  if(!tbody) return;
+  tbody.innerHTML = sitechMedewerkers.map(u=>`<tr>
+    <td><strong style="font-size:13px">${u.naam||'—'}</strong></td>
+    <td><code style="font-size:12px;background:var(--gray-bg);padding:2px 6px;border-radius:4px">${u.login}</code></td>
+    <td><code style="font-size:12px;background:var(--gray-bg);padding:2px 6px;border-radius:4px">${u.pw}</code></td>
+    <td>${u.status==='actief'?'<span class="badge-green">Actief</span>':'<span class="badge-red">Inactief</span>'}</td>
+    <td style="text-align:right">
+      <button class="btn btn-sm" onclick="editSitech('${u.id}')">Bewerken</button>
+      <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteSitech('${u.id}')">Verwijderen</button>
+    </td></tr>`).join('')
+    ||'<tr><td colspan="5" style="color:var(--gray-text);text-align:center;padding:1.5rem">Nog geen Sitech medewerkers</td></tr>';
+}
+window.openAddSitech = ()=>{
+  ['sitech-edit-id','sitech-naam','sitech-login','sitech-pw','sitech-email','sitech-tel'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sitech-status').value='actief';
+  document.getElementById('modal-sitech-title').textContent='Nieuwe Sitech medewerker';
+  openModal('modal-sitech');
+};
+window.editSitech = id=>{
+  const u=sitechMedewerkers.find(x=>x.id===id);
+  document.getElementById('sitech-edit-id').value=id;
+  document.getElementById('sitech-naam').value=u.naam||'';
+  document.getElementById('sitech-login').value=u.login;
+  document.getElementById('sitech-pw').value=u.pw;
+  document.getElementById('sitech-email').value=u.email||'';
+  document.getElementById('sitech-tel').value=u.tel||'';
+  document.getElementById('sitech-status').value=u.status;
+  document.getElementById('modal-sitech-title').textContent='Medewerker bewerken';
+  openModal('modal-sitech');
+};
+window.saveSitech = async ()=>{
+  const naam=document.getElementById('sitech-naam').value.trim();
+  const login=document.getElementById('sitech-login').value.trim();
+  const pw=document.getElementById('sitech-pw').value.trim();
+  const email=document.getElementById('sitech-email').value.trim();
+  const tel=document.getElementById('sitech-tel').value.trim();
+  const status=document.getElementById('sitech-status').value;
+  if(!naam||!login||!pw){alert('Vul naam, gebruikersnaam en wachtwoord in');return}
+  const id=document.getElementById('sitech-edit-id').value||'s'+Date.now();
+  await setDoc(doc(db,'sitech_medewerkers',id),{naam,login,pw,email,tel,status});
+  showSaving(); closeModal('modal-sitech');
+};
+window.deleteSitech = async id=>{
+  if(!confirm('Medewerker verwijderen?'))return;
+  await deleteDoc(doc(db,'sitech_medewerkers',id));
+  showSaving();
+};
 
 // ============================================================
 // PRIJSLIJSTEN — render

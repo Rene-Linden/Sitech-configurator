@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sitech — Salesportaal</title>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#185FA5;--blue-light:#E6F1FB;--blue-mid:#378ADD;
+  --green:#3B6D11;--green-light:#EAF3DE;
+  --red:#A32D2D;--red-light:#FCEBEB;
+  --amber:#854F0B;--amber-light:#FAEEDA;
+  --gray-bg:#F7F7F6;--gray-border:rgba(0,0,0,0.12);--gray-text:#5F5E5A;
+  --white:#fff;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:100vh}
+#loading-screen{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.spinner{width:36px;height:36px;border:3px solid var(--gray-border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* LOGIN */
+#login-screen{display:none;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
+.login-card{background:var(--white);border-radius:16px;border:0.5px solid var(--gray-border);padding:2.5rem 2rem;width:100%;max-width:400px;text-align:center}
+.login-card p{font-size:14px;color:var(--gray-text);margin-bottom:1.5rem}
+.login-card label{display:block;text-align:left;font-size:13px;font-weight:500;margin-bottom:5px}
+.login-card input,.login-card select{width:100%;padding:10px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:15px;background:var(--white);outline:none;margin-bottom:12px;font-family:var(--font)}
+.login-card input:focus,.login-card select:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(55,138,221,.15)}
+.btn-primary{width:100%;padding:11px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer}
+.btn-primary:hover{background:#0C447C}
+.error-msg{font-size:13px;color:var(--red);margin-top:8px;display:none}
+/* MERK KEUZE */
+#merk-screen{display:none;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
+.merk-card{background:var(--white);border-radius:16px;border:0.5px solid var(--gray-border);padding:2.5rem 2rem;width:100%;max-width:480px}
+.merk-card h2{font-size:18px;font-weight:500;margin-bottom:6px}
+.merk-card p{font-size:14px;color:var(--gray-text);margin-bottom:1.5rem}
+.merk-grid{display:grid;gap:10px;margin-bottom:1.5rem}
+.merk-option{border:0.5px solid var(--gray-border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:border-color .15s,background .15s;display:flex;align-items:center;gap:12px}
+.merk-option:hover{border-color:var(--blue-mid);background:var(--blue-light)}
+.merk-option.selected{border-color:var(--blue);background:var(--blue-light)}
+.merk-option .dot{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--gray-border);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.merk-option.selected .dot{background:var(--blue);border-color:var(--blue)}
+.merk-option.selected .dot::after{content:'';width:6px;height:6px;border-radius:50%;background:#fff}
+.merk-name{font-size:14px;font-weight:500}
+/* APP */
+#app-screen{display:none}
+.topbar{background:var(--white);border-bottom:0.5px solid var(--gray-border);padding:10px 2rem;display:flex;align-items:center;justify-content:space-between}
+.topbar-logo{height:36px;width:auto}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.user-badge{font-size:13px;color:var(--gray-text);background:var(--gray-bg);padding:4px 12px;border-radius:20px;border:0.5px solid var(--gray-border)}
+.merk-badge{font-size:12px;background:var(--blue-light);color:var(--blue);padding:3px 10px;border-radius:20px;border:0.5px solid rgba(24,95,165,.2)}
+.btn-sm-top{font-size:13px;color:var(--gray-text);background:none;border:0.5px solid var(--gray-border);border-radius:20px;padding:4px 12px;cursor:pointer;font-family:var(--font)}
+.btn-sm-top:hover{background:var(--gray-bg)}
+.stepper{display:flex;align-items:center;justify-content:center;padding:1.5rem 2rem;background:var(--white);border-bottom:0.5px solid var(--gray-border)}
+.step-item{display:flex;align-items:center}
+.step-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;border:1.5px solid var(--gray-border);color:var(--gray-text);background:var(--white);flex-shrink:0}
+.step-dot.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.step-dot.done{background:var(--green-light);color:var(--green);border-color:var(--green)}
+.step-label{font-size:13px;margin-left:8px;color:var(--gray-text);white-space:nowrap}
+.step-label.active{color:var(--blue);font-weight:500}
+.step-line{width:40px;height:1px;background:var(--gray-border);margin:0 8px}
+.content{max-width:860px;margin:0 auto;padding:2rem 1.5rem 4rem}
+.section-title{font-size:20px;font-weight:500;margin-bottom:4px}
+.section-sub{font-size:14px;color:var(--gray-text);margin-bottom:1.5rem}
+.block-card{background:var(--white);border-radius:10px;border:0.5px solid var(--gray-border);margin-bottom:1.25rem;overflow:hidden}
+.block-header{padding:14px 18px;border-bottom:0.5px solid var(--gray-border);display:flex;align-items:center;gap:10px}
+.block-number{width:24px;height:24px;border-radius:50%;background:var(--blue-light);color:var(--blue);font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.block-title{font-size:15px;font-weight:500}
+.block-subtitle{font-size:13px;color:var(--gray-text);margin-left:auto}
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:14px}
+.product-option{border:0.5px solid var(--gray-border);border-radius:8px;padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s;position:relative;background:var(--white)}
+.product-option:hover{border-color:var(--blue-mid);background:#fafcff}
+.product-option.selected{border-color:var(--blue);background:var(--blue-light)}
+.prod-name{font-size:14px;font-weight:500;margin-bottom:3px}
+.prod-desc{font-size:12px;color:var(--gray-text);line-height:1.5}
+.check-icon{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--blue);display:none;align-items:center;justify-content:center}
+.product-option.selected .check-icon{display:flex}
+.check-icon svg{width:10px;height:10px}
+.totaal-card{background:var(--white);border-radius:10px;border:0.5px solid var(--gray-border);margin-top:1.5rem;overflow:hidden}
+.totaal-header{padding:12px 18px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border);font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px}
+.internal-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--amber-light);color:var(--amber);border:0.5px solid rgba(133,79,11,.2)}
+.prijzen-header{display:grid;grid-template-columns:1fr 110px 110px;padding:8px 16px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border);font-size:11px;font-weight:500;color:var(--gray-text);gap:8px}
+.prijzen-row{display:grid;grid-template-columns:1fr 110px 110px;align-items:baseline;padding:10px 16px;border-bottom:0.5px solid var(--gray-border);font-size:14px;gap:8px}
+.prijzen-row:last-child{border-bottom:none}
+.p-label{color:var(--gray-text);font-size:13px}
+.p-inkoop{text-align:right;color:var(--gray-text);font-size:13px;white-space:nowrap}
+.p-verkoop{text-align:right;color:var(--blue);font-weight:500;white-space:nowrap}
+.prijzen-totaal{display:grid;grid-template-columns:1fr 110px;padding:11px 16px;font-size:14px;font-weight:500;gap:8px}
+.totaal-inkoop-row{background:var(--blue-light);border-top:0.5px solid var(--gray-border)}
+.totaal-verkoop-row{background:var(--green-light)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group.full{grid-column:1/-1}
+.form-group label{font-size:13px;font-weight:500}
+.form-group input,.form-group textarea,.form-group select{padding:10px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;font-family:var(--font);background:var(--white);outline:none;resize:vertical}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(55,138,221,.15)}
+.req{color:var(--red)}
+.summary-block{background:var(--white);border-radius:10px;border:0.5px solid var(--gray-border);margin-bottom:1rem;overflow:hidden}
+.summary-row{display:grid;grid-template-columns:1fr auto;align-items:baseline;padding:10px 16px;border-bottom:0.5px solid var(--gray-border);font-size:14px;gap:12px}
+.summary-row:last-child{border-bottom:none}
+.summary-row .label{color:var(--gray-text)}
+.summary-row .value{font-weight:500;text-align:right;white-space:nowrap}
+.summary-row .value.none{color:var(--gray-text);font-style:italic;font-weight:400}
+.nav-bar{display:flex;align-items:center;justify-content:space-between;padding-top:1.5rem;border-top:0.5px solid var(--gray-border);margin-top:2rem}
+.btn-back{padding:10px 20px;border:0.5px solid var(--gray-border);border-radius:8px;background:var(--white);font-size:14px;cursor:pointer;color:#1a1a1a}
+.btn-back:hover{background:var(--gray-bg)}
+.btn-next{padding:10px 24px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
+.btn-next:hover{background:#0C447C}
+.btn-submit{padding:11px 28px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
+.btn-submit:hover{background:#27500A}
+.btn-submit:disabled{background:#aaa;cursor:not-allowed}
+.success-card{background:var(--white);border-radius:16px;border:0.5px solid var(--gray-border);padding:3rem 2rem;text-align:center;max-width:480px;margin:4rem auto}
+.success-icon{width:56px;height:56px;border-radius:50%;background:var(--green-light);margin:0 auto 1.5rem;display:flex;align-items:center;justify-content:center}
+.success-icon svg{width:28px;height:28px;color:var(--green)}
+.success-card h2{font-size:20px;font-weight:500;margin-bottom:.5rem}
+.success-card p{font-size:14px;color:var(--gray-text);line-height:1.6}
+.btn-reset{margin-top:1.5rem;padding:10px 24px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}.form-group.full{grid-column:1}.step-label{display:none}.step-line{width:20px}.product-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="loading-screen"><div class="spinner"></div></div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <img src="sitech-logo.jpg" alt="Sitech" style="height:40px;width:auto;margin-bottom:12px" />
+    <p>Salesportaal — Sitech medewerkers</p>
+    <label>Gebruikersnaam</label>
+    <input type="text" id="pw-user" placeholder="gebruikersnaam" />
+    <label>Wachtwoord</label>
+    <input type="password" id="pw-input" placeholder="wachtwoord" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button class="btn-primary" onclick="doLogin()">Inloggen</button>
+    <div class="error-msg" id="login-error">Onjuiste gebruikersnaam of wachtwoord.</div>
+  </div>
+</div>
+
+<!-- MERK KIEZEN -->
+<div id="merk-screen">
+  <div class="merk-card">
+    <img src="sitech-logo.jpg" alt="Sitech" style="height:36px;width:auto;margin-bottom:1.25rem" />
+    <h2>Selecteer een merk</h2>
+    <p>Kies het merk waarvoor u een aanvraag wilt configureren.</p>
+    <div class="merk-grid" id="merk-keuze-grid"></div>
+    <button class="btn-primary" id="btn-start-config" disabled onclick="startConfig()">Configuratie starten →</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <div class="topbar">
+    <img src="sitech-logo.jpg" alt="Sitech" class="topbar-logo" />
+    <div class="topbar-right">
+      <div class="merk-badge" id="merk-badge"></div>
+      <div class="user-badge" id="user-badge"></div>
+      <button class="btn-sm-top" onclick="changeMerk()">Merk wijzigen</button>
+      <button class="btn-sm-top" onclick="doLogout()" style="color:var(--gray-text)">Uitloggen</button>
+    </div>
+  </div>
+  <div class="stepper">
+    <div class="step-item"><div class="step-dot active" id="dot1">1</div><span class="step-label active" id="lbl1">Producten</span></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-dot" id="dot2">2</div><span class="step-label" id="lbl2">Klantgegevens</span></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-dot" id="dot3">3</div><span class="step-label" id="lbl3">Bevestigen</span></div>
+  </div>
+
+  <!-- STAP 1 -->
+  <div id="step1" class="content">
+    <div class="section-title">Producten selecteren</div>
+    <div class="section-sub">Maak per blok één keuze. Verplichte blokken moeten ingevuld worden.</div>
+    <div id="blocks-container"></div>
+    <div class="totaal-card" id="totaal-card" style="display:none">
+      <div class="totaal-header">Prijsoverzicht <span class="internal-badge">Alleen intern</span></div>
+      <div class="prijzen-header"><span>Product</span><span style="text-align:right">Inkoop</span><span style="text-align:right">Adviesprijs</span></div>
+      <div id="totaal-regels"></div>
+      <div class="prijzen-totaal totaal-inkoop-row"><span>Totaal inkoopprijs</span><span style="text-align:right" id="totaal-inkoop">€ 0,00</span></div>
+      <div class="prijzen-totaal totaal-verkoop-row"><span>Totaal verkoopadviesprijs</span><span style="text-align:right;color:var(--green)" id="totaal-verkoop">€ 0,00</span></div>
+    </div>
+    <div class="nav-bar"><div></div><button class="btn-next" onclick="goStep2()">Volgende →</button></div>
+  </div>
+
+  <!-- STAP 2 -->
+  <div id="step2" class="content" style="display:none">
+    <div class="section-title">Gegevens</div>
+    <div class="section-sub">Vul de gegevens in van uzelf en de eindklant.</div>
+    <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Blok 1 — Sitech verkoper</div>
+    <div class="block-card" style="padding:1.25rem;margin-bottom:1.25rem">
+      <div class="form-grid">
+        <div class="form-group"><label>Naam verkoper <span class="req">*</span></label><input type="text" id="f-am-name" placeholder="Voor- en achternaam" /></div>
+        <div class="form-group"><label>E-mail verkoper <span class="req">*</span></label><input type="email" id="f-am-email" placeholder="naam@sitech.nl" /></div>
+        <div class="form-group"><label>Telefoon verkoper</label><input type="tel" id="f-am-phone" placeholder="+31 6 …" /></div>
+        <div class="form-group"><label>Naam leverancier / OEM</label><input type="text" id="f-supplier" placeholder="Bijv. Volvo CE" /></div>
+      </div>
+    </div>
+    <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Blok 2 — Eindklant</div>
+    <div class="block-card" style="padding:1.25rem">
+      <div class="form-grid">
+        <div class="form-group"><label>Bedrijfsnaam klant <span class="req">*</span></label><input type="text" id="f-company" placeholder="Acme BV" /></div>
+        <div class="form-group"><label>Contactpersoon <span class="req">*</span></label><input type="text" id="f-contact" placeholder="Voor- en achternaam" /></div>
+        <div class="form-group"><label>E-mailadres klant <span class="req">*</span></label><input type="email" id="f-email" placeholder="klant@bedrijf.nl" /></div>
+        <div class="form-group"><label>Telefoonnummer klant</label><input type="tel" id="f-phone" placeholder="+31 6 …" /></div>
+        <div class="form-group"><label>Referentie / project</label><input type="text" id="f-ref" placeholder="Intern kenmerk" /></div>
+        <div class="form-group"><label>Gewenste leverdatum</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <select id="f-date-d" style="padding:10px 8px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;background:var(--white);outline:none"></select>
+            <select id="f-date-m" style="padding:10px 8px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;background:var(--white);outline:none"></select>
+            <select id="f-date-y" style="padding:10px 8px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;background:var(--white);outline:none"></select>
+          </div>
+        </div>
+        <div class="form-group full"><label>Opmerkingen</label><textarea id="f-notes" rows="3" placeholder="Bijzonderheden…"></textarea></div>
+      </div>
+    </div>
+    <div class="nav-bar">
+      <button class="btn-back" onclick="goStep1()">← Terug</button>
+      <button class="btn-next" onclick="goStep3()">Controleren →</button>
+    </div>
+  </div>
+
+  <!-- STAP 3 -->
+  <div id="step3" class="content" style="display:none">
+    <div class="section-title">Overzicht &amp; verzenden</div>
+    <div class="section-sub">Controleer de aanvraag. De klant ontvangt een bevestiging zonder prijzen. Sitech ontvangt een volledige kopie inclusief prijzen.</div>
+    <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Geselecteerde producten</div>
+    <div class="summary-block" id="summary-products"></div>
+    <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px;margin-top:1.25rem">Gegevens</div>
+    <div class="summary-block" id="summary-customer"></div>
+    <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px;margin-top:1.25rem">
+      Prijsoverzicht <span class="internal-badge">Alleen intern</span>
+    </div>
+    <div class="summary-block" id="summary-prijzen"></div>
+    <div class="nav-bar">
+      <button class="btn-back" onclick="goStep2back()">← Terug</button>
+      <button class="btn-submit" id="btn-submit" onclick="submitForm()">Aanvraag verzenden</button>
+    </div>
+  </div>
+
+  <!-- SUCCES -->
+  <div id="step-success" class="content" style="display:none">
+    <div class="success-card">
+      <div class="success-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <h2>Aanvraag verstuurd</h2>
+      <p>De klant ontvangt een bevestiging op <strong id="success-email"></strong>.<br>Sitech heeft ook een kopie ontvangen.</p>
+      <button class="btn-reset" onclick="resetAll()">Nieuwe aanvraag starten</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var dd=document.getElementById('f-date-d'),dm=document.getElementById('f-date-m'),dy=document.getElementById('f-date-y');
+  var dOpts='<option value="">Dag</option>';
+  for(var i=1;i<=31;i++) dOpts+='<option value="'+(i<10?'0'+i:i)+'">'+i+'</option>';
+  dd.innerHTML=dOpts;
+  var mn=['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+  var mOpts='<option value="">Maand</option>';
+  for(var j=0;j<12;j++) mOpts+='<option value="'+(j<9?'0'+(j+1):j+1)+'">'+mn[j]+'</option>';
+  dm.innerHTML=mOpts;
+  var yr=new Date().getFullYear(),yOpts='<option value="">Jaar</option>';
+  for(var k=0;k<5;k++) yOpts+='<option value="'+(yr+k)+'">'+(yr+k)+'</option>';
+  dy.innerHTML=yOpts;
+});
+</script>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, getDocs, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const EMAILJS_PUBLIC_KEY      = 'UW_PUBLIC_KEY';
+const EMAILJS_SERVICE_ID      = 'UW_SERVICE_ID';
+const EMAILJS_TEMPLATE_KLANT  = 'template_klant';
+const EMAILJS_TEMPLATE_SITECH = 'template_sitech';
+const SITECH_VERKOPER_EMAIL   = 'verkoper@sitech.nl';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBktIXqssmyaVo_VRuPXkDAPiytsSn QjjM",
+  authDomain: "sitech-configurator.firebaseapp.com",
+  projectId: "sitech-configurator",
+  storageBucket: "sitech-configurator.firebasestorage.app",
+  messagingSenderId: "220701109022",
+  appId: "1:220701109022:web:bd7d53aa4c2d49d372f70f"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+let merken=[], sitechMedewerkers=[], prijslijsten={};
+let currentUser=null, currentMerk=null, selections={};
+
+async function loadData(){
+  const [mS,sS,pS] = await Promise.all([
+    getDocs(collection(db,'merken')),
+    getDocs(collection(db,'sitech_medewerkers')),
+    getDocs(collection(db,'prijslijsten')),
+  ]);
+  merken              = mS.docs.map(d=>({id:d.id,...d.data()}));
+  sitechMedewerkers   = sS.docs.map(d=>({id:d.id,...d.data()}));
+  pS.docs.forEach(d=>{ prijslijsten[d.id]=d.data().blocks||[]; });
+  document.getElementById('loading-screen').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+loadData();
+
+// AUTH
+window.doLogin = function(){
+  const username=document.getElementById('pw-user').value.trim();
+  const pw=document.getElementById('pw-input').value;
+  const user=sitechMedewerkers.find(u=>u.login===username&&u.pw===pw&&u.status==='actief');
+  if(!user){document.getElementById('login-error').style.display='block';return}
+  document.getElementById('login-error').style.display='none';
+  currentUser=user;
+  document.getElementById('user-badge').textContent=user.naam||user.login;
+  document.getElementById('login-screen').style.display='none';
+  showMerkKeuze();
+};
+window.doLogout = function(){
+  currentUser=null; currentMerk=null; selections={};
+  document.getElementById('pw-user').value='';
+  document.getElementById('pw-input').value='';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app-screen').style.display='none';
+  document.getElementById('merk-screen').style.display='none';
+};
+
+// MERK KIEZEN
+function showMerkKeuze(){
+  document.getElementById('merk-screen').style.display='flex';
+  document.getElementById('app-screen').style.display='none';
+  currentMerk=null;
+  document.getElementById('btn-start-config').disabled=true;
+  const grid=document.getElementById('merk-keuze-grid');
+  grid.innerHTML=merken.map(m=>`
+    <div class="merk-option" id="mo-${m.id}" onclick="selectMerk('${m.id}')">
+      <div class="dot"></div>
+      <span class="merk-name">${m.naam}</span>
+    </div>`).join('');
+}
+window.selectMerk = function(id){
+  document.querySelectorAll('.merk-option').forEach(el=>el.classList.remove('selected'));
+  document.getElementById('mo-'+id).classList.add('selected');
+  currentMerk=merken.find(m=>m.id===id);
+  document.getElementById('btn-start-config').disabled=false;
+};
+window.startConfig = function(){
+  if(!currentMerk) return;
+  document.getElementById('merk-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+  document.getElementById('merk-badge').textContent=currentMerk.naam;
+  selections={};
+  document.getElementById('f-am-name').value  = currentUser.naam||'';
+  document.getElementById('f-am-email').value = currentUser.email||'';
+  document.getElementById('f-am-phone').value = currentUser.tel||'';
+  document.getElementById('f-supplier').value = currentMerk.naam;
+  renderBlocks();
+  showStep('step1'); updateStepper(1);
+};
+window.changeMerk = function(){
+  document.getElementById('app-screen').style.display='none';
+  showMerkKeuze();
+};
+
+// BLOCKS
+function getBlocks(){ return currentMerk?(prijslijsten[currentMerk.id]||[]):[]; }
+function renderBlocks(){
+  const blocks=getBlocks();
+  const container=document.getElementById('blocks-container');
+  if(!blocks.length){ container.innerHTML='<div style="color:var(--gray-text);font-size:14px;padding:1rem 0">Geen producten geconfigureerd voor dit merk.</div>'; return; }
+  container.innerHTML=blocks.map((b,bi)=>{
+    const isBlok1=String(b.blokNr||'')==='1'||bi===0;
+    return `<div class="block-card">
+      <div class="block-header">
+        <div class="block-number">${bi+1}</div>
+        <div class="block-title">${b.title}</div>
+        <div class="block-subtitle">${b.required?'Verplicht':'Optioneel'}</div>
+      </div>
+      <div class="product-grid">
+        ${b.options.map((opt,oi)=>{
+          const bg=isBlok1&&opt.color==='blue'?'background:#EFF6FF;border-color:#93C5FD':isBlok1&&opt.color==='yellow'?'background:#FFFBEB;border-color:#FCD34D':'';
+          const dot=isBlok1&&opt.color==='blue'?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#185FA5;margin-right:5px;flex-shrink:0"></span>':isBlok1&&opt.color==='yellow'?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#D97706;margin-right:5px;flex-shrink:0"></span>':'';
+          return `<div class="product-option" id="opt-${bi}-${oi}" onclick="selectOption(${bi},${oi})" style="${bg}">
+            <div class="check-icon"><svg viewBox="0 0 10 8" fill="none" stroke="#fff" stroke-width="1.8"><polyline points="1 4 3.5 7 9 1"/></svg></div>
+            <div class="prod-name" style="display:flex;align-items:center">${dot}${opt.name}</div>
+            <div class="prod-desc">${opt.artikelnr?'Art: '+opt.artikelnr:''}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  updateTotaal();
+}
+window.selectOption = function(bi,oi){
+  const blocks=getBlocks();
+  const isBlok1=String(blocks[bi].blokNr||'')==='1'||bi===0;
+  blocks[bi].options.forEach((opt,i)=>{
+    const el=document.getElementById(`opt-${bi}-${i}`);
+    el.classList.remove('selected');
+    if(isBlok1&&opt.color==='blue') el.style.cssText='background:#EFF6FF;border-color:#93C5FD';
+    else if(isBlok1&&opt.color==='yellow') el.style.cssText='background:#FFFBEB;border-color:#FCD34D';
+    else el.style.cssText='';
+  });
+  document.getElementById(`opt-${bi}-${oi}`).classList.add('selected');
+  document.getElementById(`opt-${bi}-${oi}`).style.cssText='';
+  selections[bi]={block:blocks[bi].title,option:blocks[bi].options[oi]};
+  updateTotaal();
+};
+function updateTotaal(){
+  const blocks=getBlocks();
+  let ti=0,tv=0; const regels=[];
+  blocks.forEach((b,bi)=>{ const s=selections[bi]; if(s){ const i=parseFloat(s.option.inkoop||0),v=parseFloat(s.option.price||0); ti+=i;tv+=v; regels.push({nr:bi+1,blok:b.title,naam:s.option.name,inkoop:i,verkoop:v}); } });
+  const card=document.getElementById('totaal-card');
+  if(!regels.length){card.style.display='none';return}
+  card.style.display='block';
+  document.getElementById('totaal-regels').innerHTML=regels.map(r=>`<div class="prijzen-row"><span class="p-label"><strong style="color:#1a1a1a">${r.nr} ${r.blok}:</strong> ${r.naam}</span><span class="p-inkoop">${r.inkoop?'€\u00a0'+r.inkoop.toFixed(2):''}</span><span class="p-verkoop">${r.verkoop?'€\u00a0'+r.verkoop.toFixed(2):''}</span></div>`).join('');
+  document.getElementById('totaal-inkoop').textContent='€\u00a0'+ti.toFixed(2).replace('.',',');
+  document.getElementById('totaal-verkoop').textContent='€\u00a0'+tv.toFixed(2).replace('.',',');
+}
+
+// STEPS
+function showStep(id){ ['step1','step2','step3','step-success'].forEach(s=>{ document.getElementById(s).style.display=s===id?'':'none'; }); }
+function updateStepper(a){ [1,2,3].forEach(n=>{ document.getElementById('dot'+n).className='step-dot'+(n===a?' active':n<a?' done':''); document.getElementById('lbl'+n).className='step-label'+(n===a?' active':''); }); }
+function getDateValue(){ const d=document.getElementById('f-date-d').value,m=document.getElementById('f-date-m').value,y=document.getElementById('f-date-y').value; return d&&m&&y?`${d}-${m}-${y}`:''; }
+
+window.goStep2=function(){
+  const blocks=getBlocks();
+  for(let i=0;i<blocks.length;i++){ if(blocks[i].required&&!selections[i]){alert(`Maak een keuze bij: "${blocks[i].title}"`);return} }
+  showStep('step2'); updateStepper(2);
+};
+window.goStep1=()=>{showStep('step1');updateStepper(1)};
+window.goStep2back=()=>{showStep('step2');updateStepper(2)};
+window.goStep3=function(){
+  const req=[['f-am-name','Naam verkoper'],['f-am-email','E-mail verkoper'],['f-company','Bedrijfsnaam klant'],['f-contact','Contactpersoon'],['f-email','E-mailadres klant']];
+  for(const [id,lbl] of req){ if(!document.getElementById(id).value.trim()){alert(`Vul het verplichte veld in: "${lbl}"`);document.getElementById(id).focus();return;} }
+  buildSummary(); showStep('step3'); updateStepper(3);
+};
+function buildSummary(){
+  const blocks=getBlocks();
+  document.getElementById('summary-products').innerHTML=blocks.map((b,bi)=>{ const s=selections[bi]; return `<div class="summary-row"><span class="label">${b.title}</span><span class="value ${s?'':'none'}">${s?s.option.name:'Geen keuze'}</span></div>`; }).join('');
+  const verkoopFields=[['Verkoper','f-am-name'],['E-mail','f-am-email'],['Telefoon','f-am-phone'],['Leverancier','f-supplier']];
+  const klantFields=[['Bedrijfsnaam','f-company'],['Contactpersoon','f-contact'],['E-mailadres','f-email'],['Telefoon','f-phone'],['Referentie','f-ref'],['Opmerkingen','f-notes']];
+  const renderF=fields=>fields.map(([l,id])=>{ const v=document.getElementById(id).value.trim(); return v?`<div class="summary-row"><span class="label">${l}</span><span class="value">${v}</span></div>`:''; }).join('');
+  const dateVal=getDateValue();
+  document.getElementById('summary-customer').innerHTML=
+    '<div style="font-size:12px;font-weight:500;color:var(--gray-text);padding:10px 16px 4px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border)">Sitech verkoper</div>'+
+    renderF(verkoopFields)+
+    '<div style="font-size:12px;font-weight:500;color:var(--gray-text);padding:10px 16px 4px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border);border-top:0.5px solid var(--gray-border)">Eindklant</div>'+
+    renderF(klantFields)+(dateVal?`<div class="summary-row"><span class="label">Leverdatum</span><span class="value">${dateVal}</span></div>`:'');
+  let ti=0,tv=0;
+  const pRows=blocks.map((b,bi)=>{ const s=selections[bi]; if(!s)return''; const i=parseFloat(s.option.inkoop||0),v=parseFloat(s.option.price||0); ti+=i;tv+=v; return `<div class="prijzen-row"><span class="p-label"><strong style="color:#1a1a1a">${bi+1} ${b.title}:</strong> ${s.option.name}</span><span class="p-inkoop">${i?'€\u00a0'+i.toFixed(2):''}</span><span class="p-verkoop">${v?'€\u00a0'+v.toFixed(2):''}</span></div>`; }).join('');
+  document.getElementById('summary-prijzen').innerHTML=
+    '<div class="prijzen-header"><span>Product</span><span style="text-align:right">Inkoop</span><span style="text-align:right">Adviesprijs</span></div>'+pRows+
+    `<div class="prijzen-totaal totaal-inkoop-row"><span>Totaal inkoop</span><span style="text-align:right">€\u00a0${ti.toFixed(2)}</span></div>`+
+    `<div class="prijzen-totaal totaal-verkoop-row"><span>Totaal verkoopadvies</span><span style="text-align:right;color:var(--green)">€\u00a0${tv.toFixed(2)}</span></div>`;
+}
+
+window.submitForm=async function(){
+  const btn=document.getElementById('btn-submit');
+  btn.disabled=true; btn.textContent='Versturen…';
+  emailjs.init({publicKey:EMAILJS_PUBLIC_KEY});
+  const klantEmail=document.getElementById('f-email').value.trim();
+  const blocks=getBlocks();
+  const productsKlant=blocks.map((b,bi)=>{ const s=selections[bi]; return s?`${b.title}: ${s.option.name}`:`${b.title}: geen keuze`; }).join('\n');
+  const productsSitech=blocks.map((b,bi)=>{ const s=selections[bi]; if(!s)return`${b.title}: geen keuze`; const i=parseFloat(s.option.inkoop||0),v=parseFloat(s.option.price||0); return `${b.title}: ${s.option.name}${s.option.artikelnr?' ['+s.option.artikelnr+']':''} | Inkoop: €${i.toFixed(2)} | Advies: €${v.toFixed(2)}`; }).join('\n');
+  let ti=0,tv=0; blocks.forEach((_,bi)=>{ const s=selections[bi]; if(s){ti+=parseFloat(s.option.inkoop||0);tv+=parseFloat(s.option.price||0);} });
+  const params={
+    supplier: document.getElementById('f-supplier').value.trim(),
+    am_name:  document.getElementById('f-am-name').value.trim(),
+    am_phone: document.getElementById('f-am-phone').value.trim(),
+    am_email: document.getElementById('f-am-email').value.trim(),
+    company:  document.getElementById('f-company').value.trim(),
+    contact:  document.getElementById('f-contact').value.trim(),
+    email:    klantEmail,
+    phone:    document.getElementById('f-phone').value.trim(),
+    ref:      document.getElementById('f-ref').value.trim(),
+    date:     getDateValue(),
+    notes:    document.getElementById('f-notes').value.trim(),
+    user_brand: currentMerk?currentMerk.naam:'',
+  };
+  try{ await addDoc(collection(db,'aanvragen'),{...params,datum:new Date().toISOString(),merkId:currentMerk?.id||'',merkNaam:currentMerk?.naam||'',products:productsKlant,products_detail:productsSitech,totaal_inkoop:'€ '+ti.toFixed(2),totaal_verkoop:'€ '+tv.toFixed(2)}); }catch(e){console.warn(e);}
+  Promise.all([
+    emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_KLANT,{...params,products:productsKlant,to_email:klantEmail}),
+    emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_SITECH,{...params,products:productsSitech,totaal_inkoop:'€ '+ti.toFixed(2),totaal_verkoop:'€ '+tv.toFixed(2),to_email:SITECH_VERKOPER_EMAIL}),
+  ]).then(()=>{ document.getElementById('success-email').textContent=klantEmail; showStep('step-success'); updateStepper(4); })
+  .catch(err=>{ console.error(err); alert('Fout bij verzenden.\n\n'+JSON.stringify(err)); btn.disabled=false; btn.textContent='Aanvraag verzenden'; });
+};
+
+window.resetAll=function(){
+  selections={};
+  ['f-am-name','f-am-email','f-am-phone','f-supplier','f-company','f-contact','f-email','f-phone','f-ref','f-notes'].forEach(id=>document.getElementById(id).value='');
+  ['f-date-d','f-date-m','f-date-y'].forEach(id=>document.getElementById(id).value='');
+  showMerkKeuze();
+};
+</script>
+</body>
+</html>
