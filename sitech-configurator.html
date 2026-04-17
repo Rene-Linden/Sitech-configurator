@@ -30,8 +30,9 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 .btn-primary:hover{background:#0C447C}
 .error-msg{font-size:13px;color:var(--red);margin-top:8px;display:none}
 #app-screen{display:none}
-.topbar{background:var(--white);border-bottom:0.5px solid var(--gray-border);padding:14px 2rem;display:flex;align-items:center;justify-content:space-between}
+.topbar{background:var(--white);border-bottom:0.5px solid var(--gray-border);padding:10px 2rem;display:flex;align-items:center;justify-content:space-between}
 .topbar .brand{font-size:18px;font-weight:600;color:var(--blue)}
+.topbar-logo{height:36px;width:auto}
 .user-badge{font-size:13px;color:var(--gray-text);background:var(--gray-bg);padding:4px 12px;border-radius:20px;border:0.5px solid var(--gray-border)}
 .logout-btn{font-size:13px;color:var(--gray-text);background:none;border:none;cursor:pointer;padding:4px 8px;margin-left:8px}
 .logout-btn:hover{color:var(--red)}
@@ -79,11 +80,20 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 .form-group input:focus,.form-group textarea:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(55,138,221,.15)}
 .req{color:var(--red)}
 .summary-block{background:var(--white);border-radius:10px;border:0.5px solid var(--gray-border);margin-bottom:1rem;overflow:hidden}
-.summary-row{display:flex;justify-content:space-between;align-items:baseline;padding:11px 16px;border-bottom:0.5px solid var(--gray-border);font-size:14px}
+.summary-row{display:grid;grid-template-columns:1fr auto;align-items:baseline;padding:10px 16px;border-bottom:0.5px solid var(--gray-border);font-size:14px;gap:12px}
 .summary-row:last-child{border-bottom:none}
-.summary-row .label{color:var(--gray-text);flex-shrink:0;margin-right:12px}
-.summary-row .value{font-weight:500;text-align:right}
+.summary-row .label{color:var(--gray-text)}
+.summary-row .value{font-weight:500;text-align:right;white-space:nowrap}
 .summary-row .value.none{color:var(--gray-text);font-style:italic;font-weight:400}
+.prijzen-row{display:grid;grid-template-columns:1fr 110px 110px;align-items:baseline;padding:10px 16px;border-bottom:0.5px solid var(--gray-border);font-size:14px;gap:8px}
+.prijzen-row:last-child{border-bottom:none}
+.prijzen-row .p-label{color:var(--gray-text);font-size:13px}
+.prijzen-row .p-inkoop{text-align:right;color:var(--gray-text);font-size:13px;white-space:nowrap}
+.prijzen-row .p-verkoop{text-align:right;color:var(--blue);font-weight:500;white-space:nowrap}
+.prijzen-header{display:grid;grid-template-columns:1fr 110px 110px;padding:8px 16px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border);font-size:11px;font-weight:500;color:var(--gray-text);gap:8px}
+.prijzen-totaal{display:grid;grid-template-columns:1fr 110px;padding:11px 16px;font-size:14px;font-weight:500;gap:8px}
+.totaal-inkoop-row{background:var(--blue-light);border-top:0.5px solid var(--gray-border)}
+.totaal-verkoop-row{background:var(--green-light)}
 .nav-bar{display:flex;align-items:center;justify-content:space-between;padding-top:1.5rem;border-top:0.5px solid var(--gray-border);margin-top:2rem}
 .btn-back{padding:10px 20px;border:0.5px solid var(--gray-border);border-radius:8px;background:var(--white);font-size:14px;cursor:pointer;color:#1a1a1a}
 .btn-back:hover{background:var(--gray-bg)}
@@ -107,7 +117,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 
 <div id="login-screen">
   <div class="login-card">
-    <div class="logo">Sitech</div>
+    <img src="sitech-logo.jpg" alt="Sitech" style="height:40px;width:auto;margin-bottom:12px" />
     <p>Productconfiguratieportaal</p>
     <label>Gebruikersnaam</label>
     <input type="text" id="pw-user" placeholder="gebruikersnaam" />
@@ -120,7 +130,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 
 <div id="app-screen">
   <div class="topbar">
-    <div class="brand">Sitech configuratie</div>
+    <img src="sitech-logo.jpg" alt="Sitech" class="topbar-logo" />
     <div style="display:flex;align-items:center;gap:8px">
       <div class="user-badge" id="user-badge"></div>
       <button class="logout-btn" onclick="doLogout()">Uitloggen</button>
@@ -146,14 +156,19 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
         Prijsoverzicht geselecteerde producten
         <span class="internal-badge">Alleen intern zichtbaar</span>
       </div>
-      <div id="totaal-regels"></div>
-      <div class="totaal-row sum">
-        <span class="totaal-label">Totaal inkoopprijs</span>
-        <span class="totaal-value" id="totaal-inkoop">€ 0,00</span>
+      <div class="prijzen-header">
+        <span>Product</span>
+        <span style="text-align:right">Inkoop</span>
+        <span style="text-align:right">Adviesprijs</span>
       </div>
-      <div class="totaal-row sum-green">
-        <span class="totaal-label">Totaal verkoopadviesprijs</span>
-        <span class="totaal-value" id="totaal-verkoop">€ 0,00</span>
+      <div id="totaal-regels"></div>
+      <div class="prijzen-totaal totaal-inkoop-row">
+        <span>Totaal inkoopprijs</span>
+        <span style="text-align:right" id="totaal-inkoop">€ 0,00</span>
+      </div>
+      <div class="prijzen-totaal totaal-verkoop-row">
+        <span>Totaal verkoopadviesprijs</span>
+        <span style="text-align:right;color:var(--green)" id="totaal-verkoop">€ 0,00</span>
       </div>
     </div>
 
@@ -369,21 +384,18 @@ function updateTotaal(){
     if(s){
       const inkoop=parseFloat(s.option.inkoop||0);
       const verkoop=parseFloat(s.option.price||0);
-      totalInkoop+=inkoop;
-      totalVerkoop+=verkoop;
-      regels.push({blok:b.title, naam:s.option.name, inkoop, verkoop});
+      totalInkoop+=inkoop; totalVerkoop+=verkoop;
+      regels.push({nr:bi+1, blok:b.title, naam:s.option.name, inkoop, verkoop});
     }
   });
   const card=document.getElementById('totaal-card');
   if(!regels.length){card.style.display='none';return}
   card.style.display='block';
   document.getElementById('totaal-regels').innerHTML=regels.map(r=>`
-    <div class="totaal-row">
-      <span class="totaal-label">${r.blok}: <strong style="color:#1a1a1a">${r.naam}</strong></span>
-      <span class="totaal-value" style="display:flex;gap:24px">
-        <span style="color:var(--gray-text);font-weight:400">${r.inkoop?'€\u00a0'+r.inkoop.toFixed(2):''}</span>
-        <span style="color:var(--blue)">${r.verkoop?'€\u00a0'+r.verkoop.toFixed(2):''}</span>
-      </span>
+    <div class="prijzen-row">
+      <span class="p-label"><strong style="color:#1a1a1a">${r.nr} ${r.blok}:</strong> ${r.naam}</span>
+      <span class="p-inkoop">${r.inkoop?'€\u00a0'+r.inkoop.toFixed(2):''}</span>
+      <span class="p-verkoop">${r.verkoop?'€\u00a0'+r.verkoop.toFixed(2):''}</span>
     </div>`).join('');
   document.getElementById('totaal-inkoop').textContent='€\u00a0'+totalInkoop.toFixed(2).replace('.',',');
   document.getElementById('totaal-verkoop').textContent='€\u00a0'+totalVerkoop.toFixed(2).replace('.',',');
@@ -454,23 +466,23 @@ function buildSummary(){
     renderFields(klantFields)+
     (dateVal?`<div class="summary-row"><span class="label">Leverdatum</span><span class="value">${dateVal}</span></div>`:'');
   let totalInkoop=0, totalVerkoop=0;
-  const prijsHTML=blocks.map((b,bi)=>{
+  const prijsRows = blocks.map((b,bi)=>{
     const s=selections[bi];
     if(!s) return '';
     const inkoop=parseFloat(s.option.inkoop||0);
     const verkoop=parseFloat(s.option.price||0);
     totalInkoop+=inkoop; totalVerkoop+=verkoop;
-    return `<div class="summary-row">
-      <span class="label">${b.title}: ${s.option.name}</span>
-      <span class="value" style="display:flex;gap:20px">
-        <span style="color:var(--gray-text);font-weight:400">${inkoop?'Inkoop: €\u00a0'+inkoop.toFixed(2):''}</span>
-        <span style="color:var(--blue)">${verkoop?'Advies: €\u00a0'+verkoop.toFixed(2):''}</span>
-      </span>
+    return `<div class="prijzen-row">
+      <span class="p-label"><strong style="color:#1a1a1a">${bi+1} ${b.title}:</strong> ${s.option.name}</span>
+      <span class="p-inkoop">${inkoop?'€\u00a0'+inkoop.toFixed(2):''}</span>
+      <span class="p-verkoop">${verkoop?'€\u00a0'+verkoop.toFixed(2):''}</span>
     </div>`;
   }).join('');
-  document.getElementById('summary-prijzen').innerHTML=prijsHTML+
-    `<div class="summary-row" style="background:var(--blue-light)"><span class="label">Totaal inkoop</span><span class="value">€\u00a0${totalInkoop.toFixed(2)}</span></div>`+
-    `<div class="summary-row" style="background:var(--green-light)"><span class="label">Totaal verkoopadvies</span><span class="value">€\u00a0${totalVerkoop.toFixed(2)}</span></div>`;
+  document.getElementById('summary-prijzen').innerHTML=
+    `<div class="prijzen-header"><span>Product</span><span style="text-align:right">Inkoop</span><span style="text-align:right">Adviesprijs</span></div>`+
+    prijsRows+
+    `<div class="prijzen-totaal totaal-inkoop-row"><span>Totaal inkoop</span><span style="text-align:right">€\u00a0${totalInkoop.toFixed(2)}</span></div>`+
+    `<div class="prijzen-totaal totaal-verkoop-row"><span>Totaal verkoopadvies</span><span style="text-align:right;color:var(--green)">€\u00a0${totalVerkoop.toFixed(2)}</span></div>`;
 }
 
 window.submitForm=async function(){
