@@ -201,18 +201,9 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
         <div class="form-group">
           <label>Gewenste leverdatum</label>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-            <select id="f-date-d" style="padding:10px 8px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;background:var(--white);outline:none">
-              <option value="">Dag</option>
-              ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}</option>`).join('')}
-            </select>
-            <select id="f-date-m" style="padding:10px 8px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;background:var(--white);outline:none">
-              <option value="">Maand</option>
-              ${['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'].map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}">${m}</option>`).join('')}
-            </select>
-            <select id="f-date-y" style="padding:10px 8px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;background:var(--white);outline:none">
-              <option value="">Jaar</option>
-              ${Array.from({length:5},(_,i)=>`<option value="${2025+i}">${2025+i}</option>`).join('')}
-            </select>
+            <select id="f-date-d" style="padding:10px 8px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;background:var(--white);outline:none"></select>
+            <select id="f-date-m" style="padding:10px 8px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;background:var(--white);outline:none"></select>
+            <select id="f-date-y" style="padding:10px 8px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;background:var(--white);outline:none"></select>
           </div>
         </div>
         <div class="form-group full"><label>Opmerkingen</label><textarea id="f-notes" rows="3" placeholder="Bijzonderheden…"></textarea></div>
@@ -253,6 +244,24 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
   </div>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var dd = document.getElementById('f-date-d');
+  var dm = document.getElementById('f-date-m');
+  var dy = document.getElementById('f-date-y');
+  var dOpts = '<option value="">Dag</option>';
+  for(var i=1;i<=31;i++) dOpts += '<option value="'+(i<10?'0'+i:i)+'">'+ i +'</option>';
+  dd.innerHTML = dOpts;
+  var maanden = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+  var mOpts = '<option value="">Maand</option>';
+  for(var j=0;j<12;j++) mOpts += '<option value="'+(j<9?'0'+(j+1):j+1)+'">'+maanden[j]+'</option>';
+  dm.innerHTML = mOpts;
+  var yr = new Date().getFullYear();
+  var yOpts = '<option value="">Jaar</option>';
+  for(var k=0;k<5;k++) yOpts += '<option value="'+(yr+k)+'">'+(yr+k)+'</option>';
+  dy.innerHTML = yOpts;
+});
+</script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, collection, getDocs, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
