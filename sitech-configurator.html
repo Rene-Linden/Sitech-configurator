@@ -224,7 +224,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, getDocs, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const EMAILJS_PUBLIC_KEY      = 'UW_PUBLIC_KEY';
 const EMAILJS_SERVICE_ID      = 'UW_SERVICE_ID';
@@ -424,7 +424,7 @@ function buildSummary(){
     `<div class="summary-row" style="background:var(--green-light)"><span class="label">Totaal verkoopadvies</span><span class="value">€\u00a0${totalVerkoop.toFixed(2)}</span></div>`;
 }
 
-window.submitForm=function(){
+window.submitForm=async function(){
   const btn=document.getElementById('btn-submit');
   btn.disabled=true; btn.textContent='Versturen…';
   emailjs.init({publicKey:EMAILJS_PUBLIC_KEY});
@@ -457,6 +457,29 @@ window.submitForm=function(){
     notes:       document.getElementById('f-notes').value.trim(),
     user_brand:  currentMerk?currentMerk.naam:'',
   };
+  // Opslaan in Firebase
+  const aanvraagData = {
+    datum:       new Date().toISOString(),
+    merkId:      currentMerk?currentMerk.id:'',
+    merkNaam:    currentMerk?currentMerk.naam:'',
+    supplier:    baseParams.supplier,
+    am_name:     baseParams.am_name,
+    am_phone:    baseParams.am_phone,
+    am_email:    baseParams.am_email,
+    company:     baseParams.company,
+    contact:     baseParams.contact,
+    email:       klantEmail,
+    phone:       baseParams.phone,
+    ref:         baseParams.ref,
+    date:        baseParams.date,
+    notes:       baseParams.notes,
+    products:    productsKlant,
+    products_detail: productsSitech,
+    totaal_inkoop:  '€ '+totInkoop.toFixed(2),
+    totaal_verkoop: '€ '+totVerkoop.toFixed(2),
+  };
+  try { await addDoc(collection(db,'aanvragen'), aanvraagData); } catch(e){ console.warn('Opslaan aanvraag mislukt:',e); }
+
   Promise.all([
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_KLANT,
       {...baseParams, products:productsKlant, to_email:klantEmail}),

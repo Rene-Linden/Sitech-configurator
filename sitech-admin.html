@@ -117,6 +117,7 @@ tr:hover td{background:var(--gray-bg)}
       <a class="nav-item active" onclick="showPanel('merken',this)">Merken</a>
       <a class="nav-item" onclick="showPanel('gebruikers',this)">Gebruikers</a>
       <a class="nav-item" onclick="showPanel('prijslijsten',this)">Prijslijsten</a>
+      <a class="nav-item" onclick="showPanel('aanvragen',this)">Aanvragen</a>
     </div>
     <div class="main">
 
@@ -157,7 +158,35 @@ tr:hover td{background:var(--gray-bg)}
         <div id="prijslijst-editor"></div>
       </div>
 
-    </div>
+      <!-- AANVRAGEN PANEL -->
+      <div class="panel" id="panel-aanvragen">
+        <div class="panel-title">Aanvragen</div>
+        <div class="panel-sub">Overzicht van alle ingediende aanvragen. Alleen inzien.</div>
+        <div class="card" style="margin-bottom:1.25rem">
+          <div style="padding:16px 16px 8px;font-size:13px;font-weight:500;color:var(--gray-text)">Aanvragen per merk</div>
+          <div style="padding:0 16px 16px">
+            <canvas id="chart-aanvragen" height="80"></canvas>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <select id="filter-merk-aanvragen" onchange="filterAanvragen()" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
+            <option value="">Alle merken</option>
+          </select>
+          <select id="filter-periode" onchange="filterAanvragen()" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
+            <option value="">Alle periodes</option>
+            <option value="7">Laatste 7 dagen</option>
+            <option value="30">Laatste 30 dagen</option>
+            <option value="90">Laatste 3 maanden</option>
+          </select>
+          <span id="aanvragen-count" style="font-size:13px;color:var(--gray-text)"></span>
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr><th>Datum</th><th>Merk</th><th>Leverancier</th><th>Klant</th><th>Totaal advies</th><th></th></tr></thead>
+            <tbody id="tbl-aanvragen"><tr><td colspan="6" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
   </div>
 </div>
 
@@ -240,9 +269,23 @@ tr:hover td{background:var(--gray-bg)}
 
 <div class="saving-indicator" id="saving">Opslaan...</div>
 
+<!-- MODAL AANVRAAG DETAIL -->
+<div class="modal-bg" id="modal-aanvraag">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header">
+      <h3>Aanvraag details</h3>
+      <button class="modal-close" onclick="closeModal('modal-aanvraag')">×</button>
+    </div>
+    <div class="modal-body" id="aanvraag-detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-blue" onclick="closeModal('modal-aanvraag')">Sluiten</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBktIXqssmyaVo_VRuPXkDAPiytsSn QjjM",
@@ -259,8 +302,10 @@ const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
 let merken = [], gebruikers = [], prijslijsten = {};
-let unsubMerken, unsubGebruikers, unsubPrijslijsten;
+let unsubMerken, unsubGebruikers, unsubPrijslijsten, unsubAanvragen;
 let pendingExcelBlocks = null;
+let aanvragen = [];
+let chartInstance = null;
 
 // ============================================================
 // AUTH
@@ -275,7 +320,7 @@ window.doLogin = function(){
   } else { document.getElementById('login-err').style.display = 'block'; }
 };
 window.doLogout = function(){
-  [unsubMerken,unsubGebruikers,unsubPrijslijsten].forEach(u=>u&&u());
+  [unsubMerken,unsubGebruikers,unsubPrijslijsten,unsubAanvragen].forEach(u=>u&&u());
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('adm-user').value = '';
@@ -285,7 +330,7 @@ window.doLogout = function(){
 function startListeners(){
   unsubMerken = onSnapshot(collection(db,'merken'), snap => {
     merken = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderMerken(); renderMerkFilterOpties();
+    renderMerken(); renderMerkFilterOpties(); renderFilterMerkAanvragen();
   });
   unsubGebruikers = onSnapshot(collection(db,'gebruikers'), snap => {
     gebruikers = snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -295,6 +340,11 @@ function startListeners(){
     prijslijsten = {};
     snap.docs.forEach(d=>{ prijslijsten[d.id] = d.data().blocks||[]; });
     renderMerken(); renderPrijslijst();
+  });
+  unsubAanvragen = onSnapshot(collection(db,'aanvragen'), snap => {
+    aanvragen = snap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>new Date(b.datum)-new Date(a.datum));
+    renderAanvragen();
   });
 }
 
@@ -310,6 +360,7 @@ window.showPanel = function(name,el){
   document.getElementById('panel-'+name).classList.add('active');
   if(el) el.classList.add('active');
   if(name==='prijslijsten') renderMerkFilterOpties();
+  if(name==='aanvragen') { renderFilterMerkAanvragen(); renderAanvragen(); }
 };
 window.openModal  = id => document.getElementById(id).classList.add('open');
 window.closeModal = id => document.getElementById(id).classList.remove('open');
@@ -414,6 +465,99 @@ function renderPrijslijst(){
       </div>
     </div>`).join('');
 }
+
+// ============================================================
+// AANVRAGEN
+// ============================================================
+function renderFilterMerkAanvragen(){
+  const sel = document.getElementById('filter-merk-aanvragen');
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Alle merken</option>'+merken.map(m=>`<option value="${m.id}">${m.naam}</option>`).join('');
+  if(cur) sel.value = cur;
+}
+window.filterAanvragen = ()=>renderAanvragen();
+
+function renderAanvragen(){
+  const merkFilter    = document.getElementById('filter-merk-aanvragen')?.value||'';
+  const periodeFilter = parseInt(document.getElementById('filter-periode')?.value||'0');
+  const now = new Date();
+  const filtered = aanvragen.filter(a=>{
+    if(merkFilter && a.merkId!==merkFilter) return false;
+    if(periodeFilter){ const diff=(now-new Date(a.datum))/(1000*60*60*24); if(diff>periodeFilter) return false; }
+    return true;
+  });
+  const countEl = document.getElementById('aanvragen-count');
+  if(countEl) countEl.textContent = `${filtered.length} aanvra${filtered.length===1?'ag':'gen'}`;
+  renderChart(aanvragen);
+  const tbody = document.getElementById('tbl-aanvragen');
+  if(!tbody) return;
+  if(!filtered.length){ tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen aanvragen gevonden</td></tr>'; return; }
+  tbody.innerHTML = filtered.map(a=>{
+    const m = merken.find(x=>x.id===a.merkId);
+    const datum = a.datum?new Date(a.datum).toLocaleDateString('nl-NL'):'—';
+    return `<tr style="cursor:pointer" onclick="openAanvraag('${a.id}')">
+      <td>${datum}</td>
+      <td>${m?m.naam:'—'}</td>
+      <td>${a.supplier||'—'}</td>
+      <td><strong style="font-size:13px">${a.company||'—'}</strong><br><span style="font-size:12px;color:var(--gray-text)">${a.contact||''}</span></td>
+      <td style="text-align:right;color:var(--blue);font-weight:500">${a.totaal_verkoop||'—'}</td>
+      <td style="text-align:right"><span style="font-size:12px;color:var(--blue)">Details →</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderChart(data){
+  const canvas = document.getElementById('chart-aanvragen');
+  if(!canvas||typeof Chart==='undefined') return;
+  const colors=['#185FA5','#3B6D11','#854F0B','#A32D2D','#0F6E56','#533AB7','#D85A30'];
+  const labels = merken.map(m=>m.naam);
+  const counts = {}; merken.forEach(m=>counts[m.id]=0);
+  data.forEach(a=>{ if(counts[a.merkId]!==undefined) counts[a.merkId]++; });
+  const values = merken.map(m=>counts[m.id]||0);
+  if(chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(canvas,{
+    type:'bar',
+    data:{ labels, datasets:[{
+      data:values,
+      backgroundColor:labels.map((_,i)=>colors[i%colors.length]+'33'),
+      borderColor:labels.map((_,i)=>colors[i%colors.length]),
+      borderWidth:1.5, borderRadius:4
+    }]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{
+        y:{beginAtZero:true,ticks:{stepSize:1,font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}},
+        x:{ticks:{font:{size:11}},grid:{display:false}}
+      }
+    }
+  });
+}
+
+window.openAanvraag = function(id){
+  const a = aanvragen.find(x=>x.id===id);
+  if(!a) return;
+  const m = merken.find(x=>x.id===a.merkId);
+  const datum = a.datum?new Date(a.datum).toLocaleString('nl-NL'):'—';
+  const row=(l,v)=>v?`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--gray-border);font-size:13px"><span style="color:var(--gray-text)">${l}</span><span style="font-weight:500;text-align:right;max-width:60%">${v}</span></div>`:'';
+  document.getElementById('aanvraag-detail-body').innerHTML=`
+    <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin-bottom:6px">Algemeen</div>
+    ${row('Datum',datum)}${row('Merk',m?m.naam:'—')}
+    <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin:12px 0 6px">OEM / Verkoper</div>
+    ${row('Leverancier',a.supplier)}${row('Accountmanager',a.am_name)}${row('Tel. AM',a.am_phone)}${row('Mail AM',a.am_email)}
+    <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin:12px 0 6px">Eindklant</div>
+    ${row('Bedrijf',a.company)}${row('Contactpersoon',a.contact)}${row('E-mail',a.email)}${row('Telefoon',a.phone)}${row('Referentie',a.ref)}${row('Leverdatum',a.date)}${row('Opmerkingen',a.notes)}
+    <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin:12px 0 6px">Producten</div>
+    <div style="font-size:13px;white-space:pre-line;background:var(--gray-bg);border-radius:6px;padding:10px 12px">${a.products_detail||a.products||'—'}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:10px;padding:10px 12px;background:var(--blue-light);border-radius:6px">
+      <span style="font-size:13px;color:var(--gray-text)">Totaal inkoop</span>
+      <span style="font-weight:500;color:var(--blue)">${a.totaal_inkoop||'—'}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;padding:10px 12px;background:var(--green-light);border-radius:6px">
+      <span style="font-size:13px;color:var(--gray-text)">Totaal verkoopadvies</span>
+      <span style="font-weight:500;color:var(--green)">${a.totaal_verkoop||'—'}</span>
+    </div>`;
+  openModal('modal-aanvraag');
+};
 
 // ============================================================
 // BLOK HANDMATIG
@@ -635,5 +779,6 @@ document.getElementById('excel-upload').addEventListener('change', (event)=>{
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </body>
 </html>
