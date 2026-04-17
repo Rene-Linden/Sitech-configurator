@@ -149,6 +149,7 @@ tr:hover td{background:var(--gray-bg)}
           </select>
           <button class="btn btn-blue" onclick="openAddBlock()">+ Blok handmatig</button>
           <button class="btn btn-green" id="btn-excel-upload">Excel uploaden</button>
+          <button class="btn" id="btn-pdf-download" style="border-color:rgba(133,79,11,.3);color:var(--amber);background:var(--amber-light)">PDF prijslijst</button>
           <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none" />
           <span id="excel-status" style="font-size:13px;color:var(--gray-text)"></span>
         </div>
@@ -490,6 +491,69 @@ document.getElementById('btn-confirm-excel').addEventListener('click', async ()=
   pendingExcelBlocks = null;
   showSaving('Prijslijst geïmporteerd');
   closeModal('modal-excel');
+});
+
+// PDF prijslijst genereren
+document.getElementById('btn-pdf-download').addEventListener('click', ()=>{
+  const merkId = document.getElementById('sel-merk-filter').value;
+  if(!merkId){ alert('Selecteer eerst een merk'); return; }
+  const merk   = merken.find(m=>m.id===merkId);
+  const blocks = prijslijsten[merkId]||[];
+  if(!blocks.length){ alert('Geen prijslijst gevonden voor dit merk'); return; }
+
+  const datum = new Date().toLocaleDateString('nl-NL');
+  let html = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
+  <title>Prijslijst ${merk.naam}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:12px;color:#1a1a1a;padding:32px}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid #185FA5}
+    .header h1{font-size:20px;font-weight:700;color:#185FA5}
+    .header .meta{text-align:right;font-size:11px;color:#5F5E5A;line-height:1.8}
+    .block{margin-bottom:20px}
+    .block-title{font-size:13px;font-weight:700;background:#E6F1FB;color:#185FA5;padding:7px 12px;border-radius:4px;margin-bottom:0}
+    table{width:100%;border-collapse:collapse}
+    th{background:#F7F7F6;padding:7px 10px;text-align:left;font-size:11px;font-weight:600;color:#5F5E5A;border-bottom:1px solid #ddd}
+    th.right{text-align:right}
+    td{padding:7px 10px;border-bottom:0.5px solid #eee;font-size:11px;vertical-align:top}
+    td.right{text-align:right}
+    tr:last-child td{border-bottom:none}
+    .footer{margin-top:32px;padding-top:12px;border-top:1px solid #ddd;font-size:10px;color:#888;text-align:center}
+    @media print{body{padding:16px}.no-print{display:none}}
+  </style></head><body>
+  <div class="header">
+    <div><h1>Prijslijst</h1><div style="font-size:14px;margin-top:4px;color:#1a1a1a">${merk.naam}</div></div>
+    <div class="meta"><div>Datum: ${datum}</div><div>Sitech</div></div>
+  </div>`;
+
+  blocks.forEach(b=>{
+    html += `<div class="block">
+      <div class="block-title">${b.title}${b.required?' <span style="font-size:10px;font-weight:400">(verplicht)</span>':''}</div>
+      <table>
+        <thead><tr>
+          <th style="width:35%">Omschrijving</th>
+          <th style="width:18%">Artikelnummer</th>
+          <th class="right" style="width:18%">Inkoopprijs</th>
+          <th class="right" style="width:18%">Verkoopadvies</th>
+        </tr></thead>
+        <tbody>${b.options.map(o=>`<tr>
+          <td style="font-weight:500">${o.name}</td>
+          <td style="color:#5F5E5A">${o.artikelnr||'—'}</td>
+          <td class="right">${o.inkoop?'€\u00a0'+parseFloat(o.inkoop).toFixed(2):'—'}</td>
+          <td class="right" style="color:#185FA5;font-weight:500">${o.price?'€\u00a0'+parseFloat(o.price).toFixed(2):'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+  });
+
+  html += `<div class="footer">Sitech — Prijslijst gegenereerd op ${datum} — Vertrouwelijk</div>
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`;
+
+  const blob = new Blob([html], {type:'text/html'});
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url,'_blank');
+  if(!win) alert('Sta pop-ups toe om de PDF te openen.');
 });
 
 // Wire Excel upload button after DOM is ready

@@ -162,14 +162,26 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 
   <!-- STAP 2: Klantgegevens -->
   <div id="step2" class="content" style="display:none">
-    <div class="section-title">Klantgegevens</div>
-    <div class="section-sub">Vul de gegevens in van de eindklant.</div>
+    <div class="section-title">Gegevens</div>
+    <div class="section-sub">Vul de gegevens in van de verkoper en de eindklant.</div>
+
+    <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Blok 1 — OEM / Verkoper</div>
+    <div class="block-card" style="padding:1.25rem;margin-bottom:1.25rem">
+      <div class="form-grid">
+        <div class="form-group"><label>Naam leverancier <span class="req">*</span></label><input type="text" id="f-supplier" placeholder="Naam leverancier / OEM" /></div>
+        <div class="form-group"><label>Naam accountmanager <span class="req">*</span></label><input type="text" id="f-am-name" placeholder="Voor- en achternaam" /></div>
+        <div class="form-group"><label>Telefoonnummer accountmanager</label><input type="tel" id="f-am-phone" placeholder="+31 6 …" /></div>
+        <div class="form-group"><label>E-mail accountmanager <span class="req">*</span></label><input type="email" id="f-am-email" placeholder="accountmanager@bedrijf.nl" /></div>
+      </div>
+    </div>
+
+    <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Blok 2 — Eindklant</div>
     <div class="block-card" style="padding:1.25rem">
       <div class="form-grid">
-        <div class="form-group"><label>Bedrijfsnaam <span class="req">*</span></label><input type="text" id="f-company" placeholder="Acme BV" /></div>
+        <div class="form-group"><label>Bedrijfsnaam klant <span class="req">*</span></label><input type="text" id="f-company" placeholder="Acme BV" /></div>
         <div class="form-group"><label>Contactpersoon <span class="req">*</span></label><input type="text" id="f-contact" placeholder="Voor- en achternaam" /></div>
-        <div class="form-group"><label>E-mailadres <span class="req">*</span></label><input type="email" id="f-email" placeholder="klant@bedrijf.nl" /></div>
-        <div class="form-group"><label>Telefoonnummer</label><input type="tel" id="f-phone" placeholder="+31 6 …" /></div>
+        <div class="form-group"><label>E-mailadres klant <span class="req">*</span></label><input type="email" id="f-email" placeholder="klant@bedrijf.nl" /></div>
+        <div class="form-group"><label>Telefoonnummer klant</label><input type="tel" id="f-phone" placeholder="+31 6 …" /></div>
         <div class="form-group"><label>Referentie / project</label><input type="text" id="f-ref" placeholder="Intern kenmerk" /></div>
         <div class="form-group"><label>Gewenste leverdatum</label><input type="date" id="f-date" /></div>
         <div class="form-group full"><label>Opmerkingen</label><textarea id="f-notes" rows="3" placeholder="Bijzonderheden…"></textarea></div>
@@ -360,8 +372,17 @@ window.goStep2=function(){
 window.goStep1    =()=>{showStep('step1');updateStepper(1)};
 window.goStep2back=()=>{showStep('step2');updateStepper(2)};
 window.goStep3=function(){
-  if(!['f-company','f-contact','f-email'].every(id=>document.getElementById(id).value.trim())){
-    alert('Vul alle verplichte velden in (*)');return;
+  const reqFields=[
+    ['f-supplier','Naam leverancier'],['f-am-name','Naam accountmanager'],
+    ['f-am-email','E-mail accountmanager'],['f-company','Bedrijfsnaam klant'],
+    ['f-contact','Contactpersoon klant'],['f-email','E-mailadres klant']
+  ];
+  for(const [id,label] of reqFields){
+    if(!document.getElementById(id).value.trim()){
+      alert(`Vul het verplichte veld in: "${label}"`);
+      document.getElementById(id).focus();
+      return;
+    }
   }
   buildSummary(); showStep('step3'); updateStepper(3);
 };
@@ -372,19 +393,24 @@ function buildSummary(){
     const s=selections[bi];
     return `<div class="summary-row"><span class="label">${b.title}</span><span class="value ${s?'':'none'}">${s?s.option.name:'Geen keuze'}</span></div>`;
   }).join('');
-  const fields=[['Bedrijfsnaam','f-company'],['Contactpersoon','f-contact'],['E-mailadres','f-email'],['Telefoon','f-phone'],['Referentie','f-ref'],['Leverdatum','f-date'],['Opmerkingen','f-notes']];
-  document.getElementById('summary-customer').innerHTML=fields.map(([l,id])=>{
+  const oemFields=[['Leverancier','f-supplier'],['Accountmanager','f-am-name'],['Tel. accountmanager','f-am-phone'],['Mail accountmanager','f-am-email']];
+  const klantFields=[['Bedrijfsnaam','f-company'],['Contactpersoon','f-contact'],['E-mailadres','f-email'],['Telefoon','f-phone'],['Referentie','f-ref'],['Leverdatum','f-date'],['Opmerkingen','f-notes']];
+  const renderFields = fields => fields.map(([l,id])=>{
     const v=document.getElementById(id).value.trim();
     return v?`<div class="summary-row"><span class="label">${l}</span><span class="value">${v}</span></div>`:'';
   }).join('');
+  document.getElementById('summary-customer').innerHTML=
+    `<div style="font-size:12px;font-weight:500;color:var(--gray-text);padding:10px 16px 4px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border)">OEM / Verkoper</div>`+
+    renderFields(oemFields)+
+    `<div style="font-size:12px;font-weight:500;color:var(--gray-text);padding:10px 16px 4px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border);border-top:0.5px solid var(--gray-border)">Eindklant</div>`+
+    renderFields(klantFields);
   let totalInkoop=0, totalVerkoop=0;
   const prijsHTML=blocks.map((b,bi)=>{
     const s=selections[bi];
     if(!s) return '';
     const inkoop=parseFloat(s.option.inkoop||0);
     const verkoop=parseFloat(s.option.price||0);
-    totalInkoop+=inkoop;
-    totalVerkoop+=verkoop;
+    totalInkoop+=inkoop; totalVerkoop+=verkoop;
     return `<div class="summary-row">
       <span class="label">${b.title}: ${s.option.name}</span>
       <span class="value" style="display:flex;gap:20px">
@@ -418,14 +444,18 @@ window.submitForm=function(){
   let totInkoop=0, totVerkoop=0;
   blocks.forEach((_,bi)=>{ const s=selections[bi]; if(s){totInkoop+=parseFloat(s.option.inkoop||0);totVerkoop+=parseFloat(s.option.price||0);} });
   const baseParams={
-    company:document.getElementById('f-company').value.trim(),
-    contact:document.getElementById('f-contact').value.trim(),
-    email:klantEmail,
-    phone:document.getElementById('f-phone').value.trim(),
-    ref:document.getElementById('f-ref').value.trim(),
-    date:document.getElementById('f-date').value,
-    notes:document.getElementById('f-notes').value.trim(),
-    user_brand:currentMerk?currentMerk.naam:'',
+    supplier:    document.getElementById('f-supplier').value.trim(),
+    am_name:     document.getElementById('f-am-name').value.trim(),
+    am_phone:    document.getElementById('f-am-phone').value.trim(),
+    am_email:    document.getElementById('f-am-email').value.trim(),
+    company:     document.getElementById('f-company').value.trim(),
+    contact:     document.getElementById('f-contact').value.trim(),
+    email:       klantEmail,
+    phone:       document.getElementById('f-phone').value.trim(),
+    ref:         document.getElementById('f-ref').value.trim(),
+    date:        document.getElementById('f-date').value,
+    notes:       document.getElementById('f-notes').value.trim(),
+    user_brand:  currentMerk?currentMerk.naam:'',
   };
   Promise.all([
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_KLANT,
@@ -447,7 +477,9 @@ window.submitForm=function(){
 
 window.resetAll=function(){
   selections={};
-  ['f-company','f-contact','f-email','f-phone','f-ref','f-date','f-notes'].forEach(id=>document.getElementById(id).value='');
+  ['f-supplier','f-am-name','f-am-phone','f-am-email',
+   'f-company','f-contact','f-email','f-phone','f-ref','f-date','f-notes']
+    .forEach(id=>document.getElementById(id).value='');
   renderBlocks(); showStep('step1'); updateStepper(1);
 };
 </script>
