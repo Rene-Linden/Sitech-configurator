@@ -225,7 +225,7 @@ tr:hover td{background:var(--gray-bg)}
         <div class="fg"><label>Wachtwoord *</label><input type="text" id="user-pw" placeholder="Wachtwoord" /></div>
       </div>
       <div class="form-row cols2">
-        <div class="fg"><label>Merk *</label><select id="user-merk"></select></div>
+        <div class="fg"><label>Merk *</label><select id="user-merk" onchange="autoFillSupplier()"></select></div>
         <div class="fg"><label>Status</label><select id="user-status"><option value="actief">Actief</option><option value="inactief">Inactief</option></select></div>
       </div>
       <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin-bottom:8px;margin-top:4px">Profiel — wordt automatisch ingevuld op de gegevenspagina</div>
@@ -440,6 +440,14 @@ function renderGebruikers(){
       </td></tr>`;
   }).join('')||'<tr><td colspan="5" style="color:var(--gray-text);text-align:center;padding:1.5rem">Nog geen gebruikers</td></tr>';
 }
+window.autoFillSupplier = function(){
+  const merkId  = document.getElementById('user-merk').value;
+  const supplier= document.getElementById('user-supplier');
+  if(!supplier.value){
+    const merk = merken.find(m=>m.id===merkId);
+    if(merk) supplier.value = merk.naam;
+  }
+};
 window.openAddUser = ()=>{
   document.getElementById('user-edit-id').value='';
   document.getElementById('user-naam').value='';
