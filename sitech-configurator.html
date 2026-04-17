@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sitech — Productconfiguratie</title>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#185FA5;--blue-light:#E6F1FB;--blue-mid:#378ADD;
+  --green:#3B6D11;--green-light:#EAF3DE;
+  --red:#A32D2D;--red-light:#FCEBEB;
+  --gray-bg:#F7F7F6;--gray-border:rgba(0,0,0,0.12);--gray-text:#5F5E5A;
+  --white:#fff;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:100vh}
+#loading-screen{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.spinner{width:36px;height:36px;border:3px solid var(--gray-border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#login-screen{display:none;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
+.login-card{background:var(--white);border-radius:16px;border:0.5px solid var(--gray-border);padding:2.5rem 2rem;width:100%;max-width:380px;text-align:center}
+.login-card .logo{font-size:22px;font-weight:600;color:var(--blue);letter-spacing:-.5px;margin-bottom:4px}
+.login-card p{font-size:14px;color:var(--gray-text);margin-bottom:1.5rem}
+.login-card label{display:block;text-align:left;font-size:13px;font-weight:500;margin-bottom:5px}
+.login-card input{width:100%;padding:10px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:15px;background:var(--white);outline:none;margin-bottom:12px}
+.login-card input:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(55,138,221,.15)}
+.btn-primary{width:100%;padding:11px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer}
+.btn-primary:hover{background:#0C447C}
+.error-msg{font-size:13px;color:var(--red);margin-top:8px;display:none}
+#app-screen{display:none}
+.topbar{background:var(--white);border-bottom:0.5px solid var(--gray-border);padding:14px 2rem;display:flex;align-items:center;justify-content:space-between}
+.topbar .brand{font-size:18px;font-weight:600;color:var(--blue)}
+.user-badge{font-size:13px;color:var(--gray-text);background:var(--gray-bg);padding:4px 12px;border-radius:20px;border:0.5px solid var(--gray-border)}
+.logout-btn{font-size:13px;color:var(--gray-text);background:none;border:none;cursor:pointer;padding:4px 8px;margin-left:8px}
+.logout-btn:hover{color:var(--red)}
+.stepper{display:flex;align-items:center;justify-content:center;padding:1.5rem 2rem;background:var(--white);border-bottom:0.5px solid var(--gray-border)}
+.step-item{display:flex;align-items:center}
+.step-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;border:1.5px solid var(--gray-border);color:var(--gray-text);background:var(--white);flex-shrink:0}
+.step-dot.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.step-dot.done{background:var(--green-light);color:var(--green);border-color:var(--green)}
+.step-label{font-size:13px;margin-left:8px;color:var(--gray-text);white-space:nowrap}
+.step-label.active{color:var(--blue);font-weight:500}
+.step-line{width:40px;height:1px;background:var(--gray-border);margin:0 8px}
+.content{max-width:860px;margin:0 auto;padding:2rem 1.5rem 4rem}
+.section-title{font-size:20px;font-weight:500;margin-bottom:4px}
+.section-sub{font-size:14px;color:var(--gray-text);margin-bottom:1.5rem}
+.block-card{background:var(--white);border-radius:10px;border:0.5px solid var(--gray-border);margin-bottom:1.25rem;overflow:hidden}
+.block-header{padding:14px 18px;border-bottom:0.5px solid var(--gray-border);display:flex;align-items:center;gap:10px}
+.block-number{width:24px;height:24px;border-radius:50%;background:var(--blue-light);color:var(--blue);font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.block-title{font-size:15px;font-weight:500}
+.block-subtitle{font-size:13px;color:var(--gray-text);margin-left:auto}
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:14px}
+.product-option{border:0.5px solid var(--gray-border);border-radius:8px;padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s;position:relative;background:var(--white)}
+.product-option:hover{border-color:var(--blue-mid);background:#fafcff}
+.product-option.selected{border-color:var(--blue);background:var(--blue-light)}
+.prod-name{font-size:14px;font-weight:500;margin-bottom:3px}
+.prod-desc{font-size:12px;color:var(--gray-text);line-height:1.5}
+.check-icon{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--blue);display:none;align-items:center;justify-content:center}
+.product-option.selected .check-icon{display:flex}
+.check-icon svg{width:10px;height:10px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group.full{grid-column:1/-1}
+.form-group label{font-size:13px;font-weight:500}
+.form-group input,.form-group textarea{padding:10px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;font-family:var(--font);background:var(--white);outline:none;resize:vertical}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(55,138,221,.15)}
+.req{color:var(--red)}
+.summary-block{background:var(--white);border-radius:10px;border:0.5px solid var(--gray-border);margin-bottom:1rem;overflow:hidden}
+.summary-row{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:0.5px solid var(--gray-border);font-size:14px}
+.summary-row:last-child{border-bottom:none}
+.summary-row .label{color:var(--gray-text)}
+.summary-row .value{font-weight:500;text-align:right}
+.summary-row .value.none{color:var(--gray-text);font-style:italic;font-weight:400}
+.nav-bar{display:flex;align-items:center;justify-content:space-between;padding-top:1.5rem;border-top:0.5px solid var(--gray-border);margin-top:2rem}
+.btn-back{padding:10px 20px;border:0.5px solid var(--gray-border);border-radius:8px;background:var(--white);font-size:14px;cursor:pointer;color:#1a1a1a}
+.btn-back:hover{background:var(--gray-bg)}
+.btn-next{padding:10px 24px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
+.btn-next:hover{background:#0C447C}
+.btn-submit{padding:11px 28px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
+.btn-submit:hover{background:#27500A}
+.btn-submit:disabled{background:#aaa;cursor:not-allowed}
+.success-card{background:var(--white);border-radius:16px;border:0.5px solid var(--gray-border);padding:3rem 2rem;text-align:center;max-width:480px;margin:4rem auto}
+.success-icon{width:56px;height:56px;border-radius:50%;background:var(--green-light);margin:0 auto 1.5rem;display:flex;align-items:center;justify-content:center}
+.success-icon svg{width:28px;height:28px;color:var(--green)}
+.success-card h2{font-size:20px;font-weight:500;margin-bottom:.5rem}
+.success-card p{font-size:14px;color:var(--gray-text);line-height:1.6}
+.btn-reset{margin-top:1.5rem;padding:10px 24px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}.form-group.full{grid-column:1}.step-label{display:none}.step-line{width:20px}.product-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="loading-screen"><div class="spinner"></div></div>
+<div id="login-screen">
+  <div class="login-card">
+    <div class="logo">Sitech</div>
+    <p>Productconfiguratieportaal</p>
+    <label>Gebruikersnaam</label>
+    <input type="text" id="pw-user" placeholder="gebruikersnaam" />
+    <label>Wachtwoord</label>
+    <input type="password" id="pw-input" placeholder="wachtwoord" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button class="btn-primary" onclick="doLogin()">Inloggen</button>
+    <div class="error-msg" id="login-error">Onjuiste gebruikersnaam of wachtwoord.</div>
+  </div>
+</div>
+
+<div id="app-screen">
+  <div class="topbar">
+    <div class="brand">Sitech configuratie</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="user-badge" id="user-badge"></div>
+      <button class="logout-btn" onclick="doLogout()">Uitloggen</button>
+    </div>
+  </div>
+  <div class="stepper">
+    <div class="step-item"><div class="step-dot active" id="dot1">1</div><span class="step-label active" id="lbl1">Producten</span></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-dot" id="dot2">2</div><span class="step-label" id="lbl2">Klantgegevens</span></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-dot" id="dot3">3</div><span class="step-label" id="lbl3">Bevestigen</span></div>
+  </div>
+  <div id="step1" class="content">
+    <div class="section-title">Producten selecteren</div>
+    <div class="section-sub">Maak per blok één keuze. Verplichte blokken moeten ingevuld worden.</div>
+    <div id="blocks-container"></div>
+    <div class="nav-bar"><div></div><button class="btn-next" onclick="goStep2()">Volgende →</button></div>
+  </div>
+  <div id="step2" class="content" style="display:none">
+    <div class="section-title">Klantgegevens</div>
+    <div class="section-sub">Vul de gegevens in van de eindklant.</div>
+    <div class="block-card" style="padding:1.25rem">
+      <div class="form-grid">
+        <div class="form-group"><label>Bedrijfsnaam <span class="req">*</span></label><input type="text" id="f-company" placeholder="Acme BV" /></div>
+        <div class="form-group"><label>Contactpersoon <span class="req">*</span></label><input type="text" id="f-contact" placeholder="Voor- en achternaam" /></div>
+        <div class="form-group"><label>E-mailadres <span class="req">*</span></label><input type="email" id="f-email" placeholder="klant@bedrijf.nl" /></div>
+        <div class="form-group"><label>Telefoonnummer</label><input type="tel" id="f-phone" placeholder="+31 6 …" /></div>
+        <div class="form-group"><label>Referentie / project</label><input type="text" id="f-ref" placeholder="Intern kenmerk" /></div>
+        <div class="form-group"><label>Gewenste leverdatum</label><input type="date" id="f-date" /></div>
+        <div class="form-group full"><label>Opmerkingen</label><textarea id="f-notes" rows="3" placeholder="Bijzonderheden…"></textarea></div>
+      </div>
+    </div>
+    <div class="nav-bar">
+      <button class="btn-back" onclick="goStep1()">← Terug</button>
+      <button class="btn-next" onclick="goStep3()">Controleren →</button>
+    </div>
+  </div>
+  <div id="step3" class="content" style="display:none">
+    <div class="section-title">Overzicht &amp; verzenden</div>
+    <div class="section-sub">Controleer de aanvraag. De klant ontvangt een bevestiging zonder prijzen. Sitech ontvangt een volledige kopie.</div>
+    <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Geselecteerde producten</div>
+    <div class="summary-block" id="summary-products"></div>
+    <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px;margin-top:1.25rem">Klantgegevens</div>
+    <div class="summary-block" id="summary-customer"></div>
+    <div class="nav-bar">
+      <button class="btn-back" onclick="goStep2back()">← Terug</button>
+      <button class="btn-submit" id="btn-submit" onclick="submitForm()">Aanvraag verzenden</button>
+    </div>
+  </div>
+  <div id="step-success" class="content" style="display:none">
+    <div class="success-card">
+      <div class="success-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <h2>Aanvraag verstuurd</h2>
+      <p>De klant ontvangt een bevestiging op <strong id="success-email"></strong>.<br>Sitech heeft ook een kopie ontvangen.</p>
+      <button class="btn-reset" onclick="resetAll()">Nieuwe aanvraag starten</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ============================================================
+// EMAILJS — pas deze waarden aan
+// ============================================================
+const EMAILJS_PUBLIC_KEY      = 'UW_PUBLIC_KEY';
+const EMAILJS_SERVICE_ID      = 'UW_SERVICE_ID';
+const EMAILJS_TEMPLATE_KLANT  = 'template_klant';
+const EMAILJS_TEMPLATE_SITECH = 'template_sitech';
+const SITECH_VERKOPER_EMAIL   = 'verkoper@sitech.nl';
+
+// ============================================================
+// FIREBASE CONFIG
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBktIXqssmyaVo_VRuPXkDAPiytsSn QjjM",
+  authDomain: "sitech-configurator.firebaseapp.com",
+  projectId: "sitech-configurator",
+  storageBucket: "sitech-configurator.firebasestorage.app",
+  messagingSenderId: "220701109022",
+  appId: "1:220701109022:web:bd7d53aa4c2d49d372f70f"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+let merken = [], gebruikers = [], prijslijsten = {};
+let currentUser = null, currentMerk = null, selections = {};
+
+// Laad data bij opstarten
+async function loadData(){
+  const [mSnap, uSnap, pSnap] = await Promise.all([
+    getDocs(collection(db,'merken')),
+    getDocs(collection(db,'gebruikers')),
+    getDocs(collection(db,'prijslijsten')),
+  ]);
+  merken      = mSnap.docs.map(d=>({id:d.id,...d.data()}));
+  gebruikers  = uSnap.docs.map(d=>({id:d.id,...d.data()}));
+  pSnap.docs.forEach(d=>{ prijslijsten[d.id] = d.data().blocks||[]; });
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display   = 'flex';
+}
+loadData();
+
+// ============================================================
+// AUTH
+// ============================================================
+window.doLogin = function(){
+  const username = document.getElementById('pw-user').value.trim();
+  const pw       = document.getElementById('pw-input').value;
+  const err      = document.getElementById('login-error');
+  const user     = gebruikers.find(u=>u.naam===username&&u.pw===pw&&u.status==='actief');
+  if(!user){err.style.display='block';return}
+  err.style.display = 'none';
+  currentUser = user;
+  currentMerk = merken.find(m=>m.id===user.merkId);
+  selections  = {};
+  document.getElementById('user-badge').textContent = currentMerk?currentMerk.naam:username;
+  document.getElementById('login-screen').style.display  = 'none';
+  document.getElementById('app-screen').style.display    = 'block';
+  renderBlocks();
+};
+window.doLogout = function(){
+  currentUser = null; currentMerk = null; selections = {};
+  document.getElementById('pw-user').value  = '';
+  document.getElementById('pw-input').value = '';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display   = 'none';
+  showStep('step1');
+};
+
+// ============================================================
+// BLOCKS
+// ============================================================
+function getBlocks(){ return currentMerk ? (prijslijsten[currentMerk.id]||[]) : []; }
+
+function renderBlocks(){
+  const blocks = getBlocks();
+  const container = document.getElementById('blocks-container');
+  if(!blocks.length){
+    container.innerHTML='<div style="color:var(--gray-text);font-size:14px;padding:1rem 0">Er zijn nog geen producten geconfigureerd voor dit merk.</div>';
+    return;
+  }
+  container.innerHTML = blocks.map((b,bi)=>`
+    <div class="block-card">
+      <div class="block-header">
+        <div class="block-number">${bi+1}</div>
+        <div class="block-title">${b.title}</div>
+        <div class="block-subtitle">${b.required?'Verplicht':'Optioneel'}</div>
+      </div>
+      <div class="product-grid">
+        ${b.options.map((opt,oi)=>`
+          <div class="product-option" id="opt-${bi}-${oi}" onclick="selectOption(${bi},${oi})">
+            <div class="check-icon"><svg viewBox="0 0 10 8" fill="none" stroke="#fff" stroke-width="1.8"><polyline points="1 4 3.5 7 9 1"/></svg></div>
+            <div class="prod-name">${opt.name}</div>
+            <div class="prod-desc">${opt.desc||''}</div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+window.selectOption = function(bi,oi){
+  const blocks = getBlocks();
+  blocks[bi].options.forEach((_,i)=>document.getElementById(`opt-${bi}-${i}`).classList.remove('selected'));
+  document.getElementById(`opt-${bi}-${oi}`).classList.add('selected');
+  selections[bi] = {block:blocks[bi].title, option:blocks[bi].options[oi].name};
+};
+
+// ============================================================
+// STEPS
+// ============================================================
+function showStep(id){
+  ['step1','step2','step3','step-success'].forEach(s=>{
+    document.getElementById(s).style.display = s===id?'':'none';
+  });
+}
+function updateStepper(a){
+  [1,2,3].forEach(n=>{
+    document.getElementById('dot'+n).className = 'step-dot'+(n===a?' active':n<a?' done':'');
+    document.getElementById('lbl'+n).className = 'step-label'+(n===a?' active':'');
+  });
+}
+window.goStep2 = function(){
+  const blocks = getBlocks();
+  for(let i=0;i<blocks.length;i++){
+    if(blocks[i].required&&!selections[i]){alert(`Maak een keuze bij: "${blocks[i].title}"`);return}
+  }
+  showStep('step2'); updateStepper(2);
+};
+window.goStep1     = function(){ showStep('step1'); updateStepper(1); };
+window.goStep2back = function(){ showStep('step2'); updateStepper(2); };
+window.goStep3 = function(){
+  if(!['f-company','f-contact','f-email'].every(id=>document.getElementById(id).value.trim())){
+    alert('Vul alle verplichte velden in (*)'); return;
+  }
+  buildSummary(); showStep('step3'); updateStepper(3);
+};
+function buildSummary(){
+  const blocks = getBlocks();
+  document.getElementById('summary-products').innerHTML = blocks.map((b,bi)=>{
+    const s = selections[bi];
+    return `<div class="summary-row"><span class="label">${b.title}</span><span class="value ${s?'':'none'}">${s?s.option:'Geen keuze'}</span></div>`;
+  }).join('');
+  const fields = [['Bedrijfsnaam','f-company'],['Contactpersoon','f-contact'],['E-mailadres','f-email'],['Telefoon','f-phone'],['Referentie','f-ref'],['Leverdatum','f-date'],['Opmerkingen','f-notes']];
+  document.getElementById('summary-customer').innerHTML = fields.map(([l,id])=>{
+    const v = document.getElementById(id).value.trim();
+    return v?`<div class="summary-row"><span class="label">${l}</span><span class="value">${v}</span></div>`:'';
+  }).join('');
+}
+
+// ============================================================
+// SUBMIT
+// ============================================================
+window.submitForm = function(){
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true; btn.textContent = 'Versturen…';
+  emailjs.init({publicKey: EMAILJS_PUBLIC_KEY});
+  const klantEmail = document.getElementById('f-email').value.trim();
+  const products = getBlocks().map((b,bi)=>{
+    const s = selections[bi];
+    return `${b.title}: ${s?s.option:'geen keuze'}`;
+  }).join('\n');
+  const params = {
+    company: document.getElementById('f-company').value.trim(),
+    contact: document.getElementById('f-contact').value.trim(),
+    email:   klantEmail,
+    phone:   document.getElementById('f-phone').value.trim(),
+    ref:     document.getElementById('f-ref').value.trim(),
+    date:    document.getElementById('f-date').value,
+    notes:   document.getElementById('f-notes').value.trim(),
+    user_brand: currentMerk?currentMerk.naam:'',
+    products,
+  };
+  Promise.all([
+    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_KLANT,  {...params, to_email:klantEmail}),
+    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_SITECH, {...params, to_email:SITECH_VERKOPER_EMAIL}),
+  ]).then(()=>{
+    document.getElementById('success-email').textContent = klantEmail;
+    showStep('step-success'); updateStepper(4);
+  }).catch(err=>{
+    console.error(err);
+    alert('Fout bij verzenden. Controleer de EmailJS-instellingen.\n\n'+JSON.stringify(err));
+    btn.disabled = false; btn.textContent = 'Aanvraag verzenden';
+  });
+};
+window.resetAll = function(){
+  selections = {};
+  ['f-company','f-contact','f-email','f-phone','f-ref','f-date','f-notes'].forEach(id=>document.getElementById(id).value='');
+  renderBlocks(); showStep('step1'); updateStepper(1);
+};
+</script>
+</body>
+</html>
