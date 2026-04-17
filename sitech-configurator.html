@@ -147,38 +147,43 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 
   <!-- PROFIEL SCHERM -->
   <div id="profiel-screen" style="display:none">
-    <div class="content" style="max-width:520px">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.5rem">
-        <button onclick="closeProfiel()" style="background:none;border:none;cursor:pointer;color:var(--gray-text);font-size:13px;padding:0">← Terug</button>
-        <div>
-          <div class="section-title" style="margin-bottom:0">Mijn profiel</div>
-          <div style="font-size:13px;color:var(--gray-text)">Uw gegevens worden automatisch ingevuld bij elke aanvraag</div>
-        </div>
+    <div style="background:var(--white);border-bottom:0.5px solid var(--gray-border);padding:14px 2rem;display:flex;align-items:center;gap:16px">
+      <button onclick="closeProfiel()" style="background:var(--gray-bg);border:0.5px solid var(--gray-border);border-radius:8px;cursor:pointer;color:#1a1a1a;font-size:13px;padding:7px 14px;font-family:var(--font)">← Terug</button>
+      <div>
+        <div style="font-size:17px;font-weight:500">Mijn profiel</div>
+        <div style="font-size:13px;color:var(--gray-text)">Gegevens worden automatisch ingevuld bij elke aanvraag</div>
       </div>
+    </div>
+    <div class="content" style="max-width:560px">
       <div class="block-card" style="padding:1.25rem">
+        <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:10px">Profielgegevens</div>
         <div class="form-grid">
           <div class="form-group"><label>Weergavenaam</label><input type="text" id="p-display" placeholder="Voor- en achternaam" /></div>
           <div class="form-group"><label>E-mailadres</label><input type="email" id="p-email" placeholder="naam@bedrijf.nl" /></div>
           <div class="form-group"><label>Telefoonnummer</label><input type="tel" id="p-tel" placeholder="+31 6 …" /></div>
           <div class="form-group"><label>Naam leverancier / OEM</label><input type="text" id="p-supplier" placeholder="Bijv. Volvo CE" /></div>
         </div>
-        <div style="border-top:0.5px solid var(--gray-border);margin:14px 0 12px"></div>
-        <div style="font-size:13px;font-weight:500;margin-bottom:10px">Wachtwoord wijzigen <span style="font-size:12px;color:var(--gray-text);font-weight:400">(laat leeg om huidig wachtwoord te behouden)</span></div>
+        <div style="padding:10px 12px;background:var(--gray-bg);border-radius:8px;font-size:13px;color:var(--gray-text);margin-top:4px">
+          Merk: <strong style="color:#1a1a1a" id="p-merk-naam">—</strong> <span style="font-size:12px">(niet aanpasbaar)</span>
+        </div>
+      </div>
+
+      <div class="block-card" style="padding:1.25rem;margin-top:1rem">
+        <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:4px">Wachtwoord wijzigen</div>
+        <div style="font-size:12px;color:var(--gray-text);margin-bottom:10px">Laat leeg om huidig wachtwoord te behouden</div>
         <div class="form-grid">
           <div class="form-group"><label>Nieuw wachtwoord</label><input type="password" id="p-pw1" placeholder="Nieuw wachtwoord" autocomplete="new-password" /></div>
           <div class="form-group"><label>Bevestig wachtwoord</label><input type="password" id="p-pw2" placeholder="Herhaal wachtwoord" autocomplete="new-password" /></div>
         </div>
-        <div id="pw-error" style="display:none;font-size:13px;color:var(--red);margin-top:4px">Wachtwoorden komen niet overeen.</div>
-        <div style="margin-top:12px;padding:10px 12px;background:var(--gray-bg);border-radius:8px;font-size:13px;color:var(--gray-text)">
-          Merk: <strong style="color:#1a1a1a" id="p-merk-naam">—</strong> <span style="font-size:12px">(niet aanpasbaar)</span>
-        </div>
+        <div id="pw-error" style="display:none;font-size:13px;color:var(--red);margin-top:6px">Wachtwoorden komen niet overeen.</div>
       </div>
-      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:1rem">
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:1.25rem">
         <button class="btn-back" onclick="closeProfiel()">Annuleren</button>
         <button class="btn-next" onclick="saveProfiel()">Opslaan</button>
       </div>
       <div id="profiel-saved" style="display:none;margin-top:12px;padding:10px 14px;background:var(--green-light);border-radius:8px;font-size:13px;color:var(--green);text-align:center">
-        Profiel opgeslagen. Uw gegevens worden automatisch ingevuld bij de volgende aanvraag.
+        Profiel opgeslagen.
       </div>
     </div>
   </div>
@@ -369,17 +374,20 @@ window.doLogout = function(){
 };
 
 window.openProfiel = function(){
-  document.getElementById('p-display').value  = currentUser.displayNaam||'';
-  document.getElementById('p-email').value    = currentUser.email||'';
-  document.getElementById('p-tel').value      = currentUser.tel||'';
-  document.getElementById('p-supplier').value = currentUser.supplier||'';
-  document.getElementById('p-pw1').value      = '';
-  document.getElementById('p-pw2').value      = '';
-  document.getElementById('pw-error').style.display = 'none';
-  document.getElementById('p-merk-naam').textContent = currentMerk?currentMerk.naam:'—';
-  document.getElementById('profiel-saved').style.display='none';
   document.getElementById('profiel-screen').style.display='block';
   ['step1','step2','step3','step-success'].forEach(s=>document.getElementById(s).style.display='none');
+  // Kleine delay zodat velden zichtbaar zijn voordat waarden gezet worden
+  setTimeout(()=>{
+    document.getElementById('p-display').value  = currentUser.displayNaam||'';
+    document.getElementById('p-email').value    = currentUser.email||'';
+    document.getElementById('p-tel').value      = currentUser.tel||'';
+    document.getElementById('p-supplier').value = currentUser.supplier||'';
+    document.getElementById('p-pw1').value      = '';
+    document.getElementById('p-pw2').value      = '';
+    document.getElementById('pw-error').style.display     = 'none';
+    document.getElementById('profiel-saved').style.display= 'none';
+    document.getElementById('p-merk-naam').textContent    = currentMerk?currentMerk.naam:'—';
+  }, 50);
 };
 
 window.closeProfiel = function(){
