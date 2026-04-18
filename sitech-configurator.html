@@ -108,7 +108,27 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 .success-card h2{font-size:20px;font-weight:500;margin-bottom:.5rem}
 .success-card p{font-size:14px;color:var(--gray-text);line-height:1.6}
 .btn-reset{margin-top:1.5rem;padding:10px 24px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
-@media(max-width:600px){.form-grid{grid-template-columns:1fr}.form-group.full{grid-column:1}.step-label{display:none}.step-line{width:20px}.product-grid{grid-template-columns:1fr}}
+.criterium-tile{background:var(--white);border:1.5px solid var(--gray-border);border-radius:12px;padding:1.5rem;cursor:pointer;transition:border-color .15s,background .15s;position:relative;text-align:center}
+.criterium-tile:hover{border-color:var(--blue-mid);background:var(--blue-light)}
+.criterium-tile.selected{border-color:var(--blue);background:var(--blue-light)}
+.criterium-dot{position:absolute;top:12px;right:12px;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--gray-border)}
+.criterium-tile.selected .criterium-dot{background:var(--blue);border-color:var(--blue)}
+.criterium-tile.selected .criterium-dot::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:#fff}
+.optie-rij{display:grid;grid-template-columns:24px 1fr 110px 110px;align-items:center;padding:12px 16px;border-bottom:0.5px solid var(--gray-border);cursor:pointer;transition:background .1s;gap:12px}
+.optie-rij:last-child{border-bottom:none}
+.optie-rij:hover{background:var(--gray-bg)}
+.optie-rij.selected{background:var(--blue-light)}
+.optie-radio{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--gray-border);flex-shrink:0;position:relative}
+.optie-rij.selected .optie-radio{background:var(--blue);border-color:var(--blue)}
+.optie-rij.selected .optie-radio::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:#fff}
+.optie-naam{font-size:14px;font-weight:500}
+.optie-inkoop{text-align:right;font-size:13px;color:var(--gray-text);white-space:nowrap}
+.optie-verkoop{text-align:right;font-size:14px;font-weight:500;color:var(--blue);white-space:nowrap}
+.optie-header{display:grid;grid-template-columns:24px 1fr 110px 110px;padding:8px 16px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border);font-size:11px;font-weight:500;color:var(--gray-text);gap:12px}
+@media(max-width:600px){
+  .optie-rij,.optie-header{grid-template-columns:20px 1fr 80px}
+  .optie-inkoop{display:none}
+}
 </style>
 </head>
 <body>
@@ -188,35 +208,77 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
     </div>
   </div>
 
-  <!-- STAP 1: Producten + totaal -->
+  <!-- BLOK SCHERM (één blok tegelijk) -->
   <div id="step1" class="content">
-    <div class="section-title">Producten selecteren</div>
-    <div class="section-sub">Maak per blok één keuze. Verplichte blokken moeten ingevuld worden.</div>
-    <div id="blocks-container"></div>
 
-    <!-- Totaalkaart -->
-    <div class="totaal-card" id="totaal-card" style="display:none">
-      <div class="totaal-header">
-        Prijsoverzicht geselecteerde producten
-        <span class="internal-badge">Alleen intern zichtbaar</span>
+    <!-- BLOK 0: Criterium keuze -->
+    <div id="blok0-screen">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.5rem">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;flex-shrink:0">0</div>
+        <div>
+          <div class="section-title" style="margin-bottom:2px">Installatietype</div>
+          <div class="section-sub" style="margin-bottom:0">Kies het type installatie om de configuratie te starten</div>
+        </div>
       </div>
-      <div class="prijzen-header">
-        <span>Product</span>
-        <span style="text-align:right">Inkoop</span>
-        <span style="text-align:right">Adviesprijs</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:2rem">
+        <div class="criterium-tile" id="tile-los" onclick="selectCriterium('los')">
+          <div class="criterium-dot" id="cdot-los"></div>
+          <div style="font-size:22px;margin-bottom:8px">📡</div>
+          <div style="font-size:16px;font-weight:500;margin-bottom:4px">Losse ontvangers</div>
+          <div style="font-size:13px;color:var(--gray-text)">Installatie met losse, afzonderlijke ontvangers</div>
+        </div>
+        <div class="criterium-tile" id="tile-vast" onclick="selectCriterium('vast')">
+          <div class="criterium-dot" id="cdot-vast"></div>
+          <div style="font-size:22px;margin-bottom:8px">🔧</div>
+          <div style="font-size:16px;font-weight:500;margin-bottom:4px">Vaste ontvangers</div>
+          <div style="font-size:13px;color:var(--gray-text)">Installatie met vaste, geïntegreerde ontvangers</div>
+        </div>
       </div>
-      <div id="totaal-regels"></div>
-      <div class="prijzen-totaal totaal-inkoop-row">
-        <span>Totaal inkoopprijs</span>
-        <span style="text-align:right" id="totaal-inkoop">€ 0,00</span>
-      </div>
-      <div class="prijzen-totaal totaal-verkoop-row">
-        <span>Totaal verkoopadviesprijs</span>
-        <span style="text-align:right;color:var(--green)" id="totaal-verkoop">€ 0,00</span>
+      <div class="nav-bar"><div></div>
+        <button class="btn-next" id="btn-blok0-next" disabled onclick="startBlokken()">Configuratie starten →</button>
       </div>
     </div>
 
-    <div class="nav-bar"><div></div><button class="btn-next" onclick="goStep2()">Volgende →</button></div>
+    <!-- PER-BLOK scherm -->
+    <div id="blok-screen" style="display:none">
+      <!-- voortgangsbalk -->
+      <div style="margin-bottom:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:13px;color:var(--gray-text)" id="blok-progress-label"></div>
+          <div style="font-size:13px;color:var(--gray-text)" id="blok-criterium-badge"></div>
+        </div>
+        <div style="background:var(--gray-border);border-radius:4px;height:4px;overflow:hidden">
+          <div id="blok-progress-bar" style="background:var(--blue);height:4px;border-radius:4px;transition:width .3s;width:0%"></div>
+        </div>
+      </div>
+
+      <!-- blok titel + instructie -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0" id="blok-nummer-badge"></div>
+        <div class="section-title" style="margin-bottom:0" id="blok-title-display"></div>
+        <div style="margin-left:auto;font-size:12px;color:var(--gray-text)" id="blok-req-badge"></div>
+      </div>
+      <div id="blok-instructie-display" style="display:none;background:var(--blue-light);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--blue);margin-bottom:1rem;line-height:1.6"></div>
+
+      <!-- opties als lijst met uitgelijnd grid -->
+      <div class="block-card">
+        <div id="blok-opties-container"></div>
+      </div>
+
+      <!-- totaal lopend -->
+      <div class="totaal-card" id="totaal-card" style="display:none;margin-top:1.25rem">
+        <div class="totaal-header">Prijsoverzicht tot nu toe <span class="internal-badge">Alleen intern</span></div>
+        <div class="prijzen-header"><span>Product</span><span style="text-align:right">Inkoop</span><span style="text-align:right">Adviesprijs</span></div>
+        <div id="totaal-regels"></div>
+        <div class="prijzen-totaal totaal-inkoop-row"><span>Totaal inkoop</span><span style="text-align:right" id="totaal-inkoop">€ 0,00</span></div>
+        <div class="prijzen-totaal totaal-verkoop-row"><span>Totaal adviesprijs</span><span style="text-align:right;color:var(--green)" id="totaal-verkoop">€ 0,00</span></div>
+      </div>
+
+      <div class="nav-bar">
+        <button class="btn-back" id="btn-blok-terug" onclick="blokTerug()">← Terug</button>
+        <button class="btn-next" id="btn-blok-volgende" disabled onclick="blokVolgende()">Volgende →</button>
+      </div>
+    </div>
   </div>
 
   <!-- STAP 2: Klantgegevens -->
@@ -431,85 +493,125 @@ window.saveProfiel = async function(){
   }
 };
 
-function getBlocks(){ return currentMerk?(prijslijsten[currentMerk.id]||[]):[] }
+let currentCriterium = '';
+let huidigBlokIdx = 0;
+
+function getBlocks(){ return currentMerk?(prijslijsten[currentMerk.id]||[]):[]; }
+function getVisibleOptions(block){ return block.options.filter(o=>!o.criterium||o.criterium===currentCriterium); }
 
 function renderBlocks(){
+  currentCriterium=''; huidigBlokIdx=0;
+  document.getElementById('blok0-screen').style.display='';
+  document.getElementById('blok-screen').style.display='none';
+  document.getElementById('tile-los').classList.remove('selected');
+  document.getElementById('tile-vast').classList.remove('selected');
+  document.getElementById('btn-blok0-next').disabled=true;
+}
+
+window.selectCriterium=function(c){
+  currentCriterium=c;
+  document.getElementById('tile-los').classList.toggle('selected',c==='los');
+  document.getElementById('tile-vast').classList.toggle('selected',c==='vast');
+  document.getElementById('btn-blok0-next').disabled=false;
+};
+
+window.startBlokken=function(){
+  huidigBlokIdx=0;
+  document.getElementById('blok0-screen').style.display='none';
+  document.getElementById('blok-screen').style.display='';
+  renderHuidigBlok();
+};
+
+function renderHuidigBlok(){
   const blocks=getBlocks();
-  const container=document.getElementById('blocks-container');
   if(!blocks.length){
-    container.innerHTML='<div style="color:var(--gray-text);font-size:14px;padding:1rem 0">Er zijn nog geen producten geconfigureerd voor dit merk.</div>';
+    document.getElementById('blok0-screen').style.display='';
+    document.getElementById('blok-screen').style.display='none';
     return;
   }
-  container.innerHTML=blocks.map((b,bi)=>{
-    const isBlok1 = String(b.blokNr||'')==='1' || bi===0;
-    return `<div class="block-card">
-      <div class="block-header">
-        <div class="block-number">${bi+1}</div>
-        <div class="block-title">${b.title}</div>
-        <div class="block-subtitle">${b.required?'Verplicht':'Optioneel'}</div>
-      </div>
-      <div class="product-grid">
-        ${b.options.map((opt,oi)=>{
-          const bgColor = isBlok1 && opt.color==='blue'  ? 'background:#EFF6FF;border-color:#93C5FD'
-                        : isBlok1 && opt.color==='yellow' ? 'background:#FFFBEB;border-color:#FCD34D'
-                        : '';
-          const dot = isBlok1 && opt.color==='blue'   ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#185FA5;margin-right:5px;flex-shrink:0"></span>'
-                    : isBlok1 && opt.color==='yellow'  ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#D97706;margin-right:5px;flex-shrink:0"></span>'
-                    : '';
-          return `<div class="product-option" id="opt-${bi}-${oi}" onclick="selectOption(${bi},${oi})" style="${bgColor}">
-            <div class="check-icon"><svg viewBox="0 0 10 8" fill="none" stroke="#fff" stroke-width="1.8"><polyline points="1 4 3.5 7 9 1"/></svg></div>
-            <div class="prod-name" style="display:flex;align-items:center">${dot}${opt.name}</div>
-            <div class="prod-desc">${opt.artikelnr?'Art: '+opt.artikelnr:''}</div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`;
-  }).join('');
+  if(huidigBlokIdx>=blocks.length){goStep2();return;}
+  const b=blocks[huidigBlokIdx];
+  const visibleOpts=getVisibleOptions(b);
+  const total=blocks.length;
+  document.getElementById('blok-progress-label').textContent=`Blok ${huidigBlokIdx+1} van ${total}`;
+  document.getElementById('blok-progress-bar').style.width=Math.round((huidigBlokIdx/total)*100)+'%';
+  document.getElementById('blok-criterium-badge').innerHTML=currentCriterium==='los'
+    ?'<span style="background:#EFF6FF;color:#185FA5;padding:3px 10px;border-radius:20px;font-size:12px;border:0.5px solid #93C5FD">Losse ontvangers</span>'
+    :'<span style="background:#FFFBEB;color:#D97706;padding:3px 10px;border-radius:20px;font-size:12px;border:0.5px solid #FCD34D">Vaste ontvangers</span>';
+  document.getElementById('blok-nummer-badge').textContent=huidigBlokIdx+1;
+  document.getElementById('blok-title-display').textContent=b.title;
+  document.getElementById('blok-req-badge').textContent=b.required?'Verplicht':'Optioneel';
+  const instrEl=document.getElementById('blok-instructie-display');
+  if(b.instructie){instrEl.textContent=b.instructie;instrEl.style.display='';}
+  else instrEl.style.display='none';
+  document.getElementById('btn-blok-terug').textContent=huidigBlokIdx===0?'← Type wijzigen':'← Terug';
+  const huidigeSel=selections[huidigBlokIdx];
+  const isBlok1=String(b.blokNr||'')==='1'||huidigBlokIdx===0;
+  const container=document.getElementById('blok-opties-container');
+  if(!visibleOpts.length){
+    container.innerHTML='<div style="padding:1.5rem;text-align:center;color:var(--gray-text);font-size:14px">Geen opties beschikbaar voor dit installatietype.</div>';
+    document.getElementById('btn-blok-volgende').disabled=b.required;
+    return;
+  }
+  // Sla visible opts op als data attribuut op container
+  container.dataset.opts=JSON.stringify(visibleOpts);
+  container.dataset.blok=huidigBlokIdx;
+  container.innerHTML=
+    `<div class="optie-header"><span></span><span>Omschrijving</span><span style="text-align:right">Inkoop</span><span style="text-align:right">Adviesprijs</span></div>`+
+    visibleOpts.map((opt,oi)=>{
+      const geselecteerd=huidigeSel&&huidigeSel.option.name===opt.name;
+      const bg=!geselecteerd&&isBlok1&&opt.color==='blue'?'background:#EFF6FF':!geselecteerd&&isBlok1&&opt.color==='yellow'?'background:#FFFBEB':'';
+      const dot=isBlok1&&opt.color==='blue'?'<span style="width:8px;height:8px;border-radius:50%;background:#185FA5;flex-shrink:0;margin-right:4px;display:inline-block"></span>':isBlok1&&opt.color==='yellow'?'<span style="width:8px;height:8px;border-radius:50%;background:#D97706;flex-shrink:0;margin-right:4px;display:inline-block"></span>':'';
+      return `<div class="optie-rij${geselecteerd?' selected':''}" style="${bg}" data-oi="${oi}">
+        <div class="optie-radio"></div>
+        <div><div class="optie-naam" style="display:flex;align-items:center">${dot}${opt.name}</div>${opt.artikelnr?`<div style="font-size:12px;color:var(--gray-text)">Art: ${opt.artikelnr}</div>`:''}</div>
+        <div class="optie-inkoop">${opt.inkoop?'€\u00a0'+parseFloat(opt.inkoop).toFixed(2):''}</div>
+        <div class="optie-verkoop">${opt.price?'€\u00a0'+parseFloat(opt.price).toFixed(2):''}</div>
+      </div>`;
+    }).join('');
+  // Klik handler via delegatie
+  container.onclick=function(e){
+    const rij=e.target.closest('.optie-rij');
+    if(!rij) return;
+    const oi=parseInt(rij.dataset.oi);
+    const opts=JSON.parse(container.dataset.opts);
+    const bi=parseInt(container.dataset.blok);
+    const blk=getBlocks()[bi];
+    selections[bi]={block:blk.title,option:opts[oi]};
+    container.querySelectorAll('.optie-rij').forEach((r,i)=>{
+      r.classList.toggle('selected',i===oi);
+      if(i!==oi){const o=opts[i]; r.style.background=isBlok1&&o.color==='blue'?'#EFF6FF':isBlok1&&o.color==='yellow'?'#FFFBEB':'';}
+      else r.style.background='';
+    });
+    document.getElementById('btn-blok-volgende').disabled=false;
+    updateTotaal();
+  };
+  document.getElementById('btn-blok-volgende').disabled=b.required&&!huidigeSel;
+  document.getElementById('btn-blok-volgende').textContent=huidigBlokIdx===blocks.length-1?'Klantgegevens →':'Volgende →';
   updateTotaal();
 }
 
-window.selectOption = function(bi,oi){
+window.blokTerug=function(){
+  if(huidigBlokIdx===0){document.getElementById('blok-screen').style.display='none';document.getElementById('blok0-screen').style.display='';}
+  else{huidigBlokIdx--;renderHuidigBlok();}
+};
+window.blokVolgende=function(){
   const blocks=getBlocks();
-  const isBlok1 = String(blocks[bi].blokNr||'')==='1' || bi===0;
-  blocks[bi].options.forEach((opt,i)=>{
-    const el=document.getElementById(`opt-${bi}-${i}`);
-    el.classList.remove('selected');
-    if(isBlok1 && opt.color==='blue')   el.style.cssText='background:#EFF6FF;border-color:#93C5FD';
-    else if(isBlok1 && opt.color==='yellow') el.style.cssText='background:#FFFBEB;border-color:#FCD34D';
-    else el.style.cssText='';
-  });
-  const selEl=document.getElementById(`opt-${bi}-${oi}`);
-  selEl.classList.add('selected');
-  selEl.style.cssText=''; // selected class handles the blue highlight
-  selections[bi]={block:blocks[bi].title, option:blocks[bi].options[oi]};
-  updateTotaal();
+  huidigBlokIdx++;
+  if(huidigBlokIdx>=blocks.length) goStep2();
+  else renderHuidigBlok();
 };
 
 function updateTotaal(){
   const blocks=getBlocks();
-  if(!blocks.length) return;
-  let totalInkoop=0, totalVerkoop=0;
-  const regels=[];
-  blocks.forEach((b,bi)=>{
-    const s=selections[bi];
-    if(s){
-      const inkoop=parseFloat(s.option.inkoop||0);
-      const verkoop=parseFloat(s.option.price||0);
-      totalInkoop+=inkoop; totalVerkoop+=verkoop;
-      regels.push({nr:bi+1, blok:b.title, naam:s.option.name, inkoop, verkoop});
-    }
-  });
+  let ti=0,tv=0;const regels=[];
+  blocks.forEach((b,bi)=>{const s=selections[bi];if(s){const i=parseFloat(s.option.inkoop||0),v=parseFloat(s.option.price||0);ti+=i;tv+=v;regels.push({nr:bi+1,blok:b.title,naam:s.option.name,inkoop:i,verkoop:v});}});
   const card=document.getElementById('totaal-card');
   if(!regels.length){card.style.display='none';return}
   card.style.display='block';
-  document.getElementById('totaal-regels').innerHTML=regels.map(r=>`
-    <div class="prijzen-row">
-      <span class="p-label"><strong style="color:#1a1a1a">${r.nr} ${r.blok}:</strong> ${r.naam}</span>
-      <span class="p-inkoop">${r.inkoop?'€\u00a0'+r.inkoop.toFixed(2):''}</span>
-      <span class="p-verkoop">${r.verkoop?'€\u00a0'+r.verkoop.toFixed(2):''}</span>
-    </div>`).join('');
-  document.getElementById('totaal-inkoop').textContent='€\u00a0'+totalInkoop.toFixed(2).replace('.',',');
-  document.getElementById('totaal-verkoop').textContent='€\u00a0'+totalVerkoop.toFixed(2).replace('.',',');
+  document.getElementById('totaal-regels').innerHTML=regels.map(r=>`<div class="prijzen-row"><span class="p-label"><strong style="color:#1a1a1a">${r.nr} ${r.blok}:</strong> ${r.naam}</span><span class="p-inkoop">${r.inkoop?'€\u00a0'+r.inkoop.toFixed(2):''}</span><span class="p-verkoop">${r.verkoop?'€\u00a0'+r.verkoop.toFixed(2):''}</span></div>`).join('');
+  document.getElementById('totaal-inkoop').textContent='€\u00a0'+ti.toFixed(2).replace('.',',');
+  document.getElementById('totaal-verkoop').textContent='€\u00a0'+tv.toFixed(2).replace('.',',');
 }
 
 function showStep(id){
@@ -525,10 +627,6 @@ function updateStepper(a){
 }
 
 window.goStep2=function(){
-  const blocks=getBlocks();
-  for(let i=0;i<blocks.length;i++){
-    if(blocks[i].required&&!selections[i]){alert(`Maak een keuze bij: "${blocks[i].title}"`);return}
-  }
   showStep('step2'); updateStepper(2);
 };
 window.goStep1    =()=>{showStep('step1');updateStepper(1)};
@@ -671,7 +769,7 @@ window.submitForm=async function(){
 };
 
 window.resetAll=function(){
-  selections={};
+  selections={}; currentCriterium=''; huidigBlokIdx=0;
   ['f-supplier','f-am-name','f-am-phone','f-am-email',
    'f-company','f-contact','f-email','f-phone','f-ref','f-notes']
     .forEach(id=>document.getElementById(id).value='');
