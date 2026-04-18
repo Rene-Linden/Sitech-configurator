@@ -181,13 +181,9 @@ tr:hover td{background:var(--gray-bg)}
       <div class="panel" id="panel-aanvragen">
         <div class="panel-title">Aanvragen</div>
         <div class="panel-sub">Overzicht van alle ingediende aanvragen. Alleen inzien.</div>
-        <div class="card" style="margin-bottom:1.25rem">
-          <div style="padding:16px 16px 8px;font-size:13px;font-weight:500;color:var(--gray-text)">Aanvragen per merk</div>
-          <div style="padding:0 16px 16px">
-            <canvas id="chart-aanvragen" height="80"></canvas>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+
+        <!-- Filters -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
           <select id="filter-merk-aanvragen" onchange="filterAanvragen()" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
             <option value="">Alle merken</option>
           </select>
@@ -199,11 +195,24 @@ tr:hover td{background:var(--gray-bg)}
           </select>
           <span id="aanvragen-count" style="font-size:13px;color:var(--gray-text)"></span>
         </div>
-        <div class="card">
-          <table>
-            <thead><tr><th>Datum</th><th>Merk</th><th>Leverancier</th><th>Klant</th><th>Totaal advies</th><th></th></tr></thead>
-            <tbody id="tbl-aanvragen"><tr><td colspan="6" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden...</td></tr></tbody>
-          </table>
+
+        <!-- Twee kolommen: grafiek links, lijst rechts -->
+        <div style="display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start">
+
+          <!-- Grafiek -->
+          <div class="card" style="padding:16px;position:sticky;top:1rem">
+            <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:12px">Aanvragen per merk</div>
+            <canvas id="chart-aanvragen"></canvas>
+          </div>
+
+          <!-- Lijst -->
+          <div class="card" style="overflow:hidden">
+            <table>
+              <thead><tr><th>Datum</th><th>Merk</th><th>Klant</th><th style="text-align:right">Advies</th><th></th></tr></thead>
+              <tbody id="tbl-aanvragen"><tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden...</td></tr></tbody>
+            </table>
+          </div>
+
         </div>
       </div>
   </div>
@@ -703,12 +712,11 @@ function renderAanvragen(){
     const m = merken.find(x=>x.id===a.merkId);
     const datum = a.datum?new Date(a.datum).toLocaleDateString('nl-NL'):'—';
     return `<tr style="cursor:pointer" onclick="openAanvraag('${a.id}')">
-      <td>${datum}</td>
-      <td>${m?m.naam:'—'}</td>
-      <td>${a.supplier||'—'}</td>
+      <td style="white-space:nowrap;font-size:13px">${datum}</td>
+      <td style="font-size:13px">${m?m.naam:'—'}</td>
       <td><strong style="font-size:13px">${a.company||'—'}</strong><br><span style="font-size:12px;color:var(--gray-text)">${a.contact||''}</span></td>
-      <td style="text-align:right;color:var(--blue);font-weight:500">${a.totaal_verkoop||'—'}</td>
-      <td style="text-align:right"><span style="font-size:12px;color:var(--blue)">Details →</span></td>
+      <td style="text-align:right;color:var(--blue);font-weight:500;white-space:nowrap;font-size:13px">${a.totaal_verkoop||'—'}</td>
+      <td style="text-align:right"><span style="font-size:13px;color:var(--blue)">→</span></td>
     </tr>`;
   }).join('');
 }
@@ -730,10 +738,13 @@ function renderChart(data){
       borderColor:labels.map((_,i)=>colors[i%colors.length]),
       borderWidth:1.5, borderRadius:4
     }]},
-    options:{responsive:true,plugins:{legend:{display:false}},
+    options:{
+      indexAxis:'y',
+      responsive:true,
+      plugins:{legend:{display:false}},
       scales:{
-        y:{beginAtZero:true,ticks:{stepSize:1,font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}},
-        x:{ticks:{font:{size:11}},grid:{display:false}}
+        x:{beginAtZero:true,ticks:{stepSize:1,font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}},
+        y:{ticks:{font:{size:11}},grid:{display:false}}
       }
     }
   });
