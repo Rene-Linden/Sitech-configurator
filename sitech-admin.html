@@ -611,7 +611,8 @@ function renderMerkFilterOpties(){
   if(!sel) return;
   const cur = sel.value;
   sel.innerHTML = '<option value="">— Selecteer merk —</option>'+merken.map(m=>`<option value="${m.id}">${m.naam}</option>`).join('');
-  if(cur) sel.value = cur;
+  // Herstel selectie — als er al een merk geselecteerd was, behoud dat
+  if(cur && merken.find(m=>m.id===cur)) sel.value = cur;
   renderPrijslijst();
 }
 
@@ -862,24 +863,25 @@ window.addOptionRow = (name='',artikelnr='',inkoop='',price='',color='',criteriu
   const ed=document.getElementById('block-options-editor');
   const row=document.createElement('div');
   row.className='option-row';
+  row.dataset.isblok1 = blok1 ? '1' : '0';
   const cols = blok1 ? '1.5fr 1fr 1fr 1fr 70px 80px 1fr 1fr 1fr 1fr auto' : '1.5fr 1fr 1fr 1fr 70px 80px auto';
   row.style.cssText=`display:grid;grid-template-columns:${cols};gap:5px;align-items:center;margin-bottom:6px`;
   const sbuFields = blok1 ? `
-    <input type="text" placeholder="SBU 1" value="${sbu1}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
-    <input type="text" placeholder="SBU 2" value="${sbu2}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
-    <input type="text" placeholder="SBU 3" value="${sbu3}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
-    <input type="text" placeholder="SBU 4" value="${sbu4}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />` : '';
+    <input data-field="sbu1" type="text" placeholder="SBU 1" value="${sbu1}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
+    <input data-field="sbu2" type="text" placeholder="SBU 2" value="${sbu2}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
+    <input data-field="sbu3" type="text" placeholder="SBU 3" value="${sbu3}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
+    <input data-field="sbu4" type="text" placeholder="SBU 4" value="${sbu4}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />` : '';
   row.innerHTML=`
-    <input type="text" placeholder="Omschrijving" value="${name}" style="padding:7px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
-    <input type="text" placeholder="Artikelnummer" value="${artikelnr}" style="padding:7px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
-    <input type="number" placeholder="0.00" min="0" step="0.01" value="${inkoop}" style="text-align:right;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
-    <input type="number" placeholder="0.00" min="0" step="0.01" value="${price}" style="text-align:right;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
-    <select style="padding:5px 4px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:11px">
+    <input data-field="name" type="text" placeholder="Omschrijving" value="${name}" style="padding:7px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
+    <input data-field="artikelnr" type="text" placeholder="Artikelnummer" value="${artikelnr}" style="padding:7px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
+    <input data-field="inkoop" type="number" placeholder="0.00" min="0" step="0.01" value="${inkoop}" style="text-align:right;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
+    <input data-field="price" type="number" placeholder="0.00" min="0" step="0.01" value="${price}" style="text-align:right;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
+    <select data-field="color" style="padding:5px 4px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:11px">
       <option value="" ${!color?'selected':''}>—</option>
       <option value="blue" ${color==='blue'?'selected':''} style="background:#BFDBFE">Blauw</option>
       <option value="yellow" ${color==='yellow'?'selected':''} style="background:#FDE68A">Geel</option>
     </select>
-    <select style="padding:5px 4px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:11px">
+    <select data-field="criterium" style="padding:5px 4px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:11px">
       <option value="" ${!criterium?'selected':''}>Leeg</option>
       <option value="los" ${criterium==='los'?'selected':''}>Los</option>
       <option value="vast" ${criterium==='vast'?'selected':''}>Vast</option>
@@ -890,24 +892,34 @@ window.addOptionRow = (name='',artikelnr='',inkoop='',price='',color='',criteriu
 };
 
 window.saveBlock = async ()=>{
-  const merkId=document.getElementById('sel-merk-filter').value;
-  const blokNr=document.getElementById('block-nr').value.trim();
-  const title=document.getElementById('block-naam').value.trim();
-  const required=document.getElementById('block-req').value==='1';
-  const instructie=document.getElementById('block-instructie').value.trim();
-  const editId=document.getElementById('block-edit-id').value;
+  const merkId   = document.getElementById('sel-merk-filter').value;
+  const blokNr   = document.getElementById('block-nr').value.trim();
+  const title    = document.getElementById('block-naam').value.trim();
+  const required = document.getElementById('block-req').value==='1';
+  const instructie = document.getElementById('block-instructie').value.trim();
+  const editId   = document.getElementById('block-edit-id').value;
   if(!blokNr){alert('Vul een bloknummer in');return}
   if(!title){alert('Vul een bloknaam in');return}
-  const isBlok1=blokNr==='1';
-  const rows=document.querySelectorAll('#block-options-editor .option-row');
+  const rows = document.querySelectorAll('#block-options-editor .option-row');
   const options=[];
   rows.forEach(r=>{
-    const inp=r.querySelectorAll('input');
-    const sels=r.querySelectorAll('select');
-    const name=inp[0].value.trim();
+    const g = f => (r.querySelector(`[data-field="${f}"]`)?.value||'').trim();
+    const name = g('name');
     if(!name) return;
-    const opt={name,artikelnr:inp[1].value.trim(),inkoop:inp[2].value.trim(),price:inp[3].value.trim(),color:sels[0]?.value||'',criterium:sels[1]?.value||''};
-    if(isBlok1){ opt.sbu1=inp[4]?.value.trim()||''; opt.sbu2=inp[5]?.value.trim()||''; opt.sbu3=inp[6]?.value.trim()||''; opt.sbu4=inp[7]?.value.trim()||''; }
+    const opt = {
+      name,
+      artikelnr: g('artikelnr'),
+      inkoop:    g('inkoop'),
+      price:     g('price'),
+      color:     g('color'),
+      criterium: g('criterium'),
+    };
+    if(r.dataset.isblok1==='1'){
+      opt.sbu1 = g('sbu1');
+      opt.sbu2 = g('sbu2');
+      opt.sbu3 = g('sbu3');
+      opt.sbu4 = g('sbu4');
+    }
     options.push(opt);
   });
   if(!options.length){alert('Voeg minimaal één optie toe');return}
@@ -915,7 +927,6 @@ window.saveBlock = async ()=>{
   const nb={id:editId||'b'+Date.now(),title,blokNr,required,instructie,options};
   if(editId){const idx=blocks.findIndex(b=>b.id===editId);if(idx>-1)blocks[idx]=nb;else blocks.push(nb);}
   else blocks.push(nb);
-  // Sorteer op bloknummer
   blocks.sort((a,b)=>parseInt(a.blokNr||99)-parseInt(b.blokNr||99));
   await setDoc(doc(db,'prijslijsten',merkId),{blocks});
   showSaving(); closeModal('modal-block');
