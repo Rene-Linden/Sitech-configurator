@@ -821,22 +821,20 @@ function updateSbuSection(blokNr){
 }
 
 document.getElementById('block-nr').addEventListener('input', function(){
-  updateSbuSection(this.value);
-  // herbouw opties als blokNr wijzigt (om SBU velden toe te voegen/verwijderen)
-  const ed=document.getElementById('block-options-editor');
-  const bestaandeRijen = ed.querySelectorAll('.option-row');
-  if(bestaandeRijen.length){
-    const isBlok1=String(this.value).trim()==='1';
-    bestaandeRijen.forEach(r=>{
-      const inp=r.querySelectorAll('input[type=text], input[type=number]');
-      const sels=r.querySelectorAll('select');
-      const naam=inp[0]?.value||'', art=inp[1]?.value||'', ink=inp[2]?.value||'', adv=inp[3]?.value||'';
-      const kleur=sels[0]?.value||'', crit=sels[1]?.value||'';
-      const sbu1=inp[4]?.value||'', sbu2=inp[5]?.value||'', sbu3=inp[6]?.value||'', sbu4=inp[7]?.value||'';
-      r.outerHTML=''; // wordt vervangen door addOptionRow
-      // we vervangen niet live, gewoon bestaande rijen laten staan, SBU velden worden bij save genegeerd als niet blok1
-    });
-  }
+  const blokNr = this.value.trim();
+  updateSbuSection(blokNr);
+  const isBlok1 = blokNr==='1';
+  const ed = document.getElementById('block-options-editor');
+  const bestaandeRijen = Array.from(ed.querySelectorAll('.option-row'));
+  if(!bestaandeRijen.length) return;
+  // Lees huidige waarden uit data-field attributen
+  const huidigeData = bestaandeRijen.map(r=>{
+    const g = f=>(r.querySelector(`[data-field="${f}"]`)?.value||'').trim();
+    return {name:g('name'),artikelnr:g('artikelnr'),inkoop:g('inkoop'),price:g('price'),color:g('color'),criterium:g('criterium'),sbu1:g('sbu1'),sbu2:g('sbu2'),sbu3:g('sbu3'),sbu4:g('sbu4')};
+  });
+  // Herbouw alle rijen
+  ed.innerHTML='';
+  huidigeData.forEach(d=>addOptionRow(d.name,d.artikelnr,d.inkoop,d.price,d.color,d.criterium,d.sbu1,d.sbu2,d.sbu3,d.sbu4,isBlok1));
 });
 
 window.editBlock = (merkId,blockId)=>{
