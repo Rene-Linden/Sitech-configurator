@@ -561,7 +561,7 @@ window.submitForm=async function(){
   const klantEmail=document.getElementById('f-email').value.trim();
   const blocks=getBlocks();
   const productsKlant=blocks.map((b,bi)=>{ const s=selections[bi]; return s?`${b.title}: ${s.option.name}`:`${b.title}: geen keuze`; }).join('\n');
-  const productsSitech=blocks.map((b,bi)=>{ const s=selections[bi]; if(!s)return`${b.title}: geen keuze`; const i=parseFloat(s.option.inkoop||0),v=parseFloat(s.option.price||0); return `${b.title}: ${s.option.name}${s.option.artikelnr?' ['+s.option.artikelnr+']':''} | Inkoop: €${i.toFixed(2)} | Advies: €${v.toFixed(2)}`; }).join('\n');
+  const productsSitech=blocks.map((b,bi)=>{ const s=selections[bi]; if(!s)return`${b.title}: geen keuze`; const i=parseFloat(s.option.inkoop||0),v=parseFloat(s.option.price||0); const sbu=[s.option.sbu1,s.option.sbu2,s.option.sbu3,s.option.sbu4].filter(Boolean); const sbuStr=sbu.length?` | SBU: ${sbu.join(', ')}`:''; return `${b.title}: ${s.option.name}${s.option.artikelnr?' ['+s.option.artikelnr+']':''} | Inkoop: €${i.toFixed(2)} | Advies: €${v.toFixed(2)}${sbuStr}`; }).join('\n');
   let ti=0,tv=0; blocks.forEach((_,bi)=>{ const s=selections[bi]; if(s){ti+=parseFloat(s.option.inkoop||0);tv+=parseFloat(s.option.price||0);} });
   const params={
     supplier: document.getElementById('f-supplier').value.trim(),

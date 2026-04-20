@@ -293,18 +293,24 @@ tr:hover td{background:var(--gray-bg)}
 
 <!-- MODAL BLOK -->
 <div class="modal-bg" id="modal-block">
-  <div class="modal" style="max-width:660px">
+  <div class="modal" style="max-width:700px">
     <div class="modal-header"><h3 id="modal-block-title">Blok toevoegen</h3><button class="modal-close" onclick="closeModal('modal-block')">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="block-edit-id" />
-      <div class="form-row cols2">
-        <div class="fg"><label>Bloknaam *</label><input type="text" id="block-naam" placeholder="Bijv. Type verwarmingsunit" /></div>
+      <div class="form-row" style="grid-template-columns:60px 1fr 120px">
+        <div class="fg"><label>Nr. *</label><input type="text" id="block-nr" placeholder="1" style="text-align:center" /></div>
+        <div class="fg"><label>Bloknaam *</label><input type="text" id="block-naam" placeholder="Bijv. Basis Configuratie" /></div>
         <div class="fg"><label>Verplicht?</label><select id="block-req"><option value="1">Ja — verplicht</option><option value="0">Nee — optioneel</option></select></div>
       </div>
       <div class="form-row">
-        <div class="fg"><label>Instructietekst (optioneel)</label><textarea id="block-instructie" placeholder="Toelichting voor de gebruiker, bijv. 'Kies het type ontvanger dat past bij de installatie'" rows="2" style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px;resize:vertical;outline:none;font-family:var(--font)"></textarea></div>
+        <div class="fg"><label>Instructietekst (optioneel)</label><textarea id="block-instructie" placeholder="Toelichting voor de gebruiker" rows="2" style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px;resize:vertical;outline:none;font-family:var(--font)"></textarea></div>
       </div>
-      <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 70px 80px auto;gap:5px;font-size:11px;font-weight:500;color:var(--gray-text);padding:0 2px;margin-bottom:4px;margin-top:8px">
+      <div id="block-sbu-section" style="display:none;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:500;color:var(--amber);background:var(--amber-light);border-radius:7px;padding:8px 12px;border:0.5px solid rgba(133,79,11,.2)">
+          Blok 1 — SBU nummers per optie (alleen zichtbaar in Sitech-mail, niet voor klant)
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 70px 80px auto;gap:5px;font-size:11px;font-weight:500;color:var(--gray-text);padding:0 2px;margin-bottom:4px;margin-top:8px" id="opties-header">
         <span>Omschrijving</span><span>Artikelnummer</span><span>Inkoop (€)</span><span>Advies (€)</span><span>Kleur</span><span>Criterium</span><span></span>
       </div>
       <div id="block-options-editor"></div>
@@ -639,7 +645,7 @@ function renderPrijslijst(){
       ${b.instructie?`<div style="padding:8px 14px;font-size:12px;color:var(--gray-text);background:#fffdf5;border-bottom:0.5px solid var(--gray-border)">Instructie: ${b.instructie}</div>`:''}
       <div class="block-editor-body">
         <table style="font-size:12px;width:100%">
-          <thead><tr><th>Omschrijving</th><th>Artikelnr.</th><th style="text-align:right">Inkoop</th><th style="text-align:right">Verkoopadvies</th><th>Kleur</th><th>Criterium</th></tr></thead>
+          <thead><tr><th>Omschrijving</th><th>Artikelnr.</th><th style="text-align:right">Inkoop</th><th style="text-align:right">Verkoopadvies</th><th>Kleur</th><th>Criterium</th>${isBlok1?'<th>SBU 1</th><th>SBU 2</th><th>SBU 3</th><th>SBU 4</th>':''}</tr></thead>
           <tbody>${b.options.map(o=>{
             const kleur = o.color==='yellow'
               ? '<span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#FDE68A;border:1px solid #D97706;vertical-align:middle"></span>'
@@ -647,6 +653,11 @@ function renderPrijslijst(){
               ? '<span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#BFDBFE;border:1px solid #185FA5;vertical-align:middle"></span>'
               : '<span style="color:var(--gray-text)">—</span>';
             const crit = o.criterium==='los'?'<span class="badge-blue">Los</span>':o.criterium==='vast'?'<span class="badge-green">Vast</span>':'<span style="color:var(--gray-text);font-size:12px">—</span>';
+            const sbuCells = isBlok1 ? `
+              <td style="font-size:12px;color:var(--amber)">${o.sbu1||'—'}</td>
+              <td style="font-size:12px;color:var(--amber)">${o.sbu2||'—'}</td>
+              <td style="font-size:12px;color:var(--amber)">${o.sbu3||'—'}</td>
+              <td style="font-size:12px;color:var(--amber)">${o.sbu4||'—'}</td>` : '';
             return `<tr>
               <td style="font-weight:500">${o.name}</td>
               <td style="color:var(--gray-text)">${o.artikelnr||''}</td>
@@ -654,6 +665,7 @@ function renderPrijslijst(){
               <td style="text-align:right;color:var(--blue)">${o.price?'€\u00a0'+parseFloat(o.price).toFixed(2):'—'}</td>
               <td>${kleur}</td>
               <td>${crit}</td>
+              ${sbuCells}
             </tr>`;
           }).join('')}</tbody>
         </table>
@@ -783,33 +795,78 @@ window.openAddBlock = ()=>{
   const merkId=document.getElementById('sel-merk-filter').value;
   if(!merkId){alert('Selecteer eerst een merk');return}
   document.getElementById('block-edit-id').value='';
+  document.getElementById('block-nr').value='';
   document.getElementById('block-naam').value='';
   document.getElementById('block-req').value='1';
   document.getElementById('block-instructie').value='';
   document.getElementById('modal-block-title').textContent='Blok toevoegen';
   const ed=document.getElementById('block-options-editor');
   ed.innerHTML='';
+  updateSbuSection('');
   addOptionRow(); addOptionRow();
   openModal('modal-block');
 };
+
+function updateSbuSection(blokNr){
+  const isBlok1 = String(blokNr).trim()==='1';
+  document.getElementById('block-sbu-section').style.display = isBlok1?'':'none';
+  const hdr = document.getElementById('opties-header');
+  hdr.style.gridTemplateColumns = isBlok1
+    ? '1.5fr 1fr 1fr 1fr 70px 80px 1fr 1fr 1fr 1fr auto'
+    : '1.5fr 1fr 1fr 1fr 70px 80px auto';
+  hdr.innerHTML = isBlok1
+    ? '<span>Omschrijving</span><span>Artikelnummer</span><span>Inkoop (€)</span><span>Advies (€)</span><span>Kleur</span><span>Criterium</span><span>SBU 1</span><span>SBU 2</span><span>SBU 3</span><span>SBU 4</span><span></span>'
+    : '<span>Omschrijving</span><span>Artikelnummer</span><span>Inkoop (€)</span><span>Advies (€)</span><span>Kleur</span><span>Criterium</span><span></span>';
+}
+
+document.getElementById('block-nr').addEventListener('input', function(){
+  updateSbuSection(this.value);
+  // herbouw opties als blokNr wijzigt (om SBU velden toe te voegen/verwijderen)
+  const ed=document.getElementById('block-options-editor');
+  const bestaandeRijen = ed.querySelectorAll('.option-row');
+  if(bestaandeRijen.length){
+    const isBlok1=String(this.value).trim()==='1';
+    bestaandeRijen.forEach(r=>{
+      const inp=r.querySelectorAll('input[type=text], input[type=number]');
+      const sels=r.querySelectorAll('select');
+      const naam=inp[0]?.value||'', art=inp[1]?.value||'', ink=inp[2]?.value||'', adv=inp[3]?.value||'';
+      const kleur=sels[0]?.value||'', crit=sels[1]?.value||'';
+      const sbu1=inp[4]?.value||'', sbu2=inp[5]?.value||'', sbu3=inp[6]?.value||'', sbu4=inp[7]?.value||'';
+      r.outerHTML=''; // wordt vervangen door addOptionRow
+      // we vervangen niet live, gewoon bestaande rijen laten staan, SBU velden worden bij save genegeerd als niet blok1
+    });
+  }
+});
+
 window.editBlock = (merkId,blockId)=>{
   const block=(prijslijsten[merkId]||[]).find(b=>b.id===blockId);
   if(!block) return;
   document.getElementById('block-edit-id').value=blockId;
+  document.getElementById('block-nr').value=block.blokNr||'';
   document.getElementById('block-naam').value=block.title;
   document.getElementById('block-req').value=block.required?'1':'0';
   document.getElementById('block-instructie').value=block.instructie||'';
   document.getElementById('modal-block-title').textContent='Blok bewerken';
+  updateSbuSection(block.blokNr||'');
   const ed=document.getElementById('block-options-editor');
   ed.innerHTML='';
-  block.options.forEach(o=>addOptionRow(o.name,o.artikelnr||'',o.inkoop||'',o.price||'',o.color||'',o.criterium||''));
+  block.options.forEach(o=>addOptionRow(o.name,o.artikelnr||'',o.inkoop||'',o.price||'',o.color||'',o.criterium||'',o.sbu1||'',o.sbu2||'',o.sbu3||'',o.sbu4||'',String(block.blokNr||'')==='1'));
   openModal('modal-block');
 };
-window.addOptionRow = (name='',artikelnr='',inkoop='',price='',color='',criterium='')=>{
+
+window.addOptionRow = (name='',artikelnr='',inkoop='',price='',color='',criterium='',sbu1='',sbu2='',sbu3='',sbu4='',isBlok1=false)=>{
+  const blokNr = document.getElementById('block-nr').value.trim();
+  const blok1 = isBlok1 || blokNr==='1';
   const ed=document.getElementById('block-options-editor');
   const row=document.createElement('div');
   row.className='option-row';
-  row.style.cssText='display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 70px 80px auto;gap:5px;align-items:center;margin-bottom:6px';
+  const cols = blok1 ? '1.5fr 1fr 1fr 1fr 70px 80px 1fr 1fr 1fr 1fr auto' : '1.5fr 1fr 1fr 1fr 70px 80px auto';
+  row.style.cssText=`display:grid;grid-template-columns:${cols};gap:5px;align-items:center;margin-bottom:6px`;
+  const sbuFields = blok1 ? `
+    <input type="text" placeholder="SBU 1" value="${sbu1}" style="font-size:12px" />
+    <input type="text" placeholder="SBU 2" value="${sbu2}" style="font-size:12px" />
+    <input type="text" placeholder="SBU 3" value="${sbu3}" style="font-size:12px" />
+    <input type="text" placeholder="SBU 4" value="${sbu4}" style="font-size:12px" />` : '';
   row.innerHTML=`
     <input type="text" placeholder="Omschrijving" value="${name}" />
     <input type="text" placeholder="Artikelnummer" value="${artikelnr}" />
@@ -825,30 +882,39 @@ window.addOptionRow = (name='',artikelnr='',inkoop='',price='',color='',criteriu
       <option value="los" ${criterium==='los'?'selected':''}>Los</option>
       <option value="vast" ${criterium==='vast'?'selected':''}>Vast</option>
     </select>
+    ${sbuFields}
     <button class="btn btn-sm btn-red" onclick="this.parentElement.remove()">×</button>`;
   ed.appendChild(row);
 };
+
 window.saveBlock = async ()=>{
   const merkId=document.getElementById('sel-merk-filter').value;
+  const blokNr=document.getElementById('block-nr').value.trim();
   const title=document.getElementById('block-naam').value.trim();
   const required=document.getElementById('block-req').value==='1';
   const instructie=document.getElementById('block-instructie').value.trim();
   const editId=document.getElementById('block-edit-id').value;
+  if(!blokNr){alert('Vul een bloknummer in');return}
   if(!title){alert('Vul een bloknaam in');return}
+  const isBlok1=blokNr==='1';
   const rows=document.querySelectorAll('#block-options-editor .option-row');
   const options=[];
   rows.forEach(r=>{
     const inp=r.querySelectorAll('input');
     const sels=r.querySelectorAll('select');
     const name=inp[0].value.trim();
-    if(name) options.push({name,artikelnr:inp[1].value.trim(),inkoop:inp[2].value.trim(),price:inp[3].value.trim(),color:sels[0]?sels[0].value:'',criterium:sels[1]?sels[1].value:''});
+    if(!name) return;
+    const opt={name,artikelnr:inp[1].value.trim(),inkoop:inp[2].value.trim(),price:inp[3].value.trim(),color:sels[0]?.value||'',criterium:sels[1]?.value||''};
+    if(isBlok1){ opt.sbu1=inp[4]?.value.trim()||''; opt.sbu2=inp[5]?.value.trim()||''; opt.sbu3=inp[6]?.value.trim()||''; opt.sbu4=inp[7]?.value.trim()||''; }
+    options.push(opt);
   });
   if(!options.length){alert('Voeg minimaal één optie toe');return}
   const blocks=[...(prijslijsten[merkId]||[])];
-  const existingBlock=editId?blocks.find(b=>b.id===editId):null;
-  const nb={id:editId||'b'+Date.now(),title,required,instructie,options,blokNr:existingBlock?.blokNr||''};
+  const nb={id:editId||'b'+Date.now(),title,blokNr,required,instructie,options};
   if(editId){const idx=blocks.findIndex(b=>b.id===editId);if(idx>-1)blocks[idx]=nb;else blocks.push(nb);}
   else blocks.push(nb);
+  // Sorteer op bloknummer
+  blocks.sort((a,b)=>parseInt(a.blokNr||99)-parseInt(b.blokNr||99));
   await setDoc(doc(db,'prijslijsten',merkId),{blocks});
   showSaving(); closeModal('modal-block');
 };

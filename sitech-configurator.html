@@ -709,7 +709,9 @@ window.submitForm=async function(){
     if(!s) return `${b.title}: geen keuze`;
     const inkoop=parseFloat(s.option.inkoop||0);
     const verkoop=parseFloat(s.option.price||0);
-    return `${b.title}: ${s.option.name}${s.option.artikelnr?' ['+s.option.artikelnr+']':''} | Inkoop: €${inkoop.toFixed(2)} | Advies: €${verkoop.toFixed(2)}`;
+    const sbuParts=[s.option.sbu1,s.option.sbu2,s.option.sbu3,s.option.sbu4].filter(Boolean);
+    const sbuStr=sbuParts.length?` | SBU: ${sbuParts.join(', ')}` : '';
+    return `${b.title}: ${s.option.name}${s.option.artikelnr?' ['+s.option.artikelnr+']':''} | Inkoop: €${inkoop.toFixed(2)} | Advies: €${verkoop.toFixed(2)}${sbuStr}`;
   }).join('\n');
   let totInkoop=0, totVerkoop=0;
   blocks.forEach((_,bi)=>{ const s=selections[bi]; if(s){totInkoop+=parseFloat(s.option.inkoop||0);totVerkoop+=parseFloat(s.option.price||0);} });
