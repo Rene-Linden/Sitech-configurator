@@ -847,31 +847,33 @@ window.editBlock = (merkId,blockId)=>{
   document.getElementById('block-req').value=block.required?'1':'0';
   document.getElementById('block-instructie').value=block.instructie||'';
   document.getElementById('modal-block-title').textContent='Blok bewerken';
+  // Update SBU sectie VOOR het renderen van de opties
   updateSbuSection(block.blokNr||'');
+  const isBlok1 = String(block.blokNr||'')==='1';
   const ed=document.getElementById('block-options-editor');
   ed.innerHTML='';
-  block.options.forEach(o=>addOptionRow(o.name,o.artikelnr||'',o.inkoop||'',o.price||'',o.color||'',o.criterium||'',o.sbu1||'',o.sbu2||'',o.sbu3||'',o.sbu4||'',String(block.blokNr||'')==='1'));
+  block.options.forEach(o=>addOptionRow(o.name,o.artikelnr||'',o.inkoop||'',o.price||'',o.color||'',o.criterium||'',o.sbu1||'',o.sbu2||'',o.sbu3||'',o.sbu4||'',isBlok1));
   openModal('modal-block');
 };
 
-window.addOptionRow = (name='',artikelnr='',inkoop='',price='',color='',criterium='',sbu1='',sbu2='',sbu3='',sbu4='',isBlok1=false)=>{
+window.addOptionRow = (name='',artikelnr='',inkoop='',price='',color='',criterium='',sbu1='',sbu2='',sbu3='',sbu4='',isBlok1Override=null)=>{
   const blokNr = document.getElementById('block-nr').value.trim();
-  const blok1 = isBlok1 || blokNr==='1';
+  const blok1 = isBlok1Override !== null ? isBlok1Override : blokNr==='1';
   const ed=document.getElementById('block-options-editor');
   const row=document.createElement('div');
   row.className='option-row';
   const cols = blok1 ? '1.5fr 1fr 1fr 1fr 70px 80px 1fr 1fr 1fr 1fr auto' : '1.5fr 1fr 1fr 1fr 70px 80px auto';
   row.style.cssText=`display:grid;grid-template-columns:${cols};gap:5px;align-items:center;margin-bottom:6px`;
   const sbuFields = blok1 ? `
-    <input type="text" placeholder="SBU 1" value="${sbu1}" style="font-size:12px" />
-    <input type="text" placeholder="SBU 2" value="${sbu2}" style="font-size:12px" />
-    <input type="text" placeholder="SBU 3" value="${sbu3}" style="font-size:12px" />
-    <input type="text" placeholder="SBU 4" value="${sbu4}" style="font-size:12px" />` : '';
+    <input type="text" placeholder="SBU 1" value="${sbu1}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
+    <input type="text" placeholder="SBU 2" value="${sbu2}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
+    <input type="text" placeholder="SBU 3" value="${sbu3}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
+    <input type="text" placeholder="SBU 4" value="${sbu4}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />` : '';
   row.innerHTML=`
-    <input type="text" placeholder="Omschrijving" value="${name}" />
-    <input type="text" placeholder="Artikelnummer" value="${artikelnr}" />
-    <input type="number" placeholder="0.00" min="0" step="0.01" value="${inkoop}" style="text-align:right" />
-    <input type="number" placeholder="0.00" min="0" step="0.01" value="${price}" style="text-align:right" />
+    <input type="text" placeholder="Omschrijving" value="${name}" style="padding:7px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
+    <input type="text" placeholder="Artikelnummer" value="${artikelnr}" style="padding:7px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
+    <input type="number" placeholder="0.00" min="0" step="0.01" value="${inkoop}" style="text-align:right;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
+    <input type="number" placeholder="0.00" min="0" step="0.01" value="${price}" style="text-align:right;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
     <select style="padding:5px 4px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:11px">
       <option value="" ${!color?'selected':''}>—</option>
       <option value="blue" ${color==='blue'?'selected':''} style="background:#BFDBFE">Blauw</option>
