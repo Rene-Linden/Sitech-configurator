@@ -293,7 +293,7 @@ tr:hover td{background:var(--gray-bg)}
 
 <!-- MODAL BLOK -->
 <div class="modal-bg" id="modal-block">
-  <div class="modal" style="max-width:700px">
+  <div class="modal" style="max-width:95vw;width:1100px">
     <div class="modal-header"><h3 id="modal-block-title">Blok toevoegen</h3><button class="modal-close" onclick="closeModal('modal-block')">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="block-edit-id" />
@@ -310,10 +310,12 @@ tr:hover td{background:var(--gray-bg)}
           Blok 1 — SBU nummers per optie (alleen zichtbaar in Sitech-mail, niet voor klant)
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 70px 80px auto;gap:5px;font-size:11px;font-weight:500;color:var(--gray-text);padding:0 2px;margin-bottom:4px;margin-top:8px" id="opties-header">
-        <span>Omschrijving</span><span>Artikelnummer</span><span>Inkoop (€)</span><span>Advies (€)</span><span>Kleur</span><span>Criterium</span><span></span>
+      <div style="overflow-x:auto">
+        <div style="display:grid;grid-template-columns:2fr 1fr 80px 80px 70px 90px 90px 90px 90px 90px 36px;gap:5px;font-size:11px;font-weight:500;color:var(--gray-text);padding:0 2px;margin-bottom:4px;min-width:900px" id="opties-header">
+          <span>Omschrijving</span><span>Artikelnummer</span><span>Inkoop (€)</span><span>Advies (€)</span><span>Kleur</span><span>Criterium</span><span></span>
+        </div>
+        <div id="block-options-editor" style="min-width:900px"></div>
       </div>
-      <div id="block-options-editor"></div>
       <button class="btn btn-sm" onclick="addOptionRow()" style="margin-top:8px">+ Optie toevoegen</button>
     </div>
     <div class="modal-footer">
@@ -812,9 +814,10 @@ function updateSbuSection(blokNr){
   const isBlok1 = String(blokNr).trim()==='1';
   document.getElementById('block-sbu-section').style.display = isBlok1?'':'none';
   const hdr = document.getElementById('opties-header');
+  const colsBase = '2fr 1fr 80px 80px 70px 90px';
   hdr.style.gridTemplateColumns = isBlok1
-    ? '1.5fr 1fr 1fr 1fr 70px 80px 1fr 1fr 1fr 1fr auto'
-    : '1.5fr 1fr 1fr 1fr 70px 80px auto';
+    ? `${colsBase} 90px 90px 90px 90px 36px`
+    : `${colsBase} 36px`;
   hdr.innerHTML = isBlok1
     ? '<span>Omschrijving</span><span>Artikelnummer</span><span>Inkoop (€)</span><span>Advies (€)</span><span>Kleur</span><span>Criterium</span><span>SBU 1</span><span>SBU 2</span><span>SBU 3</span><span>SBU 4</span><span></span>'
     : '<span>Omschrijving</span><span>Artikelnummer</span><span>Inkoop (€)</span><span>Advies (€)</span><span>Kleur</span><span>Criterium</span><span></span>';
@@ -862,8 +865,9 @@ window.addOptionRow = (name='',artikelnr='',inkoop='',price='',color='',criteriu
   const row=document.createElement('div');
   row.className='option-row';
   row.dataset.isblok1 = blok1 ? '1' : '0';
-  const cols = blok1 ? '1.5fr 1fr 1fr 1fr 70px 80px 1fr 1fr 1fr 1fr auto' : '1.5fr 1fr 1fr 1fr 70px 80px auto';
-  row.style.cssText=`display:grid;grid-template-columns:${cols};gap:5px;align-items:center;margin-bottom:6px`;
+  const colsBase = '2fr 1fr 80px 80px 70px 90px';
+  const cols = blok1 ? `${colsBase} 90px 90px 90px 90px 36px` : `${colsBase} 36px`;
+  row.style.cssText=`display:grid;grid-template-columns:${cols};gap:5px;align-items:center;margin-bottom:6px;min-width:900px`;
   const sbuFields = blok1 ? `
     <input data-field="sbu1" type="text" placeholder="SBU 1" value="${sbu1}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
     <input data-field="sbu2" type="text" placeholder="SBU 2" value="${sbu2}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
