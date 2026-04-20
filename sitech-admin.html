@@ -156,7 +156,7 @@ tr:hover td{background:var(--gray-bg)}
         <div class="panel-title">Prijslijsten</div>
         <div class="panel-sub">Upload een Excel-bestand per merk of beheer blokken handmatig. Kolom E = bloknummer, kolom F = kleuraccent (blue/yellow, alleen blok 1).</div>
         <div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <select id="sel-merk-filter" onchange="renderPrijslijst()" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
+          <select id="sel-merk-filter" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
             <option value="">— Selecteer merk —</option>
           </select>
           <button class="btn btn-blue" onclick="openAddBlock()">+ Blok handmatig</button>
@@ -184,10 +184,10 @@ tr:hover td{background:var(--gray-bg)}
 
         <!-- Filters -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-          <select id="filter-merk-aanvragen" onchange="filterAanvragen()" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
+          <select id="filter-merk-aanvragen" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
             <option value="">Alle merken</option>
           </select>
-          <select id="filter-periode" onchange="filterAanvragen()" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
+          <select id="filter-periode" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
             <option value="">Alle periodes</option>
             <option value="7">Laatste 7 dagen</option>
             <option value="30">Laatste 30 dagen</option>
@@ -1010,6 +1010,11 @@ document.getElementById('btn-pdf-download').addEventListener('click', ()=>{
   const win  = window.open(url,'_blank');
   if(!win) alert('Sta pop-ups toe om de PDF te openen.');
 });
+
+// Wire alle select event listeners
+document.getElementById('sel-merk-filter').addEventListener('change', ()=>renderPrijslijst());
+document.getElementById('filter-merk-aanvragen').addEventListener('change', ()=>renderAanvragen());
+document.getElementById('filter-periode').addEventListener('change', ()=>renderAanvragen());
 
 // Wire Excel upload button after DOM is ready
 document.getElementById('btn-excel-upload').addEventListener('click', ()=>{
