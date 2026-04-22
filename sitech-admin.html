@@ -161,6 +161,7 @@ tr:hover td{background:var(--gray-bg)}
           </select>
           <button class="btn btn-blue" onclick="openAddBlock()">+ Blok handmatig</button>
           <button class="btn btn-green" id="btn-excel-upload">Excel uploaden</button>
+          <button class="btn" id="btn-excel-download" style="border-color:rgba(59,109,17,.3);color:var(--green);background:var(--green-light)">Excel downloaden</button>
           <button class="btn" id="btn-pdf-download" style="border-color:rgba(133,79,11,.3);color:var(--amber);background:var(--amber-light)">PDF prijslijst</button>
           <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none" />
           <span id="excel-status" style="font-size:13px;color:var(--gray-text)"></span>
@@ -1017,6 +1018,65 @@ document.getElementById('btn-pdf-download').addEventListener('click', ()=>{
 document.getElementById('sel-merk-filter').addEventListener('change', ()=>renderPrijslijst());
 document.getElementById('filter-merk-aanvragen').addEventListener('change', ()=>renderAanvragen());
 document.getElementById('filter-periode').addEventListener('change', ()=>renderAanvragen());
+
+// Excel downloaden — alle merken als aparte tabbladen
+document.getElementById('btn-excel-download').addEventListener('click', ()=>{
+  const merkId = document.getElementById('sel-merk-filter').value;
+
+  if(typeof XLSX === 'undefined'){ alert('Excel-library nog niet geladen, probeer opnieuw.'); return; }
+
+  const header = ['Omschrijving','Artikelnummer','Inkoopprijs','Verkoopadviesprijs','Bloknummer','Kleuraccent','Criterium','SBU 1','SBU 2','SBU 3','SBU 4'];
+  const kolombreedtes = [{wch:50},{wch:14},{wch:14},{wch:16},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12}];
+
+  const wb = XLSX.utils.book_new();
+
+  // Exporteer geselecteerd merk of alle merken
+  const teExporteren = merkId
+    ? merken.filter(m=>m.id===merkId)
+    : merken;
+
+  if(!teExporteren.length){ alert('Geen merken gevonden'); return; }
+
+  let aantalTabbladen = 0;
+  teExporteren.forEach(merk=>{
+    const blocks = prijslijsten[merk.id]||[];
+    const rows = [header];
+    blocks.forEach(b=>{
+      b.options.forEach(o=>{
+        rows.push([
+          o.name        || '',
+          o.artikelnr   || '',
+          o.inkoop      ? parseFloat(o.inkoop) : '',
+          o.price       ? parseFloat(o.price)  : '',
+          b.blokNr      || '',
+          o.color       || '',
+          o.criterium   || '',
+          o.sbu1        || '',
+          o.sbu2        || '',
+          o.sbu3        || '',
+          o.sbu4        || '',
+        ]);
+      });
+    });
+    if(rows.length > 1){ // alleen tabblad aanmaken als er data is
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = kolombreedtes;
+      // Tabblad naam max 31 tekens (Excel limiet)
+      const tabNaam = merk.naam.substring(0,31).replace(/[\\\/\?\*\[\]]/g,'');
+      XLSX.utils.book_append_sheet(wb, ws, tabNaam);
+      aantalTabbladen++;
+    }
+  });
+
+  if(!aantalTabbladen){ alert('Geen prijslijstdata gevonden om te exporteren'); return; }
+
+  const datum = new Date().toISOString().slice(0,10);
+  const bestandsnaam = merkId
+    ? `prijslijst-${merken.find(m=>m.id===merkId)?.naam.replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${datum}.xlsx`
+    : `prijslijsten-alle-merken-${datum}.xlsx`;
+
+  XLSX.writeFile(wb, bestandsnaam);
+});
 
 // Wire Excel upload button after DOM is ready
 document.getElementById('btn-excel-upload').addEventListener('click', ()=>{
