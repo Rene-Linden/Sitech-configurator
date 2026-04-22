@@ -362,6 +362,7 @@ tr:hover td{background:var(--gray-bg)}
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBktIXqssmyaVo_VRuPXkDAPiytsSn QjjM",
@@ -375,7 +376,8 @@ const firebaseConfig = {
 const ADMIN_ACCOUNTS = { 'admin':'Sitech@2024!', 'verkoop':'Verkoop@123', 'beheer':'Beheer@456' };
 
 const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
+const db      = getFirestore(app);
+const storage = getStorage(app);
 
 let merken = [], gebruikers = [], prijslijsten = {};
 let sitechMedewerkers = [];
@@ -817,11 +819,11 @@ function updateSbuSection(blokNr){
   const hdr = document.getElementById('opties-header');
   const colsBase = '2fr 1fr 80px 80px 70px 90px';
   hdr.style.gridTemplateColumns = isBlok1
-    ? `${colsBase} 90px 90px 90px 90px 36px`
-    : `${colsBase} 36px`;
+    ? `${colsBase} 90px 90px 90px 90px 80px 36px`
+    : `${colsBase} 80px 36px`;
   hdr.innerHTML = isBlok1
-    ? '<span>Omschrijving</span><span>Artikelnummer</span><span>Inkoop (€)</span><span>Advies (€)</span><span>Kleur</span><span>Criterium</span><span>SBU 1</span><span>SBU 2</span><span>SBU 3</span><span>SBU 4</span><span></span>'
-    : '<span>Omschrijving</span><span>Artikelnummer</span><span>Inkoop (€)</span><span>Advies (€)</span><span>Kleur</span><span>Criterium</span><span></span>';
+    ? '<span>Omschrijving</span><span>Artikelnummer</span><span>Inkoop (€)</span><span>Advies (€)</span><span>Kleur</span><span>Criterium</span><span>SBU 1</span><span>SBU 2</span><span>SBU 3</span><span>SBU 4</span><span>Foto</span><span></span>'
+    : '<span>Omschrijving</span><span>Artikelnummer</span><span>Inkoop (€)</span><span>Advies (€)</span><span>Kleur</span><span>Criterium</span><span>Foto</span><span></span>';
 }
 
 document.getElementById('block-nr').addEventListener('input', function(){
@@ -834,11 +836,11 @@ document.getElementById('block-nr').addEventListener('input', function(){
   // Lees huidige waarden uit data-field attributen
   const huidigeData = bestaandeRijen.map(r=>{
     const g = f=>(r.querySelector(`[data-field="${f}"]`)?.value||'').trim();
-    return {name:g('name'),artikelnr:g('artikelnr'),inkoop:g('inkoop'),price:g('price'),color:g('color'),criterium:g('criterium'),sbu1:g('sbu1'),sbu2:g('sbu2'),sbu3:g('sbu3'),sbu4:g('sbu4')};
+    return {name:g('name'),artikelnr:g('artikelnr'),inkoop:g('inkoop'),price:g('price'),color:g('color'),criterium:g('criterium'),sbu1:g('sbu1'),sbu2:g('sbu2'),sbu3:g('sbu3'),sbu4:g('sbu4'),fotoUrl:r.dataset.fotourl||''};
   });
   // Herbouw alle rijen
   ed.innerHTML='';
-  huidigeData.forEach(d=>addOptionRow(d.name,d.artikelnr,d.inkoop,d.price,d.color,d.criterium,d.sbu1,d.sbu2,d.sbu3,d.sbu4,isBlok1));
+  huidigeData.forEach(d=>addOptionRow(d.name,d.artikelnr,d.inkoop,d.price,d.color,d.criterium,d.sbu1,d.sbu2,d.sbu3,d.sbu4,isBlok1,d.fotoUrl));
 });
 
 window.editBlock = (merkId,blockId)=>{
@@ -855,25 +857,29 @@ window.editBlock = (merkId,blockId)=>{
   const isBlok1 = String(block.blokNr||'')==='1';
   const ed=document.getElementById('block-options-editor');
   ed.innerHTML='';
-  block.options.forEach(o=>addOptionRow(o.name,o.artikelnr||'',o.inkoop||'',o.price||'',o.color||'',o.criterium||'',o.sbu1||'',o.sbu2||'',o.sbu3||'',o.sbu4||'',isBlok1));
+  block.options.forEach(o=>addOptionRow(o.name,o.artikelnr||'',o.inkoop||'',o.price||'',o.color||'',o.criterium||'',o.sbu1||'',o.sbu2||'',o.sbu3||'',o.sbu4||'',isBlok1,o.fotoUrl||''));
   openModal('modal-block');
 };
 
-window.addOptionRow = (name='',artikelnr='',inkoop='',price='',color='',criterium='',sbu1='',sbu2='',sbu3='',sbu4='',isBlok1Override=null)=>{
+window.addOptionRow = (name='',artikelnr='',inkoop='',price='',color='',criterium='',sbu1='',sbu2='',sbu3='',sbu4='',isBlok1Override=null,fotoUrl='')=>{
   const blokNr = document.getElementById('block-nr').value.trim();
   const blok1 = isBlok1Override !== null ? isBlok1Override : blokNr==='1';
   const ed=document.getElementById('block-options-editor');
   const row=document.createElement('div');
   row.className='option-row';
   row.dataset.isblok1 = blok1 ? '1' : '0';
+  row.dataset.fotourl = fotoUrl;
   const colsBase = '2fr 1fr 80px 80px 70px 90px';
-  const cols = blok1 ? `${colsBase} 90px 90px 90px 90px 36px` : `${colsBase} 36px`;
+  const cols = blok1 ? `${colsBase} 90px 90px 90px 90px 80px 36px` : `${colsBase} 80px 36px`;
   row.style.cssText=`display:grid;grid-template-columns:${cols};gap:5px;align-items:center;margin-bottom:6px;min-width:900px`;
   const sbuFields = blok1 ? `
     <input data-field="sbu1" type="text" placeholder="SBU 1" value="${sbu1}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
     <input data-field="sbu2" type="text" placeholder="SBU 2" value="${sbu2}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
     <input data-field="sbu3" type="text" placeholder="SBU 3" value="${sbu3}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />
     <input data-field="sbu4" type="text" placeholder="SBU 4" value="${sbu4}" style="font-size:12px;padding:7px 6px;border:0.5px solid var(--gray-border);border-radius:6px;outline:none" />` : '';
+  const fotoPreview = fotoUrl
+    ? `<img src="${fotoUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:4px;border:0.5px solid var(--gray-border)">`
+    : `<span style="font-size:11px;color:var(--gray-text)">Geen foto</span>`;
   row.innerHTML=`
     <input data-field="name" type="text" placeholder="Omschrijving" value="${name}" style="padding:7px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
     <input data-field="artikelnr" type="text" placeholder="Artikelnummer" value="${artikelnr}" style="padding:7px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" />
@@ -890,8 +896,64 @@ window.addOptionRow = (name='',artikelnr='',inkoop='',price='',color='',criteriu
       <option value="vast" ${criterium==='vast'?'selected':''}>Vast</option>
     </select>
     ${sbuFields}
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div class="foto-preview">${fotoPreview}</div>
+      <label style="font-size:10px;color:var(--blue);cursor:pointer;white-space:nowrap">
+        ${fotoUrl?'Wijzigen':'+ Foto'}
+        <input type="file" accept="image/*" style="display:none" onchange="uploadFoto(this)">
+      </label>
+      ${fotoUrl?`<span style="font-size:10px;color:var(--red);cursor:pointer" onclick="verwijderFoto(this)">Verwijderen</span>`:''}
+    </div>
     <button class="btn btn-sm btn-red" onclick="this.parentElement.remove()">×</button>`;
   ed.appendChild(row);
+};
+
+// Foto upload per optieregel
+window.uploadFoto = async function(input){
+  const row = input.closest('.option-row');
+  const preview = row.querySelector('.foto-preview');
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 2*1024*1024){ alert('Foto mag maximaal 2MB zijn'); return; }
+  preview.innerHTML = '<span style="font-size:11px;color:var(--gray-text)">Uploaden…</span>';
+  try {
+    const ext = file.name.split('.').pop();
+    const pad = `fotos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const storageRef = ref(storage, pad);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+    row.dataset.fotourl = url;
+    preview.innerHTML = `<img src="${url}" style="width:36px;height:36px;object-fit:cover;border-radius:4px;border:0.5px solid var(--gray-border)">`;
+    // Voeg verwijder-knop toe als die er nog niet is
+    let verwijderBtn = row.querySelector('.foto-verwijder');
+    if(!verwijderBtn){
+      verwijderBtn = document.createElement('span');
+      verwijderBtn.className = 'foto-verwijder';
+      verwijderBtn.style.cssText = 'font-size:10px;color:var(--red);cursor:pointer';
+      verwijderBtn.textContent = 'Verwijderen';
+      verwijderBtn.onclick = ()=>verwijderFoto(verwijderBtn);
+      input.closest('label').insertAdjacentElement('afterend', verwijderBtn);
+    }
+    // Update label tekst
+    input.closest('label').childNodes[0].textContent = 'Wijzigen';
+  } catch(e){
+    console.error(e);
+    preview.innerHTML = '<span style="font-size:11px;color:var(--red)">Fout</span>';
+    alert('Upload mislukt: '+e.message);
+  }
+};
+
+window.verwijderFoto = function(el){
+  const row = el.closest('.option-row');
+  const url = row.dataset.fotourl;
+  if(url){
+    try{ deleteObject(ref(storage, url)); }catch(e){ /* negeer als al weg */ }
+  }
+  row.dataset.fotourl = '';
+  row.querySelector('.foto-preview').innerHTML = '<span style="font-size:11px;color:var(--gray-text)">Geen foto</span>';
+  el.remove();
+  const label = row.querySelector('label');
+  if(label) label.childNodes[0].textContent = '+ Foto';
 };
 
 window.saveBlock = async ()=>{
@@ -916,6 +978,7 @@ window.saveBlock = async ()=>{
       price:     g('price'),
       color:     g('color'),
       criterium: g('criterium'),
+      fotoUrl:   r.dataset.fotourl||'',
     };
     if(r.dataset.isblok1==='1'){
       opt.sbu1 = g('sbu1');

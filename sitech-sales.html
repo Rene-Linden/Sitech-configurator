@@ -479,7 +479,10 @@ function renderHuidigBlok(){
       const dot=isBlok1&&opt.color==='blue'?'<span style="width:8px;height:8px;border-radius:50%;background:#185FA5;flex-shrink:0;margin-right:4px;display:inline-block"></span>':isBlok1&&opt.color==='yellow'?'<span style="width:8px;height:8px;border-radius:50%;background:#D97706;flex-shrink:0;margin-right:4px;display:inline-block"></span>':'';
       return `<div class="optie-rij${g?' selected':''}" style="${bg}" data-oi="${oi}">
         <div class="optie-radio"></div>
-        <div><div class="optie-naam" style="display:flex;align-items:center">${dot}${opt.name}</div>${opt.artikelnr?`<div style="font-size:12px;color:var(--gray-text)">Art: ${opt.artikelnr}</div>`:''}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${opt.fotoUrl?`<img src="${opt.fotoUrl}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:0.5px solid var(--gray-border);flex-shrink:0">`:''}
+          <div><div class="optie-naam" style="display:flex;align-items:center">${dot}${opt.name}</div>${opt.artikelnr?`<div style="font-size:12px;color:var(--gray-text)">Art: ${opt.artikelnr}</div>`:''}</div>
+        </div>
         <div class="optie-inkoop">${opt.inkoop?'€\u00a0'+parseFloat(opt.inkoop).toFixed(2):''}</div>
         <div class="optie-verkoop">${opt.price?'€\u00a0'+parseFloat(opt.price).toFixed(2):''}</div>
       </div>`;
