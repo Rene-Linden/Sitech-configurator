@@ -263,8 +263,8 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
 
         <div class="card" style="overflow:hidden">
-          <div style="overflow-x:auto">
-            <table id="tbl-artikelen" style="min-width:1300px;table-layout:auto">
+          <div style="overflow-x:scroll;overflow-y:visible;padding-bottom:4px">
+            <table id="tbl-artikelen" style="min-width:3200px;table-layout:auto;border-collapse:collapse">
               <thead id="tbl-artikelen-head"></thead>
               <tbody id="tbl-artikelen-body"><tr><td colspan="12" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
             </table>
@@ -1533,30 +1533,30 @@ function renderArtikelen(){
   const alleGeselecteerd = pagina.length>0 && pagina.every(a=>artikelSelectie.has(a.id));
 
   thead.innerHTML=`<tr style="position:sticky;top:0;background:var(--gray-bg);z-index:10">
-    <th style="width:36px;text-align:center"><input type="checkbox" id="chk-all" ${alleGeselecteerd?'checked':''} /></th>
-    <th>Product ID ${makeColFilter('productId','Product ID','text',[])}</th>
-    <th>Name ${makeColFilter('name','Name','text',[])}</th>
-    <th>Default Vendor ${makeColFilter('vendor','Leverancier','select',vendors)}</th>
-    <th>Product ID Vendor ${makeColFilter('vendorId','Product ID Vendor','text',[])}</th>
-    <th>Product Group ${makeColFilter('group','Product Group','select',groups)}</th>
-    <th>FS Product Type ${makeColFilter('type','FS Type','select',types)}</th>
-    <th style="text-align:right">Standard Cost</th>
-    <th style="text-align:center">Serial Nr. ${makeColFilter('serial','Serial Number','select',serials)}</th>
-    <th>Ledger Turnover ${makeColFilter('ledger','Ledger Turnover','select',ledgers)}</th>
-    <th>Product Posting Grp ${makeColFilter('posting','Posting Group','select',postings)}</th>
-    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Type</th>
-    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">UoM</th>
-    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Costing Method</th>
-    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Gen. Posting Group</th>
-    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">VAT</th>
-    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Inven. Posting</th>
-    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Price/Profit</th>
-    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Subscriptie</th>
-    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Replen. System</th>
-    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Assembly Policy</th>
-    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Item Tracking</th>
-    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Ser. Nos.</th>
-    <th></th>
+    <th style="width:36px;min-width:36px;text-align:center"><input type="checkbox" id="chk-all" ${alleGeselecteerd?'checked':''} /></th>
+    <th style="min-width:140px">Product ID ${makeColFilter('productId','Product ID','text',[])}</th>
+    <th style="min-width:280px">Name ${makeColFilter('name','Name','text',[])}</th>
+    <th style="min-width:200px">Default Vendor ${makeColFilter('vendor','Leverancier','select',vendors)}</th>
+    <th style="min-width:150px">Product ID Vendor ${makeColFilter('vendorId','Product ID Vendor','text',[])}</th>
+    <th style="min-width:180px">Product Group ${makeColFilter('group','Product Group','select',groups)}</th>
+    <th style="min-width:140px">FS Product Type ${makeColFilter('type','FS Type','select',types)}</th>
+    <th style="min-width:110px;text-align:right">Standard Cost</th>
+    <th style="min-width:90px;text-align:center">Serial Nr. ${makeColFilter('serial','Serial Number','select',serials)}</th>
+    <th style="min-width:140px">Ledger Turnover ${makeColFilter('ledger','Ledger Turnover','select',ledgers)}</th>
+    <th style="min-width:160px">Product Posting Grp ${makeColFilter('posting','Posting Group','select',postings)}</th>
+    <th style="min-width:130px;background:var(--amber-light);color:var(--amber)">Type</th>
+    <th style="min-width:70px;background:var(--amber-light);color:var(--amber)">UoM</th>
+    <th style="min-width:140px;background:var(--amber-light);color:var(--amber)">Costing Method</th>
+    <th style="min-width:160px;background:var(--amber-light);color:var(--amber)">Gen. Posting Group</th>
+    <th style="min-width:90px;background:var(--amber-light);color:var(--amber)">VAT</th>
+    <th style="min-width:120px;background:var(--amber-light);color:var(--amber)">Inven. Posting</th>
+    <th style="min-width:180px;background:var(--amber-light);color:var(--amber)">Price/Profit</th>
+    <th style="min-width:180px;background:var(--amber-light);color:var(--amber)">Subscriptie</th>
+    <th style="min-width:130px;background:var(--amber-light);color:var(--amber)">Replen. System</th>
+    <th style="min-width:150px;background:var(--amber-light);color:var(--amber)">Assembly Policy</th>
+    <th style="min-width:120px;background:var(--amber-light);color:var(--amber)">Item Tracking</th>
+    <th style="min-width:110px;background:var(--amber-light);color:var(--amber)">Ser. Nos.</th>
+    <th style="min-width:160px"></th>
   </tr>`;
 
   document.getElementById('chk-all').addEventListener('change', function(){
