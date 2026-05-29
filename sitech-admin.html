@@ -134,6 +134,7 @@ tr.row-selected td{background:var(--blue-light)}
       <a class="nav-item" onclick="showPanel('prijslijsten',this)">Prijslijsten</a>
       <a class="nav-item" onclick="showPanel('aanvragen',this)">Aanvragen</a>
       <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
+      <a class="nav-item" onclick="showPanel('artikel-templates',this)">Artikel Templates</a>
     </div>
     <div class="main">
 
@@ -282,10 +283,96 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
       </div>
 
+      <!-- ARTIKEL TEMPLATES PANEL -->
+      <div class="panel" id="panel-artikel-templates">
+        <div class="panel-title">Artikel Templates</div>
+        <div class="panel-sub">Beheer de vaste velden per template-type. Wijzigingen worden direct doorgevoerd in de artikelentabel.</div>
+        <div class="card" style="overflow:hidden">
+          <div style="overflow-x:auto">
+            <table id="tbl-at" style="min-width:1600px;table-layout:auto;border-collapse:collapse">
+              <thead>
+                <tr style="background:var(--gray-bg)">
+                  <th style="min-width:180px">Template ID</th>
+                  <th style="min-width:200px">Omschrijving</th>
+                  <th style="min-width:130px">Type</th>
+                  <th style="min-width:60px">UoM</th>
+                  <th style="min-width:130px">Costing Method</th>
+                  <th style="min-width:140px">Gen. Posting Group</th>
+                  <th style="min-width:90px">VAT</th>
+                  <th style="min-width:110px">Inven. Posting</th>
+                  <th style="min-width:200px">Price/Profit</th>
+                  <th style="min-width:200px">Subscriptie</th>
+                  <th style="min-width:130px">Replen. System</th>
+                  <th style="min-width:160px">Assembly Policy</th>
+                  <th style="min-width:120px">Item Tracking</th>
+                  <th style="min-width:100px">Ser. Nos.</th>
+                  <th style="min-width:100px">Incl. BoM</th>
+                  <th style="min-width:80px"></th>
+                </tr>
+              </thead>
+              <tbody id="tbl-at-body">
+                <tr><td colspan="16" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
   </div>
 </div>
 
-<!-- MODAL ARTIKEL -->
+<!-- MODAL ARTIKEL TEMPLATE -->
+<div class="modal-bg" id="modal-at">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <h3 id="modal-at-title">Template bewerken</h3>
+      <button class="modal-close" onclick="closeModal('modal-at')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="at-edit-id" />
+      <div style="background:var(--blue-light);border-radius:7px;padding:8px 12px;font-size:12px;color:var(--blue);margin-bottom:14px">
+        Template ID en naam zijn vast. Alle andere velden zijn aanpasbaar en worden direct zichtbaar in de artikelentabel.
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Template ID</label><input type="text" id="at-id-display" disabled style="background:var(--gray-bg);color:var(--gray-text)" /></div>
+        <div class="fg"><label>Naam</label><input type="text" id="at-naam-display" disabled style="background:var(--gray-bg);color:var(--gray-text)" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Omschrijving</label><input type="text" id="at-omschrijving" /></div>
+        <div class="fg"><label>Type</label><input type="text" id="at-type" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>UoM</label><input type="text" id="at-uom" /></div>
+        <div class="fg"><label>Costing Method</label><input type="text" id="at-costingMeth" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Gen. Posting Group</label><input type="text" id="at-genPosting" /></div>
+        <div class="fg"><label>VAT Posting Group</label><input type="text" id="at-vatPosting" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Inven. Posting Group</label><input type="text" id="at-invenPosting" /></div>
+        <div class="fg"><label>Price/Profit</label><input type="text" id="at-priceProfit" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Subscriptie</label><input type="text" id="at-subscriptie" /></div>
+        <div class="fg"><label>Replen. System</label><input type="text" id="at-replen" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Assembly Policy</label><input type="text" id="at-assemblyPolicy" /></div>
+        <div class="fg"><label>Item Tracking</label><input type="text" id="at-itemTracking" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Ser. Nos.</label><input type="text" id="at-serNos" /></div>
+        <div class="fg"><label>Include Service BoM</label><input type="text" id="at-includeServiceBom" /></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-at')">Annuleren</button>
+      <button class="btn btn-blue" onclick="saveArtikelTemplate()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-artikel">
   <div class="modal" style="max-width:700px">
     <div class="modal-header"><h3 id="modal-artikel-title">Artikel toevoegen</h3><button class="modal-close" onclick="closeModal('modal-artikel')">×</button></div>
@@ -524,6 +611,8 @@ function startListeners(){
     artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderArtikelen();
   });
+  // Artikel templates listener
+  startArtikelTemplatesListener();
 }
 
 function showSaving(msg='Opgeslagen'){
@@ -543,6 +632,7 @@ window.showPanel = function(name,el){
   }
   if(name==='aanvragen'){ renderFilterMerkAanvragen(); renderAanvragen(); }
   if(name==='artikelen'){ vulTemplateSelector(); renderArtikelen(); toonTemplateInfo(); }
+  if(name==='artikel-templates'){ renderArtikelTemplates(); }
 };
 window.openModal  = id => document.getElementById(id).classList.add('open');
 window.closeModal = id => document.getElementById(id).classList.remove('open');
@@ -1894,7 +1984,114 @@ window.addEventListener('load', ()=>{
   }, 800);
 });
 
-// Template selector vullen na laden
+// ============================================================
+// ARTIKEL TEMPLATES MODULE
+// ============================================================
+let artikelTemplatesData = {}; // id -> template object (uit Firestore of fallback)
+let unsubArtikelTemplates;
+
+function startArtikelTemplatesListener(){
+  unsubArtikelTemplates = onSnapshot(collection(db,'artikel_templates'), snap=>{
+    if(snap.empty){
+      // Eerste keer: seed vanuit hardcoded array
+      seedArtikelTemplates();
+    } else {
+      snap.docs.forEach(d=>{ artikelTemplatesData[d.id] = {id:d.id,...d.data()}; });
+      // Sync in-memory ARTIKEL_TEMPLATES array
+      ARTIKEL_TEMPLATES.forEach(t=>{
+        if(artikelTemplatesData[t.id]) Object.assign(t, artikelTemplatesData[t.id]);
+      });
+      renderArtikelTemplates();
+    }
+  });
+}
+
+async function seedArtikelTemplates(){
+  const batch = writeBatch(db);
+  ARTIKEL_TEMPLATES.forEach(t=>{
+    batch.set(doc(db,'artikel_templates',t.id), {...t});
+  });
+  await batch.commit();
+}
+
+function renderArtikelTemplates(){
+  const tbody = document.getElementById('tbl-at-body');
+  if(!tbody) return;
+  tbody.innerHTML = ARTIKEL_TEMPLATES.map(t=>`<tr>
+    <td><strong style="font-size:12px">${t.id}</strong></td>
+    <td style="font-size:12px;color:var(--gray-text)">${t.omschrijving||'—'}</td>
+    <td style="font-size:12px">${t.type||'—'}</td>
+    <td style="font-size:12px;text-align:center">${t.uom||'—'}</td>
+    <td style="font-size:12px">${t.costingMeth||'—'}</td>
+    <td style="font-size:12px">${t.genPosting||'—'}</td>
+    <td style="font-size:12px">${t.vatPosting||'—'}</td>
+    <td style="font-size:12px">${t.invenPosting||'—'}</td>
+    <td style="font-size:12px">${t.priceProfit||'—'}</td>
+    <td style="font-size:12px">${t.subscriptie||'—'}</td>
+    <td style="font-size:12px">${t.replen||'—'}</td>
+    <td style="font-size:12px">${t.assemblyPolicy||'—'}</td>
+    <td style="font-size:12px">${t.itemTracking||'—'}</td>
+    <td style="font-size:12px">${t.serNos||'—'}</td>
+    <td style="font-size:12px">${t.includeServiceBom||'—'}</td>
+    <td style="text-align:right">
+      <button class="btn btn-sm" onclick="editArtikelTemplate('${t.id}')">Bewerken</button>
+    </td>
+  </tr>`).join('');
+}
+
+window.editArtikelTemplate = function(id){
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===id);
+  if(!t) return;
+  document.getElementById('at-edit-id').value        = id;
+  document.getElementById('at-id-display').value     = t.id;
+  document.getElementById('at-naam-display').value   = t.naam;
+  document.getElementById('at-omschrijving').value   = t.omschrijving||'';
+  document.getElementById('at-type').value           = t.type||'';
+  document.getElementById('at-uom').value            = t.uom||'';
+  document.getElementById('at-costingMeth').value    = t.costingMeth||'';
+  document.getElementById('at-genPosting').value     = t.genPosting||'';
+  document.getElementById('at-vatPosting').value     = t.vatPosting||'';
+  document.getElementById('at-invenPosting').value   = t.invenPosting||'';
+  document.getElementById('at-priceProfit').value    = t.priceProfit||'';
+  document.getElementById('at-subscriptie').value    = t.subscriptie||'';
+  document.getElementById('at-replen').value         = t.replen||'';
+  document.getElementById('at-assemblyPolicy').value = t.assemblyPolicy||'';
+  document.getElementById('at-itemTracking').value   = t.itemTracking||'';
+  document.getElementById('at-serNos').value         = t.serNos||'';
+  document.getElementById('at-includeServiceBom').value = t.includeServiceBom||'';
+  document.getElementById('modal-at-title').textContent = `Template bewerken — ${t.naam}`;
+  openModal('modal-at');
+};
+
+window.saveArtikelTemplate = async function(){
+  const id = document.getElementById('at-edit-id').value;
+  const updated = {
+    omschrijving:     document.getElementById('at-omschrijving').value.trim(),
+    type:             document.getElementById('at-type').value.trim(),
+    uom:              document.getElementById('at-uom').value.trim(),
+    costingMeth:      document.getElementById('at-costingMeth').value.trim(),
+    genPosting:       document.getElementById('at-genPosting').value.trim(),
+    vatPosting:       document.getElementById('at-vatPosting').value.trim(),
+    invenPosting:     document.getElementById('at-invenPosting').value.trim(),
+    priceProfit:      document.getElementById('at-priceProfit').value.trim(),
+    subscriptie:      document.getElementById('at-subscriptie').value.trim(),
+    replen:           document.getElementById('at-replen').value.trim(),
+    assemblyPolicy:   document.getElementById('at-assemblyPolicy').value.trim(),
+    itemTracking:     document.getElementById('at-itemTracking').value.trim(),
+    serNos:           document.getElementById('at-serNos').value.trim(),
+    includeServiceBom:document.getElementById('at-includeServiceBom').value.trim(),
+  };
+  // Update in-memory ARTIKEL_TEMPLATES
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===id);
+  if(t) Object.assign(t, updated);
+  // Sla op in Firestore
+  await setDoc(doc(db,'artikel_templates',id), {...t, ...updated}, {merge:true});
+  showSaving('Template opgeslagen');
+  closeModal('modal-at');
+  renderArtikelTemplates();
+  // Herrender artikelentabel als die zichtbaar is
+  renderArtikelen();
+};
 window.addEventListener('load', ()=>{ setTimeout(vulTemplateSelector, 500); });
 
 </script>
