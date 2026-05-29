@@ -1426,15 +1426,15 @@ function getGefilterdeArtikelen(){
   const s = artikelFilterState;
   return artikelen.filter(a=>{
     if(a.templateId!==tid) return false;
-    if(s.productId && !(a.productId||'').toLowerCase().includes(s.productId)) return false;
-    if(s.name     && !(a.name||'').toLowerCase().includes(s.name))             return false;
-    if(s.vendor   && a.defaultVendor!==s.vendor)                               return false;
-    if(s.vendorId && !(a.productIdVendor||'').toLowerCase().includes(s.vendorId)) return false;
-    if(s.group    && a.productGroup!==s.group)                                 return false;
-    if(s.type     && a.fsProductType!==s.type)                                 return false;
-    if(s.serial   && a.serialNumber!==s.serial)                                return false;
-    if(s.ledger   && a.ledgerTurnover!==s.ledger)                              return false;
-    if(s.posting  && a.productPostingGroup!==s.posting)                        return false;
+    if(s.productId && !(a.productId||'').toLowerCase().includes(s.productId))     return false;
+    if(s.name     && !(a.name||'').toLowerCase().includes(s.name))                 return false;
+    if(s.vendor   && (a.defaultVendor||'')!==s.vendor)                             return false;
+    if(s.vendorId && !(a.productIdVendor||'').toLowerCase().includes(s.vendorId))  return false;
+    if(s.group    && (a.productGroup||'')!==s.group)                               return false;
+    if(s.type     && (a.fsProductType||'')!==s.type)                               return false;
+    if(s.serial   && (a.serialNumber||'')!==s.serial)                             return false;
+    if(s.ledger   && (a.ledgerTurnover||'')!==s.ledger)                           return false;
+    if(s.posting  && (a.productPostingGroup||'')!==s.posting)                     return false;
     return true;
   });
 }
@@ -1467,7 +1467,15 @@ window.toggleColFilter = function(id){
   document.getElementById(id)?.classList.toggle('open');
 };
 window.setArtikelFilter = function(key, val){
-  artikelFilterState[key] = val.toLowerCase ? val.toLowerCase() : val;
+  const tekstVelden = ['productId','name','vendorId'];
+  artikelFilterState[key] = tekstVelden.includes(key) ? val.toLowerCase() : val;
+  artikelPagina = 1;
+  renderArtikelen();
+};
+
+window.clearArtikelFilters = function(){
+  Object.keys(artikelFilterState).forEach(k=>artikelFilterState[k]='');
+  artikelPagina = 1;
   renderArtikelen();
 };
 window.clearArtikelFilters = function(){
@@ -1479,6 +1487,9 @@ window.clearArtikelFilters = function(){
 document.addEventListener('click', e=>{
   if(!e.target.closest('.col-filter-wrap')) document.querySelectorAll('.col-filter-dropdown.open').forEach(d=>d.classList.remove('open'));
 });
+
+let artikelPagina = 1;
+const ARTIKELEN_PER_PAGINA = 100;
 
 function renderArtikelen(){
   const tid = document.getElementById('sel-template-filter').value;
@@ -1494,7 +1505,6 @@ function renderArtikelen(){
   const all = artikelen.filter(a=>a.templateId===tid);
   const gefilterd = getGefilterdeArtikelen();
 
-  // Unieke waarden per dropdown kolom
   const uniq = f=>[...new Set(all.map(a=>a[f]).filter(Boolean))].sort();
   const vendors  = uniq('defaultVendor');
   const groups   = uniq('productGroup');
@@ -1503,13 +1513,23 @@ function renderArtikelen(){
   const ledgers  = uniq('ledgerTurnover');
   const postings = uniq('productPostingGroup');
 
-  const actief = Object.values(artikelFilterState).some(Boolean);
+  // Paginering
+  const totaalPaginas = Math.max(1, Math.ceil(gefilterd.length / ARTIKELEN_PER_PAGINA));
+  if(artikelPagina > totaalPaginas) artikelPagina = 1;
+  const start = (artikelPagina-1)*ARTIKELEN_PER_PAGINA;
+  const pagina = gefilterd.slice(start, start+ARTIKELEN_PER_PAGINA);
+
   const countTxt = gefilterd.length !== all.length
     ? `${gefilterd.length} van ${all.length} — <a href="#" onclick="clearArtikelFilters();return false" style="color:var(--blue)">wis filters</a>`
     : `${all.length} artikel${all.length!==1?'en':''}`;
-  document.getElementById('filter-artikel-count').innerHTML = countTxt;
+  const paginaTxt = totaalPaginas > 1
+    ? ` &nbsp;|&nbsp; Pagina ${artikelPagina} van ${totaalPaginas} &nbsp;
+        <button class="btn btn-sm" onclick="artikelPagina=Math.max(1,artikelPagina-1);renderArtikelen()" ${artikelPagina<=1?'disabled':''}>‹</button>
+        <button class="btn btn-sm" onclick="artikelPagina=Math.min(${totaalPaginas},artikelPagina+1);renderArtikelen()" ${artikelPagina>=totaalPaginas?'disabled':''}>›</button>`
+    : '';
+  document.getElementById('filter-artikel-count').innerHTML = countTxt + paginaTxt;
 
-  const alleGeselecteerd = gefilterd.length>0 && gefilterd.every(a=>artikelSelectie.has(a.id));
+  const alleGeselecteerd = pagina.length>0 && pagina.every(a=>artikelSelectie.has(a.id));
 
   thead.innerHTML=`<tr style="position:sticky;top:0;background:var(--gray-bg);z-index:10">
     <th style="width:36px;text-align:center"><input type="checkbox" id="chk-all" ${alleGeselecteerd?'checked':''} /></th>
@@ -1527,13 +1547,13 @@ function renderArtikelen(){
   </tr>`;
 
   document.getElementById('chk-all').addEventListener('change', function(){
-    if(this.checked) gefilterd.forEach(a=>artikelSelectie.add(a.id));
-    else gefilterd.forEach(a=>artikelSelectie.delete(a.id));
+    if(this.checked) pagina.forEach(a=>artikelSelectie.add(a.id));
+    else pagina.forEach(a=>artikelSelectie.delete(a.id));
     updateSelectieBalk();
     renderArtikelen();
   });
 
-  tbody.innerHTML = gefilterd.map(a=>{
+  tbody.innerHTML = pagina.map(a=>{
     const sel = artikelSelectie.has(a.id);
     return `<tr class="${sel?'row-selected':''}">
       <td style="text-align:center;width:36px"><input type="checkbox" class="chk-artikel" data-id="${a.id}" ${sel?'checked':''} /></td>
@@ -1561,9 +1581,8 @@ function renderArtikelen(){
       else artikelSelectie.delete(this.dataset.id);
       const rij = this.closest('tr');
       if(rij) rij.className = this.checked ? 'row-selected' : '';
-      const alle = getGefilterdeArtikelen();
       const alleChk = document.getElementById('chk-all');
-      if(alleChk) alleChk.checked = alle.length>0 && alle.every(a=>artikelSelectie.has(a.id));
+      if(alleChk) alleChk.checked = pagina.every(a=>artikelSelectie.has(a.id));
       updateSelectieBalk();
     });
   });
