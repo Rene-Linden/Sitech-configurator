@@ -1504,6 +1504,7 @@ function renderArtikelen(){
 
   const all = artikelen.filter(a=>a.templateId===tid);
   const gefilterd = getGefilterdeArtikelen();
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===tid) || {};
 
   const uniq = f=>[...new Set(all.map(a=>a[f]).filter(Boolean))].sort();
   const vendors  = uniq('defaultVendor');
@@ -1543,6 +1544,18 @@ function renderArtikelen(){
     <th style="text-align:center">Serial Nr. ${makeColFilter('serial','Serial Number','select',serials)}</th>
     <th>Ledger Turnover ${makeColFilter('ledger','Ledger Turnover','select',ledgers)}</th>
     <th>Product Posting Grp ${makeColFilter('posting','Posting Group','select',postings)}</th>
+    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Type</th>
+    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">UoM</th>
+    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Costing Method</th>
+    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Gen. Posting Group</th>
+    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">VAT</th>
+    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Inven. Posting</th>
+    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Price/Profit</th>
+    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Subscriptie</th>
+    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Replen. System</th>
+    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Assembly Policy</th>
+    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Item Tracking</th>
+    <th style="background:var(--amber-light);color:var(--amber);white-space:nowrap">Ser. Nos.</th>
     <th></th>
   </tr>`;
 
@@ -1567,13 +1580,25 @@ function renderArtikelen(){
       <td style="font-size:12px;text-align:center">${a.serialNumber||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.ledgerTurnover||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.productPostingGroup||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.type||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.uom||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.costingMeth||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.genPosting||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.vatPosting||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.invenPosting||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.priceProfit||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.subscriptie||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.replen||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.assemblyPolicy||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.itemTracking||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.serNos||'—'}</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-sm" onclick="editArtikel('${a.id}')">Bewerken</button>
         <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteArtikel('${a.id}')">Verwijderen</button>
       </td>
     </tr>`;
   }).join('') ||
-  `<tr><td colspan="12" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen artikelen gevonden</td></tr>`;
+  `<tr><td colspan="24" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen artikelen gevonden</td></tr>`;
 
   document.getElementById('tbl-artikelen-body').querySelectorAll('.chk-artikel').forEach(chk=>{
     chk.addEventListener('change', function(){
@@ -1756,14 +1781,23 @@ document.getElementById('btn-artikel-download').addEventListener('click', ()=>{
   const teExporteren = tid ? artikelen.filter(a=>a.templateId===tid) : artikelen;
   const header = ['Product ID','Name','Default Vendor','Product ID Vendor','Product Group',
     'Field Service Product Type','Standard Cost','Serial Number Product','Agreement Product',
-    'Main Product','Ledger Turnover','Product Posting Group','Template ID'];
-  const rows = [header, ...teExporteren.map(a=>[
-    a.productId||'', a.name||'', a.defaultVendor||'', a.productIdVendor||'',
-    a.productGroup||'', a.fsProductType||'',
-    a.standardCost ? parseFloat(a.standardCost) : '',
-    a.serialNumber||'', a.agreementProduct||'', a.mainProduct||'',
-    a.ledgerTurnover||'', a.productPostingGroup||'', a.templateId||''
-  ])];
+    'Main Product','Ledger Turnover','Product Posting Group',
+    'Type','UoM','Costing Method','Gen. Posting Group','VAT','Inven. Posting',
+    'Price/Profit','Subscriptie','Replen. System','Assembly Policy','Item Tracking','Ser. Nos.','Template ID'];
+  const rows = [header, ...teExporteren.map(a=>{
+    const tmpl = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId)||{};
+    return [
+      a.productId||'', a.name||'', a.defaultVendor||'', a.productIdVendor||'',
+      a.productGroup||'', a.fsProductType||'',
+      a.standardCost ? parseFloat(a.standardCost) : '',
+      a.serialNumber||'', a.agreementProduct||'', a.mainProduct||'',
+      a.ledgerTurnover||'', a.productPostingGroup||'',
+      tmpl.type||'', tmpl.uom||'', tmpl.costingMeth||'', tmpl.genPosting||'',
+      tmpl.vatPosting||'', tmpl.invenPosting||'', tmpl.priceProfit||'',
+      tmpl.subscriptie||'', tmpl.replen||'', tmpl.assemblyPolicy||'',
+      tmpl.itemTracking||'', tmpl.serNos||'', a.templateId||''
+    ];
+  })];
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [{wch:18},{wch:50},{wch:30},{wch:20},{wch:22},{wch:24},{wch:14},{wch:14},{wch:16},{wch:14},{wch:16},{wch:22},{wch:24}];
   const wb = XLSX.utils.book_new();
