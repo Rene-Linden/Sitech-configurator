@@ -119,6 +119,7 @@ tr:hover td{background:var(--gray-bg)}
       <a class="nav-item" onclick="showPanel('sitech',this)">Sitech medewerkers</a>
       <a class="nav-item" onclick="showPanel('prijslijsten',this)">Prijslijsten</a>
       <a class="nav-item" onclick="showPanel('aanvragen',this)">Aanvragen</a>
+      <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
     </div>
     <div class="main">
 
@@ -216,6 +217,60 @@ tr:hover td{background:var(--gray-bg)}
 
         </div>
       </div>
+
+      <!-- ARTIKELEN PANEL -->
+      <div class="panel" id="panel-artikelen">
+        <div class="panel-title">Artikelen</div>
+        <div class="panel-sub">Beheer artikelen per template-type. Vaste velden worden automatisch ingevuld vanuit het template.</div>
+
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+          <select id="sel-template-filter" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;min-width:220px">
+            <option value="">— Selecteer template —</option>
+          </select>
+          <button class="btn btn-blue" id="btn-add-artikel">+ Artikel toevoegen</button>
+          <button class="btn btn-green" id="btn-artikel-upload">Excel uploaden</button>
+          <button class="btn" id="btn-artikel-download" style="border-color:rgba(59,109,17,.3);color:var(--green);background:var(--green-light)">Excel downloaden</button>
+          <input type="file" id="artikel-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
+          <span id="artikel-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
+        </div>
+
+        <!-- Template info kaart -->
+        <div id="template-info-card" style="display:none;margin-bottom:12px;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:12px 16px;font-size:12px">
+          <div style="font-weight:500;color:var(--blue);margin-bottom:6px" id="template-info-naam"></div>
+          <div id="template-info-velden" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px;color:var(--gray-text)"></div>
+        </div>
+
+        <div class="card" style="overflow:hidden">
+          <div style="overflow-x:auto">
+            <table id="tbl-artikelen" style="min-width:800px">
+              <thead id="tbl-artikelen-head"></thead>
+              <tbody id="tbl-artikelen-body"><tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+  </div>
+</div>
+
+<!-- MODAL ARTIKEL -->
+<div class="modal-bg" id="modal-artikel">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header"><h3 id="modal-artikel-title">Artikel toevoegen</h3><button class="modal-close" onclick="closeModal('modal-artikel')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="artikel-edit-id" />
+      <div id="artikel-template-badge" style="margin-bottom:12px;font-size:12px;background:var(--blue-light);color:var(--blue);padding:6px 12px;border-radius:6px;display:inline-block"></div>
+      <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Variabele velden (in te vullen per artikel)</div>
+      <div id="artikel-form-velden" class="form-row" style="grid-template-columns:1fr 1fr"></div>
+      <div style="margin-top:12px;border-top:0.5px solid var(--gray-border);padding-top:12px">
+        <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Vaste templatewaarden (automatisch)</div>
+        <div id="artikel-vaste-velden" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;font-size:12px;color:var(--gray-text)"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-artikel')">Annuleren</button>
+      <button class="btn btn-blue" onclick="saveArtikel()">Opslaan</button>
+    </div>
   </div>
 </div>
 
@@ -449,6 +504,7 @@ window.showPanel = function(name,el){
     renderPrijslijst();
   }
   if(name==='aanvragen'){ renderFilterMerkAanvragen(); renderAanvragen(); }
+  if(name==='artikelen'){ vulTemplateSelector(); renderArtikelen(); toonTemplateInfo(); }
 };
 window.openModal  = id => document.getElementById(id).classList.add('open');
 window.closeModal = id => document.getElementById(id).classList.remove('open');
@@ -1224,7 +1280,295 @@ document.getElementById('excel-upload').addEventListener('change', (event)=>{
   reader.readAsArrayBuffer(file);
   event.target.value='';
 });
-</script>
+
+// ============================================================
+// ARTIKELEN MODULE
+// ============================================================
+
+// Template definities — vaste velden per template
+const ARTIKEL_TEMPLATES = [
+  { id:'INV-TRIM-STD',        naam:'INV-TRIM-STD',             omschrijving:'Trimble Inventory product',
+    type:'Inventory', uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription', replen:'Purchase', assemblyPolicy:'',
+    itemTracking:'-', serNos:'-', includeServiceBom:'Yes/No' },
+  { id:'INV-TRIM-SERIENUMMER', naam:'INV-TRIM-SERIENUMMER',     omschrijving:'Trimble Inventory product met serienummer',
+    type:'Inventory', uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription', replen:'Purchase', assemblyPolicy:'',
+    itemTracking:'', serNos:'SN-MANDAT', includeServiceBom:'Yes/No' },
+  { id:'NON-INV-TRIM',         naam:'NON-INV-TRIM',             omschrijving:'Trimble Non Inventory product',
+    type:'Non-Inventory', uom:'ST', costingMeth:'FIFO', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription', replen:'Purchase', assemblyPolicy:'',
+    itemTracking:'-', serNos:'-', includeServiceBom:'No' },
+  { id:'TRIM-INV-ASS-ABONNEMENT', naam:'TRIM-INV-ASS-ABONNEMENT', omschrijving:'Trimble Service Item voor subscriptions in assemblage order',
+    type:'Inventory', uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Prijs= kosten+winst', subscriptie:'Sales with Subscription', replen:'Purchase', assemblyPolicy:'',
+    itemTracking:'', serNos:'???', includeServiceBom:'Yes/No' },
+  { id:'INV-ABONNEMENT',       naam:'INV-ABONNEMENT',           omschrijving:'Trimble Service Item voor subscriptions',
+    type:'Service Artikel', uom:'ST', costingMeth:'FIFO', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Prijs= kosten+winst', subscriptie:'Subscription Item', replen:'Purchase', assemblyPolicy:'',
+    itemTracking:'-', serNos:'-', includeServiceBom:'Yes/No' },
+  { id:'INV-NON-TRIM-STD',     naam:'INV-NON-TRIM-STANDAARD',   omschrijving:'Niet Trimble Inventory product',
+    type:'Inventory', uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription', replen:'Purchase', assemblyPolicy:'',
+    itemTracking:'-', serNos:'-', includeServiceBom:'Yes/No' },
+  { id:'NONINV-STD',           naam:'NON-INV-STANDAARD',        omschrijving:'Niet Trimble Non Inventory product',
+    type:'Non-Inventory', uom:'ST', costingMeth:'FIFO', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription', replen:'Purchase', assemblyPolicy:'',
+    itemTracking:'-', serNos:'-', includeServiceBom:'No' },
+  { id:'INV-NON-TRI-SERIENUM', naam:'INV-STANDAARD-SERIENUMMER', omschrijving:'Niet Trimble Inventory product met serienummer',
+    type:'Inventory', uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription', replen:'Purchase', assemblyPolicy:'',
+    itemTracking:'', serNos:'SN-MANDAT', includeServiceBom:'Yes/No' },
+  { id:'INV-STD-ASS-ABONNEMENT', naam:'INV-STD-ASS-ABONNEMENT', omschrijving:'Niet Trimble Service Item voor subscriptions in assemblage order',
+    type:'Inventory', uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Prijs= kosten+winst', subscriptie:'Sales with Subscription', replen:'Purchase', assemblyPolicy:'',
+    itemTracking:'', serNos:'???', includeServiceBom:'Yes/No' },
+  { id:'INV-NON-TRI-ABONNEM',  naam:'INV-STANDAARD-ABONNEMENT', omschrijving:'Niet Trimble product met abonnement',
+    type:'Service Artikel', uom:'ST', costingMeth:'FIFO', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Prijs= kosten+winst', subscriptie:'Subscription Item', replen:'Purchase', assemblyPolicy:'',
+    itemTracking:'-', serNos:'-', includeServiceBom:'No' },
+  { id:'ASSEMBL-ARTIKEL',      naam:'ASSEMBL-ARTIKEL',           omschrijving:'Samengesteld product (assembly to stock)',
+    type:'Inventory', uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Winst = Prijs-Kosten', subscriptie:'No Subscription', replen:'Assembly', assemblyPolicy:'Assemble to Stock',
+    itemTracking:'-', serNos:'-', includeServiceBom:'Yes/No' },
+  { id:'SUBBUNDELS',           naam:'SUBBUNDELS',                omschrijving:'Subbundels (producten CE)',
+    type:'??', uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Winst = Prijs-Kosten', subscriptie:'No Subscription', replen:'Assembly', assemblyPolicy:'Assemble to Order',
+    itemTracking:'-', serNos:'-', includeServiceBom:'No' },
+  { id:'HFD-BUNDELS',          naam:'HFD-BUNDELS',               omschrijving:'Hoofdbundels (Bundels in CE)',
+    type:'??', uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'Winst = Prijs-Kosten', subscriptie:'No Subscription', replen:'Assembly', assemblyPolicy:'Assemble to Order',
+    itemTracking:'', serNos:'SERVNEW', includeServiceBom:'No' },
+  { id:'INV-GEREEDSCH',        naam:'INV-GEREEDSCH',             omschrijving:'Gereedschappen',
+    type:'??', uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
+    priceProfit:'No Relation', subscriptie:'No Subscription', replen:'Purchase', assemblyPolicy:'',
+    itemTracking:'-', serNos:'-', includeServiceBom:'No' },
+];
+
+// Variabele velden per artikel (in te vullen door beheerder)
+const ARTIKEL_VAR_VELDEN = [
+  { id:'no',          label:'No. (artikelnummer) *', placeholder:'Trimble nr / ST-nummer' },
+  { id:'description', label:'Description *',          placeholder:'Artikelomschrijving' },
+  { id:'leadTime',    label:'Lead Time Calcul.',       placeholder:'bijv. 14D' },
+  { id:'reorderPt',   label:'Reorder Point',           placeholder:'bijv. 10' },
+  { id:'reorderQty',  label:'Reorder Quantity',        placeholder:'bijv. 5' },
+  { id:'maxInventory',label:'Max Inventory',           placeholder:'bijv. 50' },
+  { id:'itemCatCode', label:'Item Cat Code',            placeholder:'??' },
+  { id:'serviceItemGrp', label:'Service Item Group',   placeholder:'??' },
+  { id:'reorderingPolicy', label:'Reordering Policy',  placeholder:'Over te nemen' },
+];
+
+let artikelen = [];
+let unsubArtikelen;
+
+// Listeners starten
+const origStartListeners = startListeners;
+
+function startListeners(){
+  origStartListeners();
+  unsubArtikelen = onSnapshot(collection(db,'artikelen'), snap => {
+    artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderArtikelen();
+  });
+}
+
+function vulTemplateSelector(){
+  const sel = document.getElementById('sel-template-filter');
+  sel.innerHTML = '<option value="">— Selecteer template —</option>' +
+    ARTIKEL_TEMPLATES.map(t=>`<option value="${t.id}">${t.naam} — ${t.omschrijving.substring(0,40)}</option>`).join('');
+}
+
+document.getElementById('sel-template-filter').addEventListener('change', ()=>{
+  renderArtikelen();
+  toonTemplateInfo();
+});
+
+function toonTemplateInfo(){
+  const tid = document.getElementById('sel-template-filter').value;
+  const card = document.getElementById('template-info-card');
+  if(!tid){ card.style.display='none'; return; }
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===tid);
+  card.style.display='block';
+  document.getElementById('template-info-naam').textContent = `${t.naam} — ${t.omschrijving}`;
+  const vasteVelden = [
+    ['Type',t.type],['UoM',t.uom],['Costing Method',t.costingMeth],
+    ['Gen. Posting Group',t.genPosting],['VAT',t.vatPosting],['Inven. Posting',t.invenPosting],
+    ['Price/Profit',t.priceProfit],['Subscriptie',t.subscriptie],['Replen. System',t.replen],
+    ['Assembly Policy',t.assemblyPolicy||'—'],['Item Tracking',t.itemTracking||'—'],['Ser. Nos.',t.serNos||'—'],
+  ];
+  document.getElementById('template-info-velden').innerHTML =
+    vasteVelden.map(([k,v])=>`<div><strong>${k}:</strong> ${v}</div>`).join('');
+}
+
+function renderArtikelen(){
+  const tid = document.getElementById('sel-template-filter').value;
+  const thead = document.getElementById('tbl-artikelen-head');
+  const tbody = document.getElementById('tbl-artikelen-body');
+  if(!tid){
+    thead.innerHTML='';
+    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr>';
+    return;
+  }
+  const gefilterd = artikelen.filter(a=>a.templateId===tid);
+  thead.innerHTML=`<tr>
+    <th>No.</th><th>Description</th><th>Lead Time</th>
+    <th>Reorder Pt.</th><th>Reorder Qty</th><th>Max Inv.</th>
+    <th>Item Cat.</th><th>Service Grp.</th><th>Reorder Policy</th><th></th>
+  </tr>`;
+  tbody.innerHTML = gefilterd.map(a=>`<tr>
+    <td><strong style="font-size:13px">${a.no||'—'}</strong></td>
+    <td>${a.description||'—'}</td>
+    <td style="color:var(--gray-text);font-size:12px">${a.leadTime||'—'}</td>
+    <td style="text-align:right;font-size:12px">${a.reorderPt||'—'}</td>
+    <td style="text-align:right;font-size:12px">${a.reorderQty||'—'}</td>
+    <td style="text-align:right;font-size:12px">${a.maxInventory||'—'}</td>
+    <td style="font-size:12px;color:var(--gray-text)">${a.itemCatCode||'—'}</td>
+    <td style="font-size:12px;color:var(--gray-text)">${a.serviceItemGrp||'—'}</td>
+    <td style="font-size:12px;color:var(--gray-text)">${a.reorderingPolicy||'—'}</td>
+    <td style="text-align:right;white-space:nowrap">
+      <button class="btn btn-sm" onclick="editArtikel('${a.id}')">Bewerken</button>
+      <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteArtikel('${a.id}')">Verwijderen</button>
+    </td>
+  </tr>`).join('') ||
+  '<tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Nog geen artikelen voor dit template</td></tr>';
+}
+
+document.getElementById('btn-add-artikel').addEventListener('click', ()=>{
+  const tid = document.getElementById('sel-template-filter').value;
+  if(!tid){ alert('Selecteer eerst een template'); return; }
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===tid);
+  document.getElementById('artikel-edit-id').value = '';
+  document.getElementById('artikel-template-badge').textContent = `Template: ${t.naam}`;
+  document.getElementById('modal-artikel-title').textContent = 'Artikel toevoegen';
+  vulArtikelForm(t, {});
+  openModal('modal-artikel');
+});
+
+window.editArtikel = function(id){
+  const a = artikelen.find(x=>x.id===id);
+  if(!a) return;
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId);
+  document.getElementById('artikel-edit-id').value = id;
+  document.getElementById('artikel-template-badge').textContent = `Template: ${t?.naam||a.templateId}`;
+  document.getElementById('modal-artikel-title').textContent = 'Artikel bewerken';
+  vulArtikelForm(t, a);
+  openModal('modal-artikel');
+};
+
+function vulArtikelForm(t, data){
+  const formEl = document.getElementById('artikel-form-velden');
+  formEl.innerHTML = ARTIKEL_VAR_VELDEN.map(v=>`
+    <div class="fg">
+      <label>${v.label}</label>
+      <input type="text" id="av-${v.id}" placeholder="${v.placeholder}" value="${data[v.id]||''}"
+        style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px;outline:none" />
+    </div>`).join('');
+  if(t){
+    const vasteVelden = [
+      ['Type',t.type],['UoM',t.uom],['Costing Method',t.costingMeth],
+      ['Gen. Posting',t.genPosting],['VAT',t.vatPosting],['Inven. Posting',t.invenPosting],
+      ['Price/Profit',t.priceProfit],['Subscriptie',t.subscriptie],['Replen.',t.replen],
+      ['Assembly Policy',t.assemblyPolicy||'—'],['Item Tracking',t.itemTracking],['Ser. Nos.',t.serNos],
+      ['Include in BoM',t.includeServiceBom],
+    ];
+    document.getElementById('artikel-vaste-velden').innerHTML =
+      vasteVelden.map(([k,v])=>`<div style="padding:4px 0;border-bottom:0.5px solid var(--gray-border)"><strong>${k}:</strong> ${v}</div>`).join('');
+  }
+}
+
+window.saveArtikel = async function(){
+  const tid  = document.getElementById('sel-template-filter').value;
+  const editId = document.getElementById('artikel-edit-id').value;
+  const no   = document.getElementById('av-no').value.trim();
+  const desc = document.getElementById('av-description').value.trim();
+  if(!no || !desc){ alert('No. en Description zijn verplicht'); return; }
+  const data = { templateId: tid };
+  ARTIKEL_VAR_VELDEN.forEach(v=>{ data[v.id] = document.getElementById('av-'+v.id).value.trim(); });
+  const id = editId || 'art'+Date.now();
+  await setDoc(doc(db,'artikelen',id), data);
+  showSaving('Artikel opgeslagen');
+  closeModal('modal-artikel');
+};
+
+window.deleteArtikel = async function(id){
+  if(!confirm('Artikel verwijderen?')) return;
+  await deleteDoc(doc(db,'artikelen',id));
+  showSaving('Artikel verwijderd');
+};
+
+// Excel upload voor artikelen
+document.getElementById('btn-artikel-upload').addEventListener('click', ()=>{
+  const tid = document.getElementById('sel-template-filter').value;
+  if(!tid){ alert('Selecteer eerst een template'); return; }
+  document.getElementById('artikel-upload-input').click();
+});
+
+document.getElementById('artikel-upload-input').addEventListener('change', async (event)=>{
+  const tid    = document.getElementById('sel-template-filter').value;
+  const status = document.getElementById('artikel-upload-status');
+  const file   = event.target.files[0];
+  if(!file) return;
+  if(typeof XLSX === 'undefined'){ alert('Excel-library nog niet geladen'); return; }
+  status.textContent = 'Bestand lezen…';
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const wb   = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      // Header rij detecteren
+      const startRow = rows[0] && isNaN(rows[0][0]) ? 1 : 0;
+      // Kolommen: No, Description, Lead Time, Reorder Pt, Reorder Qty, Max Inv, Item Cat, Service Grp, Reorder Policy
+      const dataRows = rows.slice(startRow).filter(r=>String(r[0]||'').trim());
+      let count = 0;
+      for(const r of dataRows){
+        const data = {
+          templateId:       tid,
+          no:               String(r[0]||'').trim(),
+          description:      String(r[1]||'').trim(),
+          leadTime:         String(r[2]||'').trim(),
+          reorderPt:        String(r[3]||'').trim(),
+          reorderQty:       String(r[4]||'').trim(),
+          maxInventory:     String(r[5]||'').trim(),
+          itemCatCode:      String(r[6]||'').trim(),
+          serviceItemGrp:   String(r[7]||'').trim(),
+          reorderingPolicy: String(r[8]||'').trim(),
+        };
+        if(!data.no) continue;
+        await setDoc(doc(db,'artikelen','art'+Date.now()+count), data);
+        count++;
+      }
+      status.textContent = `${count} artikel${count!==1?'en':''} geïmporteerd`;
+      setTimeout(()=>status.textContent='', 3000);
+    } catch(err){
+      status.textContent = '';
+      alert('Fout bij verwerken: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
+});
+
+// Excel download voor artikelen
+document.getElementById('btn-artikel-download').addEventListener('click', ()=>{
+  const tid = document.getElementById('sel-template-filter').value;
+  if(typeof XLSX === 'undefined'){ alert('Excel-library nog niet geladen'); return; }
+  const teExporteren = tid ? artikelen.filter(a=>a.templateId===tid) : artikelen;
+  const header = ['No.','Description','Lead Time Calcul.','Reorder Point','Reorder Quantity','Max Inventory','Item Cat Code','Service Item Group','Reordering Policy','Template ID'];
+  const rows = [header, ...teExporteren.map(a=>[
+    a.no||'', a.description||'', a.leadTime||'', a.reorderPt||'',
+    a.reorderQty||'', a.maxInventory||'', a.itemCatCode||'',
+    a.serviceItemGrp||'', a.reorderingPolicy||'', a.templateId||''
+  ])];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:20},{wch:40},{wch:16},{wch:14},{wch:16},{wch:14},{wch:14},{wch:16},{wch:18},{wch:24}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, tid ? tid.substring(0,31) : 'Alle artikelen');
+  XLSX.writeFile(wb, `artikelen-${tid||'alle'}-${new Date().toISOString().slice(0,10)}.xlsx`);
+});
+
+// Template selector vullen na laden
+window.addEventListener('load', ()=>{ setTimeout(vulTemplateSelector, 500); });
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
