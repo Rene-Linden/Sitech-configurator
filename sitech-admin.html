@@ -1353,15 +1353,18 @@ const ARTIKEL_TEMPLATES = [
 
 
 const ARTIKEL_VAR_VELDEN = [
-  { id:'no',          label:'No. (artikelnummer) *', placeholder:'Trimble nr / ST-nummer' },
-  { id:'description', label:'Description *',          placeholder:'Artikelomschrijving' },
-  { id:'leadTime',    label:'Lead Time Calcul.',       placeholder:'bijv. 14D' },
-  { id:'reorderPt',   label:'Reorder Point',           placeholder:'bijv. 10' },
-  { id:'reorderQty',  label:'Reorder Quantity',        placeholder:'bijv. 5' },
-  { id:'maxInventory',label:'Max Inventory',           placeholder:'bijv. 50' },
-  { id:'itemCatCode', label:'Item Cat Code',            placeholder:'??' },
-  { id:'serviceItemGrp', label:'Service Item Group',   placeholder:'??' },
-  { id:'reorderingPolicy', label:'Reordering Policy',  placeholder:'Over te nemen' },
+  { id:'productId',       label:'Product ID *',              placeholder:'bijv. 002084-99S' },
+  { id:'name',            label:'Name *',                    placeholder:'Artikelomschrijving' },
+  { id:'defaultVendor',   label:'Default Vendor',            placeholder:'bijv. Trimble Europe B.V.' },
+  { id:'productIdVendor', label:'Product ID Vendor',         placeholder:'Vendor artikelnummer' },
+  { id:'productGroup',    label:'Product Group',             placeholder:'bijv. Spare Parts Trimble' },
+  { id:'fsProductType',   label:'Field Service Product Type',placeholder:'bijv. Inventory' },
+  { id:'standardCost',    label:'Standard Cost',             placeholder:'bijv. 11.41' },
+  { id:'serialNumber',    label:'Serial Number Product',     placeholder:'Yes / No' },
+  { id:'agreementProduct',label:'Agreement Product',         placeholder:'Yes / No' },
+  { id:'mainProduct',     label:'Main Product',              placeholder:'Yes / No' },
+  { id:'ledgerTurnover',  label:'Ledger Turnover',           placeholder:'bijv. Parts / New / Software' },
+  { id:'productPostingGroup', label:'Product Posting Group', placeholder:'bijv. PARTS / NEW / SOFTWARE' },
 ];
 
 function vulTemplateSelector(){
@@ -1398,38 +1401,40 @@ function renderArtikelen(){
   const tbody = document.getElementById('tbl-artikelen-body');
   if(!tid){
     thead.innerHTML='';
-    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr>';
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr>';
     return;
   }
   const gefilterd = artikelen.filter(a=>a.templateId===tid);
   thead.innerHTML=`<tr>
-    <th style="min-width:120px">No.</th>
-    <th style="min-width:200px">Description</th>
-    <th style="min-width:100px">Lead Time</th>
-    <th style="min-width:90px;text-align:right">Reorder Pt.</th>
-    <th style="min-width:90px;text-align:right">Reorder Qty</th>
-    <th style="min-width:90px;text-align:right">Max Inv.</th>
-    <th style="min-width:100px">Item Cat.</th>
-    <th style="min-width:110px">Service Grp.</th>
-    <th style="min-width:130px">Reorder Policy</th>
+    <th style="min-width:130px">Product ID</th>
+    <th style="min-width:220px">Name</th>
+    <th style="min-width:160px">Default Vendor</th>
+    <th style="min-width:130px">Product ID Vendor</th>
+    <th style="min-width:150px">Product Group</th>
+    <th style="min-width:80px">FS Product Type</th>
+    <th style="min-width:90px;text-align:right">Standard Cost</th>
+    <th style="min-width:70px">Serial Nr.</th>
+    <th style="min-width:120px">Ledger Turnover</th>
+    <th style="min-width:130px">Product Posting Grp</th>
     <th style="min-width:140px"></th>
   </tr>`;
   tbody.innerHTML = gefilterd.map(a=>`<tr>
-    <td><strong style="font-size:13px">${a.no||'—'}</strong></td>
-    <td style="font-size:13px">${a.description||'—'}</td>
-    <td style="color:var(--gray-text);font-size:12px">${a.leadTime||'—'}</td>
-    <td style="text-align:right;font-size:12px;color:var(--gray-text)">${a.reorderPt||'—'}</td>
-    <td style="text-align:right;font-size:12px;color:var(--gray-text)">${a.reorderQty||'—'}</td>
-    <td style="text-align:right;font-size:12px;color:var(--gray-text)">${a.maxInventory||'—'}</td>
-    <td style="font-size:12px;color:var(--gray-text)">${a.itemCatCode||'—'}</td>
-    <td style="font-size:12px;color:var(--gray-text)">${a.serviceItemGrp||'—'}</td>
-    <td style="font-size:12px;color:var(--gray-text)">${a.reorderingPolicy||'—'}</td>
+    <td><strong style="font-size:13px">${a.productId||'—'}</strong></td>
+    <td style="font-size:13px">${a.name||'—'}</td>
+    <td style="font-size:12px;color:var(--gray-text)">${a.defaultVendor||'—'}</td>
+    <td style="font-size:12px;color:var(--gray-text)">${a.productIdVendor||'—'}</td>
+    <td style="font-size:12px;color:var(--gray-text)">${a.productGroup||'—'}</td>
+    <td style="font-size:12px;color:var(--gray-text)">${a.fsProductType||'—'}</td>
+    <td style="text-align:right;font-size:12px;color:var(--blue);font-weight:500">${a.standardCost?'€\u00a0'+parseFloat(a.standardCost).toFixed(2):'—'}</td>
+    <td style="font-size:12px;text-align:center">${a.serialNumber||'—'}</td>
+    <td style="font-size:12px;color:var(--gray-text)">${a.ledgerTurnover||'—'}</td>
+    <td style="font-size:12px;color:var(--gray-text)">${a.productPostingGroup||'—'}</td>
     <td style="text-align:right;white-space:nowrap">
       <button class="btn btn-sm" onclick="editArtikel('${a.id}')">Bewerken</button>
       <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteArtikel('${a.id}')">Verwijderen</button>
     </td>
   </tr>`).join('') ||
-  `<tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Nog geen artikelen voor dit template</td></tr>`;
+  `<tr><td colspan="11" style="text-align:center;color:var(--gray-text);padding:1.5rem">Nog geen artikelen voor dit template</td></tr>`;
 }
 
 document.getElementById('btn-add-artikel').addEventListener('click', ()=>{
@@ -1476,11 +1481,11 @@ function vulArtikelForm(t, data){
 }
 
 window.saveArtikel = async function(){
-  const tid  = document.getElementById('sel-template-filter').value;
+  const tid    = document.getElementById('sel-template-filter').value;
   const editId = document.getElementById('artikel-edit-id').value;
-  const no   = document.getElementById('av-no').value.trim();
-  const desc = document.getElementById('av-description').value.trim();
-  if(!no || !desc){ alert('No. en Description zijn verplicht'); return; }
+  const productId = document.getElementById('av-productId').value.trim();
+  const name   = document.getElementById('av-name').value.trim();
+  if(!productId || !name){ alert('Product ID en Name zijn verplicht'); return; }
   const data = { templateId: tid };
   ARTIKEL_VAR_VELDEN.forEach(v=>{ data[v.id] = document.getElementById('av-'+v.id).value.trim(); });
   const id = editId || 'art'+Date.now();
@@ -1496,6 +1501,7 @@ window.deleteArtikel = async function(id){
 };
 
 // Excel upload voor artikelen
+// Kolommen: Product ID | Name | Default Vendor | Product ID vendor | Product Group | Field Service Product Type | Standard Cost | Serial number product | Agreement product | Main Product | Ledger Turnover | Product Posting Group
 document.getElementById('btn-artikel-upload').addEventListener('click', ()=>{
   const tid = document.getElementById('sel-template-filter').value;
   if(!tid){ alert('Selecteer eerst een template'); return; }
@@ -1515,25 +1521,27 @@ document.getElementById('artikel-upload-input').addEventListener('change', async
       const wb   = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-      // Header rij detecteren
-      const startRow = rows[0] && isNaN(rows[0][0]) ? 1 : 0;
-      // Kolommen: No, Description, Lead Time, Reorder Pt, Reorder Qty, Max Inv, Item Cat, Service Grp, Reorder Policy
+      // Sla headerrij over als eerste cel geen getal is
+      const startRow = rows[0] && String(rows[0][0]).trim().toLowerCase()==='product id' ? 1 : 0;
       const dataRows = rows.slice(startRow).filter(r=>String(r[0]||'').trim());
       let count = 0;
       for(const r of dataRows){
         const data = {
-          templateId:       tid,
-          no:               String(r[0]||'').trim(),
-          description:      String(r[1]||'').trim(),
-          leadTime:         String(r[2]||'').trim(),
-          reorderPt:        String(r[3]||'').trim(),
-          reorderQty:       String(r[4]||'').trim(),
-          maxInventory:     String(r[5]||'').trim(),
-          itemCatCode:      String(r[6]||'').trim(),
-          serviceItemGrp:   String(r[7]||'').trim(),
-          reorderingPolicy: String(r[8]||'').trim(),
+          templateId:         tid,
+          productId:          String(r[0]||'').trim(),
+          name:               String(r[1]||'').trim(),
+          defaultVendor:      String(r[2]||'').trim(),
+          productIdVendor:    String(r[3]||'').trim(),
+          productGroup:       String(r[4]||'').trim(),
+          fsProductType:      String(r[5]||'').trim(),
+          standardCost:       String(r[6]||'').trim(),
+          serialNumber:       String(r[7]||'').trim(),
+          agreementProduct:   String(r[8]||'').trim(),
+          mainProduct:        String(r[9]||'').trim(),
+          ledgerTurnover:     String(r[10]||'').trim(),
+          productPostingGroup:String(r[11]||'').trim(),
         };
-        if(!data.no) continue;
+        if(!data.productId) continue;
         await setDoc(doc(db,'artikelen','art'+Date.now()+count), data);
         count++;
       }
@@ -1553,14 +1561,18 @@ document.getElementById('btn-artikel-download').addEventListener('click', ()=>{
   const tid = document.getElementById('sel-template-filter').value;
   if(typeof XLSX === 'undefined'){ alert('Excel-library nog niet geladen'); return; }
   const teExporteren = tid ? artikelen.filter(a=>a.templateId===tid) : artikelen;
-  const header = ['No.','Description','Lead Time Calcul.','Reorder Point','Reorder Quantity','Max Inventory','Item Cat Code','Service Item Group','Reordering Policy','Template ID'];
+  const header = ['Product ID','Name','Default Vendor','Product ID Vendor','Product Group',
+    'Field Service Product Type','Standard Cost','Serial Number Product','Agreement Product',
+    'Main Product','Ledger Turnover','Product Posting Group','Template ID'];
   const rows = [header, ...teExporteren.map(a=>[
-    a.no||'', a.description||'', a.leadTime||'', a.reorderPt||'',
-    a.reorderQty||'', a.maxInventory||'', a.itemCatCode||'',
-    a.serviceItemGrp||'', a.reorderingPolicy||'', a.templateId||''
+    a.productId||'', a.name||'', a.defaultVendor||'', a.productIdVendor||'',
+    a.productGroup||'', a.fsProductType||'',
+    a.standardCost ? parseFloat(a.standardCost) : '',
+    a.serialNumber||'', a.agreementProduct||'', a.mainProduct||'',
+    a.ledgerTurnover||'', a.productPostingGroup||'', a.templateId||''
   ])];
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{wch:20},{wch:40},{wch:16},{wch:14},{wch:16},{wch:14},{wch:14},{wch:16},{wch:18},{wch:24}];
+  ws['!cols'] = [{wch:18},{wch:50},{wch:30},{wch:20},{wch:22},{wch:24},{wch:14},{wch:14},{wch:16},{wch:14},{wch:16},{wch:22},{wch:24}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, tid ? tid.substring(0,31) : 'Alle artikelen');
   XLSX.writeFile(wb, `artikelen-${tid||'alle'}-${new Date().toISOString().slice(0,10)}.xlsx`);
