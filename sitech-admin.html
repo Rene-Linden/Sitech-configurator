@@ -416,7 +416,7 @@ tr:hover td{background:var(--gray-bg)}
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, addDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 const firebaseConfig = {
@@ -1521,32 +1521,43 @@ document.getElementById('artikel-upload-input').addEventListener('change', async
       const wb   = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-      // Sla headerrij over als eerste cel geen getal is
       const startRow = rows[0] && String(rows[0][0]).trim().toLowerCase()==='product id' ? 1 : 0;
       const dataRows = rows.slice(startRow).filter(r=>String(r[0]||'').trim());
-      let count = 0;
-      for(const r of dataRows){
-        const data = {
-          templateId:         tid,
-          productId:          String(r[0]||'').trim(),
-          name:               String(r[1]||'').trim(),
-          defaultVendor:      String(r[2]||'').trim(),
-          productIdVendor:    String(r[3]||'').trim(),
-          productGroup:       String(r[4]||'').trim(),
-          fsProductType:      String(r[5]||'').trim(),
-          standardCost:       String(r[6]||'').trim(),
-          serialNumber:       String(r[7]||'').trim(),
-          agreementProduct:   String(r[8]||'').trim(),
-          mainProduct:        String(r[9]||'').trim(),
-          ledgerTurnover:     String(r[10]||'').trim(),
-          productPostingGroup:String(r[11]||'').trim(),
-        };
-        if(!data.productId) continue;
-        await setDoc(doc(db,'artikelen','art'+Date.now()+count), data);
-        count++;
+      if(!dataRows.length){ status.textContent='Geen data gevonden'; return; }
+
+      status.textContent = `${dataRows.length} rijen verwerken…`;
+
+      // Splits in batches van max 500 (Firestore limiet)
+      const BATCH_SIZE = 500;
+      let total = 0;
+      for(let i=0; i<dataRows.length; i+=BATCH_SIZE){
+        const batch = writeBatch(db);
+        const chunk = dataRows.slice(i, i+BATCH_SIZE);
+        chunk.forEach((r, idx)=>{
+          const data = {
+            templateId:          tid,
+            productId:           String(r[0]||'').trim(),
+            name:                String(r[1]||'').trim(),
+            defaultVendor:       String(r[2]||'').trim(),
+            productIdVendor:     String(r[3]||'').trim(),
+            productGroup:        String(r[4]||'').trim(),
+            fsProductType:       String(r[5]||'').trim(),
+            standardCost:        String(r[6]||'').trim(),
+            serialNumber:        String(r[7]||'').trim(),
+            agreementProduct:    String(r[8]||'').trim(),
+            mainProduct:         String(r[9]||'').trim(),
+            ledgerTurnover:      String(r[10]||'').trim(),
+            productPostingGroup: String(r[11]||'').trim(),
+          };
+          if(!data.productId) return;
+          batch.set(doc(collection(db,'artikelen'), 'art'+(Date.now()+i+idx)), data);
+          total++;
+        });
+        await batch.commit();
+        status.textContent = `${Math.min(i+BATCH_SIZE, dataRows.length)} / ${dataRows.length} rijen verwerkt…`;
       }
-      status.textContent = `${count} artikel${count!==1?'en':''} geïmporteerd`;
-      setTimeout(()=>status.textContent='', 3000);
+      status.textContent = `✓ ${total} artikel${total!==1?'en':''} geïmporteerd`;
+      setTimeout(()=>status.textContent='', 4000);
     } catch(err){
       status.textContent = '';
       alert('Fout bij verwerken: '+err.message);
