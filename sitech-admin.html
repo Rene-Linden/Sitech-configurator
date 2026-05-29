@@ -262,12 +262,17 @@ tr.row-selected td{background:var(--blue-light)}
           <span id="filter-artikel-count" style="margin-left:auto;font-size:12px;color:var(--gray-text)"></span>
         </div>
 
-        <div class="card" style="overflow:hidden">
-          <div style="overflow-x:scroll;overflow-y:visible;padding-bottom:4px">
+        <div class="card" style="overflow:hidden;display:flex;flex-direction:column">
+          <!-- Scrollbare wrapper met vaste hoogte zodat header sticky blijft -->
+          <div id="artikel-tabel-wrap" style="overflow-x:scroll;overflow-y:auto;max-height:calc(100vh - 340px);flex:1">
             <table id="tbl-artikelen" style="min-width:3200px;table-layout:auto;border-collapse:collapse">
-              <thead id="tbl-artikelen-head"></thead>
-              <tbody id="tbl-artikelen-body"><tr><td colspan="12" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
+              <thead id="tbl-artikelen-head" style="position:sticky;top:0;z-index:20"></thead>
+              <tbody id="tbl-artikelen-body"><tr><td colspan="24" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
             </table>
+          </div>
+          <!-- Gesynchroniseerde scrollbar altijd onderaan zichtbaar -->
+          <div id="artikel-scroll-bar" style="overflow-x:scroll;overflow-y:hidden;border-top:0.5px solid var(--gray-border)">
+            <div id="artikel-scroll-inner" style="height:1px"></div>
           </div>
         </div>
       </div>
@@ -1803,6 +1808,49 @@ document.getElementById('btn-artikel-download').addEventListener('click', ()=>{
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, tid ? tid.substring(0,31) : 'Alle artikelen');
   XLSX.writeFile(wb, `artikelen-${tid||'alle'}-${new Date().toISOString().slice(0,10)}.xlsx`);
+});
+
+// Gesynchroniseerde scrollbar voor artikelentabel
+function initArtikelScroll(){
+  const wrap  = document.getElementById('artikel-tabel-wrap');
+  const bar   = document.getElementById('artikel-scroll-bar');
+  const inner = document.getElementById('artikel-scroll-inner');
+  if(!wrap||!bar||!inner) return;
+  // Stel breedte scrollinner in op tabelbreedte
+  const tbl = document.getElementById('tbl-artikelen');
+  inner.style.width = (tbl?.scrollWidth||3200)+'px';
+  // Synchroniseer scrollen
+  let syncingWrap=false, syncingBar=false;
+  wrap.addEventListener('scroll', ()=>{
+    if(syncingBar) return;
+    syncingWrap=true;
+    bar.scrollLeft=wrap.scrollLeft;
+    syncingWrap=false;
+  });
+  bar.addEventListener('scroll', ()=>{
+    if(syncingWrap) return;
+    syncingBar=true;
+    wrap.scrollLeft=bar.scrollLeft;
+    syncingBar=false;
+  });
+}
+
+// Aanroepen na elke renderArtikelen
+const _origRenderArtikelen = renderArtikelen;
+// (direct na renderArtikelen definitie al beschikbaar via closure — init via showPanel)
+
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{
+    initArtikelScroll();
+    // Update inner breedte na render
+    const obs = new MutationObserver(()=>{
+      const tbl = document.getElementById('tbl-artikelen');
+      const inner = document.getElementById('artikel-scroll-inner');
+      if(tbl&&inner) inner.style.width=tbl.scrollWidth+'px';
+    });
+    const tbody = document.getElementById('tbl-artikelen-body');
+    if(tbody) obs.observe(tbody, {childList:true, subtree:false});
+  }, 800);
 });
 
 // Template selector vullen na laden
