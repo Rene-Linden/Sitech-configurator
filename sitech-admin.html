@@ -1289,7 +1289,8 @@ document.getElementById('excel-upload').addEventListener('change', (event)=>{
 
 // ============================================================
 // ARTIKELEN MODULE
-// ============================================================ = [
+// ============================================================
+const ARTIKEL_TEMPLATES = [
   { id:'INV-TRIM-STD',        naam:'INV-TRIM-STD',             omschrijving:'Trimble Inventory product',
     type:'Inventory', uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
     priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription', replen:'Purchase', assemblyPolicy:'',
@@ -1349,22 +1350,7 @@ document.getElementById('excel-upload').addEventListener('change', (event)=>{
 ];
 
 // Variabele velden per artikel (in te vullen door beheerder)
-const ARTIKEL_TEMPLATES = [
-  { id:'INV-TRIM-STD',            naam:'INV-TRIM-STD',              omschrijving:'Trimble Inventory product',                                    type:'Inventory',     uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription',        replen:'Purchase', assemblyPolicy:'',               itemTracking:'-',   serNos:'-',       includeServiceBom:'Yes/No' },
-  { id:'INV-TRIM-SERIENUMMER',     naam:'INV-TRIM-SERIENUMMER',      omschrijving:'Trimble Inventory product met serienummer',                     type:'Inventory',     uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription',        replen:'Purchase', assemblyPolicy:'',               itemTracking:'',    serNos:'SN-MANDAT', includeServiceBom:'Yes/No' },
-  { id:'NON-INV-TRIM',             naam:'NON-INV-TRIM',              omschrijving:'Trimble Non Inventory product',                                 type:'Non-Inventory', uom:'ST', costingMeth:'FIFO',     genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription',        replen:'Purchase', assemblyPolicy:'',               itemTracking:'-',   serNos:'-',       includeServiceBom:'No' },
-  { id:'TRIM-INV-ASS-ABONNEMENT',  naam:'TRIM-INV-ASS-ABONNEMENT',  omschrijving:'Trimble Service Item voor subscriptions in assemblage order',   type:'Inventory',     uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Prijs= kosten+winst', subscriptie:'Sales with Subscription', replen:'Purchase', assemblyPolicy:'',               itemTracking:'',    serNos:'???',     includeServiceBom:'Yes/No' },
-  { id:'INV-ABONNEMENT',           naam:'INV-ABONNEMENT',            omschrijving:'Trimble Service Item voor subscriptions',                       type:'Service Artikel', uom:'ST', costingMeth:'FIFO', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Prijs= kosten+winst', subscriptie:'Subscription Item',       replen:'Purchase', assemblyPolicy:'',               itemTracking:'-',   serNos:'-',       includeServiceBom:'Yes/No' },
-  { id:'INV-NON-TRIM-STD',         naam:'INV-NON-TRIM-STANDAARD',    omschrijving:'Niet Trimble Inventory product',                                type:'Inventory',     uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription',        replen:'Purchase', assemblyPolicy:'',               itemTracking:'-',   serNos:'-',       includeServiceBom:'Yes/No' },
-  { id:'NONINV-STD',               naam:'NON-INV-STANDAARD',         omschrijving:'Niet Trimble Non Inventory product',                            type:'Non-Inventory', uom:'ST', costingMeth:'FIFO',     genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription',        replen:'Purchase', assemblyPolicy:'',               itemTracking:'-',   serNos:'-',       includeServiceBom:'No' },
-  { id:'INV-NON-TRI-SERIENUM',     naam:'INV-STANDAARD-SERIENUMMER', omschrijving:'Niet Trimble Inventory product met serienummer',                type:'Inventory',     uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription',        replen:'Purchase', assemblyPolicy:'',               itemTracking:'',    serNos:'SN-MANDAT', includeServiceBom:'Yes/No' },
-  { id:'INV-STD-ASS-ABONNEMENT',   naam:'INV-STD-ASS-ABONNEMENT',   omschrijving:'Niet Trimble Service Item voor subscriptions in assemblage order', type:'Inventory',   uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Prijs= kosten+winst', subscriptie:'Sales with Subscription', replen:'Purchase', assemblyPolicy:'',               itemTracking:'',    serNos:'???',     includeServiceBom:'Yes/No' },
-  { id:'INV-NON-TRI-ABONNEM',      naam:'INV-STANDAARD-ABONNEMENT', omschrijving:'Niet Trimble product met abonnement',                            type:'Service Artikel', uom:'ST', costingMeth:'FIFO', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Prijs= kosten+winst', subscriptie:'Subscription Item',       replen:'Purchase', assemblyPolicy:'',               itemTracking:'-',   serNos:'-',       includeServiceBom:'No' },
-  { id:'ASSEMBL-ARTIKEL',          naam:'ASSEMBL-ARTIKEL',           omschrijving:'Samengesteld product (assembly to stock)',                       type:'Inventory',     uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Winst = Prijs-Kosten', subscriptie:'No Subscription',        replen:'Assembly', assemblyPolicy:'Assemble to Stock',  itemTracking:'-',   serNos:'-',       includeServiceBom:'Yes/No' },
-  { id:'SUBBUNDELS',               naam:'SUBBUNDELS',                omschrijving:'Subbundels (producten CE)',                                      type:'??',            uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Winst = Prijs-Kosten', subscriptie:'No Subscription',        replen:'Assembly', assemblyPolicy:'Assemble to Order',  itemTracking:'-',   serNos:'-',       includeServiceBom:'No' },
-  { id:'HFD-BUNDELS',              naam:'HFD-BUNDELS',               omschrijving:'Hoofdbundels (Bundels in CE)',                                   type:'??',            uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'Winst = Prijs-Kosten', subscriptie:'No Subscription',        replen:'Assembly', assemblyPolicy:'Assemble to Order',  itemTracking:'',    serNos:'SERVNEW', includeServiceBom:'No' },
-  { id:'INV-GEREEDSCH',            naam:'INV-GEREEDSCH',             omschrijving:'Gereedschappen',                                                type:'??',            uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW', priceProfit:'No Relation',          subscriptie:'No Subscription',        replen:'Purchase', assemblyPolicy:'',               itemTracking:'-',   serNos:'-',       includeServiceBom:'No' },
-];
+
 
 const ARTIKEL_VAR_VELDEN = [
   { id:'no',          label:'No. (artikelnummer) *', placeholder:'Trimble nr / ST-nummer' },
@@ -1575,6 +1561,8 @@ document.getElementById('btn-artikel-download').addEventListener('click', ()=>{
 
 // Template selector vullen na laden
 window.addEventListener('load', ()=>{ setTimeout(vulTemplateSelector, 500); });
+
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
