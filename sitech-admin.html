@@ -52,6 +52,19 @@ tr:hover td{background:var(--gray-bg)}
 .badge-blue{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--blue-light);color:var(--blue);border:0.5px solid rgba(24,95,165,.2)}
 .badge-red{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--red-light);color:var(--red);border:0.5px solid rgba(163,45,45,.2)}
 tr.row-selected td{background:var(--blue-light)}
+.col-filter-wrap{position:relative;display:inline-block}
+.col-filter-btn{background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--gray-text);font-size:11px;vertical-align:middle;line-height:1}
+.col-filter-btn.active{color:var(--blue)}
+.col-filter-dropdown{position:absolute;top:100%;left:0;z-index:200;background:var(--white);border:0.5px solid var(--gray-border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px;min-width:220px;display:none}
+.col-filter-dropdown.open{display:block}
+.col-filter-dropdown input,.col-filter-dropdown select{width:100%;padding:7px 9px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none;font-family:var(--font);margin-bottom:6px}
+.col-filter-dropdown .btn-row{display:flex;gap:6px}
+.col-filter-dropdown .btn-row button{flex:1;padding:6px;font-size:12px}
+/* Scrollbar altijd zichtbaar */
+.card div[style*="overflow-x"]{scrollbar-width:thin;scrollbar-color:var(--gray-border) transparent}
+.card div[style*="overflow-x"]::-webkit-scrollbar{height:8px}
+.card div[style*="overflow-x"]::-webkit-scrollbar-track{background:transparent}
+.card div[style*="overflow-x"]::-webkit-scrollbar-thumb{background:var(--gray-border);border-radius:4px}
 .btn{padding:7px 14px;border-radius:7px;font-size:13px;cursor:pointer;font-family:var(--font);font-weight:500;border:0.5px solid var(--gray-border);background:var(--white);color:#1a1a1a}
 .btn:hover{background:var(--gray-bg)}
 .btn-blue{background:var(--blue);color:#fff;border-color:var(--blue)}
@@ -241,33 +254,17 @@ tr.row-selected td{background:var(--blue-light)}
           <div id="template-info-velden" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px;color:var(--gray-text)"></div>
         </div>
 
-        <!-- Filterbar -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-          <input type="text" id="filter-artikel-search" placeholder="Zoeken op Product ID of Name…"
-            style="padding:7px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;width:260px;outline:none" />
-          <select id="filter-artikel-vendor" style="padding:7px 10px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
-            <option value="">Alle leveranciers</option>
-          </select>
-          <select id="filter-artikel-group" style="padding:7px 10px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
-            <option value="">Alle product groups</option>
-          </select>
-          <select id="filter-artikel-type" style="padding:7px 10px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
-            <option value="">Alle FS types</option>
-          </select>
-          <button class="btn btn-sm" onclick="clearArtikelFilters()" style="font-size:12px;color:var(--gray-text)">Wis filters</button>
-          <span id="filter-artikel-count" style="font-size:12px;color:var(--gray-text);margin-left:auto"></span>
-        </div>
-
-        <!-- Selectie toolbar (verschijnt als er selecties zijn) -->
-        <div id="artikel-selectie-bar" style="display:none;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:8px 14px;margin-bottom:10px;display:none;align-items:center;gap:12px;font-size:13px">
+        <!-- Selectie toolbar -->
+        <div id="artikel-selectie-bar" style="display:none;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:8px 14px;margin-bottom:10px;align-items:center;gap:12px;font-size:13px">
           <span id="selectie-count" style="color:var(--blue);font-weight:500"></span>
           <button class="btn btn-sm btn-red" onclick="verwijderGeselecteerd()">Geselecteerde verwijderen</button>
           <button class="btn btn-sm" onclick="deselecteerAlles()">Selectie opheffen</button>
+          <span id="filter-artikel-count" style="margin-left:auto;font-size:12px;color:var(--gray-text)"></span>
         </div>
 
         <div class="card" style="overflow:hidden">
           <div style="overflow-x:auto">
-            <table id="tbl-artikelen" style="min-width:1100px;table-layout:auto">
+            <table id="tbl-artikelen" style="min-width:1300px;table-layout:auto">
               <thead id="tbl-artikelen-head"></thead>
               <tbody id="tbl-artikelen-body"><tr><td colspan="12" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
             </table>
@@ -1421,24 +1418,7 @@ function toonTemplateInfo(){
 }
 
 let artikelSelectie = new Set();
-let artikelFilterState = { search:'', vendor:'', group:'', type:'' };
-
-function vulArtikelFilters(lijst){
-  const vendors = [...new Set(lijst.map(a=>a.defaultVendor).filter(Boolean))].sort();
-  const groups  = [...new Set(lijst.map(a=>a.productGroup).filter(Boolean))].sort();
-  const types   = [...new Set(lijst.map(a=>a.fsProductType).filter(Boolean))].sort();
-  const cur = {
-    vendor: document.getElementById('filter-artikel-vendor').value,
-    group:  document.getElementById('filter-artikel-group').value,
-    type:   document.getElementById('filter-artikel-type').value,
-  };
-  document.getElementById('filter-artikel-vendor').innerHTML =
-    '<option value="">Alle leveranciers</option>'+vendors.map(v=>`<option value="${v}" ${cur.vendor===v?'selected':''}>${v}</option>`).join('');
-  document.getElementById('filter-artikel-group').innerHTML =
-    '<option value="">Alle product groups</option>'+groups.map(g=>`<option value="${g}" ${cur.group===g?'selected':''}>${g}</option>`).join('');
-  document.getElementById('filter-artikel-type').innerHTML =
-    '<option value="">Alle FS types</option>'+types.map(t=>`<option value="${t}" ${cur.type===t?'selected':''}>${t}</option>`).join('');
-}
+let artikelFilterState = { productId:'', name:'', vendor:'', vendorId:'', group:'', type:'', cost:'', serial:'', ledger:'', posting:'' };
 
 function getGefilterdeArtikelen(){
   const tid = document.getElementById('sel-template-filter').value;
@@ -1446,14 +1426,59 @@ function getGefilterdeArtikelen(){
   const s = artikelFilterState;
   return artikelen.filter(a=>{
     if(a.templateId!==tid) return false;
-    if(s.search && !((a.productId||'').toLowerCase().includes(s.search)||
-                     (a.name||'').toLowerCase().includes(s.search))) return false;
-    if(s.vendor && a.defaultVendor!==s.vendor) return false;
-    if(s.group  && a.productGroup!==s.group)   return false;
-    if(s.type   && a.fsProductType!==s.type)   return false;
+    if(s.productId && !(a.productId||'').toLowerCase().includes(s.productId)) return false;
+    if(s.name     && !(a.name||'').toLowerCase().includes(s.name))             return false;
+    if(s.vendor   && a.defaultVendor!==s.vendor)                               return false;
+    if(s.vendorId && !(a.productIdVendor||'').toLowerCase().includes(s.vendorId)) return false;
+    if(s.group    && a.productGroup!==s.group)                                 return false;
+    if(s.type     && a.fsProductType!==s.type)                                 return false;
+    if(s.serial   && a.serialNumber!==s.serial)                                return false;
+    if(s.ledger   && a.ledgerTurnover!==s.ledger)                              return false;
+    if(s.posting  && a.productPostingGroup!==s.posting)                        return false;
     return true;
   });
 }
+
+function makeColFilter(id, label, type, opties){
+  const aktief = !!artikelFilterState[id];
+  const btnCls = aktief ? 'col-filter-btn active' : 'col-filter-btn';
+  let input = type==='select'
+    ? `<select onchange="setArtikelFilter('${id}',this.value)">
+         <option value="">Alle</option>
+         ${opties.map(o=>`<option value="${o}" ${artikelFilterState[id]===o?'selected':''}>${o}</option>`).join('')}
+       </select>`
+    : `<input type="text" placeholder="Zoeken…" value="${artikelFilterState[id]||''}"
+         oninput="setArtikelFilter('${id}',this.value)" />`;
+  return `<div class="col-filter-wrap">
+    <button class="${btnCls}" onclick="toggleColFilter('cf-${id}')" title="Filter ${label}">&#9660;</button>
+    <div class="col-filter-dropdown" id="cf-${id}">
+      <div style="font-size:11px;font-weight:500;color:var(--gray-text);margin-bottom:6px">${label}</div>
+      ${input}
+      <div class="btn-row">
+        <button class="btn btn-sm" onclick="setArtikelFilter('${id}','');document.querySelector('#cf-${id} input,#cf-${id} select').value='';toggleColFilter('cf-${id}')">Wis</button>
+        <button class="btn btn-sm" onclick="toggleColFilter('cf-${id}')">Sluiten</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+window.toggleColFilter = function(id){
+  document.querySelectorAll('.col-filter-dropdown.open').forEach(d=>{ if(d.id!==id) d.classList.remove('open'); });
+  document.getElementById(id)?.classList.toggle('open');
+};
+window.setArtikelFilter = function(key, val){
+  artikelFilterState[key] = val.toLowerCase ? val.toLowerCase() : val;
+  renderArtikelen();
+};
+window.clearArtikelFilters = function(){
+  Object.keys(artikelFilterState).forEach(k=>artikelFilterState[k]='');
+  renderArtikelen();
+};
+
+// Sluit dropdowns bij klik buiten
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.col-filter-wrap')) document.querySelectorAll('.col-filter-dropdown.open').forEach(d=>d.classList.remove('open'));
+});
 
 function renderArtikelen(){
   const tid = document.getElementById('sel-template-filter').value;
@@ -1465,27 +1490,40 @@ function renderArtikelen(){
     document.getElementById('filter-artikel-count').textContent='';
     return;
   }
+
   const all = artikelen.filter(a=>a.templateId===tid);
-  vulArtikelFilters(all);
   const gefilterd = getGefilterdeArtikelen();
-  document.getElementById('filter-artikel-count').textContent =
-    gefilterd.length !== all.length ? `${gefilterd.length} van ${all.length} artikelen` : `${all.length} artikel${all.length!==1?'en':''}`;
+
+  // Unieke waarden per dropdown kolom
+  const uniq = f=>[...new Set(all.map(a=>a[f]).filter(Boolean))].sort();
+  const vendors  = uniq('defaultVendor');
+  const groups   = uniq('productGroup');
+  const types    = uniq('fsProductType');
+  const serials  = uniq('serialNumber');
+  const ledgers  = uniq('ledgerTurnover');
+  const postings = uniq('productPostingGroup');
+
+  const actief = Object.values(artikelFilterState).some(Boolean);
+  const countTxt = gefilterd.length !== all.length
+    ? `${gefilterd.length} van ${all.length} — <a href="#" onclick="clearArtikelFilters();return false" style="color:var(--blue)">wis filters</a>`
+    : `${all.length} artikel${all.length!==1?'en':''}`;
+  document.getElementById('filter-artikel-count').innerHTML = countTxt;
 
   const alleGeselecteerd = gefilterd.length>0 && gefilterd.every(a=>artikelSelectie.has(a.id));
 
-  thead.innerHTML=`<tr>
-    <th style="width:36px;text-align:center"><input type="checkbox" id="chk-all" title="Alles selecteren" ${alleGeselecteerd?'checked':''} /></th>
-    <th style="min-width:130px">Product ID</th>
-    <th style="min-width:220px">Name</th>
-    <th style="min-width:160px">Default Vendor</th>
-    <th style="min-width:130px">Product ID Vendor</th>
-    <th style="min-width:150px">Product Group</th>
-    <th style="min-width:80px">FS Product Type</th>
-    <th style="min-width:90px;text-align:right">Standard Cost</th>
-    <th style="min-width:70px;text-align:center">Serial Nr.</th>
-    <th style="min-width:120px">Ledger Turnover</th>
-    <th style="min-width:130px">Product Posting Grp</th>
-    <th style="min-width:140px"></th>
+  thead.innerHTML=`<tr style="position:sticky;top:0;background:var(--gray-bg);z-index:10">
+    <th style="width:36px;text-align:center"><input type="checkbox" id="chk-all" ${alleGeselecteerd?'checked':''} /></th>
+    <th>Product ID ${makeColFilter('productId','Product ID','text',[])}</th>
+    <th>Name ${makeColFilter('name','Name','text',[])}</th>
+    <th>Default Vendor ${makeColFilter('vendor','Leverancier','select',vendors)}</th>
+    <th>Product ID Vendor ${makeColFilter('vendorId','Product ID Vendor','text',[])}</th>
+    <th>Product Group ${makeColFilter('group','Product Group','select',groups)}</th>
+    <th>FS Product Type ${makeColFilter('type','FS Type','select',types)}</th>
+    <th style="text-align:right">Standard Cost</th>
+    <th style="text-align:center">Serial Nr. ${makeColFilter('serial','Serial Number','select',serials)}</th>
+    <th>Ledger Turnover ${makeColFilter('ledger','Ledger Turnover','select',ledgers)}</th>
+    <th>Product Posting Grp ${makeColFilter('posting','Posting Group','select',postings)}</th>
+    <th></th>
   </tr>`;
 
   document.getElementById('chk-all').addEventListener('change', function(){
@@ -1498,7 +1536,7 @@ function renderArtikelen(){
   tbody.innerHTML = gefilterd.map(a=>{
     const sel = artikelSelectie.has(a.id);
     return `<tr class="${sel?'row-selected':''}">
-      <td style="text-align:center"><input type="checkbox" class="chk-artikel" data-id="${a.id}" ${sel?'checked':''} /></td>
+      <td style="text-align:center;width:36px"><input type="checkbox" class="chk-artikel" data-id="${a.id}" ${sel?'checked':''} /></td>
       <td><strong style="font-size:13px">${a.productId||'—'}</strong></td>
       <td style="font-size:13px">${a.name||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.defaultVendor||'—'}</td>
@@ -1517,19 +1555,16 @@ function renderArtikelen(){
   }).join('') ||
   `<tr><td colspan="12" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen artikelen gevonden</td></tr>`;
 
-  // Checkbox klik delegatie
   document.getElementById('tbl-artikelen-body').querySelectorAll('.chk-artikel').forEach(chk=>{
     chk.addEventListener('change', function(){
       if(this.checked) artikelSelectie.add(this.dataset.id);
       else artikelSelectie.delete(this.dataset.id);
-      updateSelectieBalk();
-      // Update alleen de rij visueel zonder full re-render
       const rij = this.closest('tr');
       if(rij) rij.className = this.checked ? 'row-selected' : '';
-      // Update "alles" checkbox
       const alle = getGefilterdeArtikelen();
       const alleChk = document.getElementById('chk-all');
       if(alleChk) alleChk.checked = alle.length>0 && alle.every(a=>artikelSelectie.has(a.id));
+      updateSelectieBalk();
     });
   });
 }
@@ -1545,15 +1580,6 @@ function updateSelectieBalk(){
   }
 }
 
-window.clearArtikelFilters = function(){
-  document.getElementById('filter-artikel-search').value='';
-  document.getElementById('filter-artikel-vendor').value='';
-  document.getElementById('filter-artikel-group').value='';
-  document.getElementById('filter-artikel-type').value='';
-  artikelFilterState={search:'',vendor:'',group:'',type:''};
-  renderArtikelen();
-};
-
 window.deselecteerAlles = function(){
   artikelSelectie.clear();
   updateSelectieBalk();
@@ -1564,29 +1590,15 @@ window.verwijderGeselecteerd = async function(){
   const ids = [...artikelSelectie];
   if(!ids.length) return;
   if(!confirm(`${ids.length} artikel${ids.length!==1?'en':''} verwijderen?`)) return;
-  const BATCH = 500;
-  for(let i=0;i<ids.length;i+=BATCH){
+  for(let i=0;i<ids.length;i+=500){
     const batch = writeBatch(db);
-    ids.slice(i,i+BATCH).forEach(id=>batch.delete(doc(db,'artikelen',id)));
+    ids.slice(i,i+500).forEach(id=>batch.delete(doc(db,'artikelen',id)));
     await batch.commit();
   }
   artikelSelectie.clear();
   updateSelectieBalk();
   showSaving(`${ids.length} artikel${ids.length!==1?'en':''} verwijderd`);
 };
-
-// Filter event listeners
-['filter-artikel-search','filter-artikel-vendor','filter-artikel-group','filter-artikel-type'].forEach(id=>{
-  const el = document.getElementById(id);
-  const event = id==='filter-artikel-search' ? 'input' : 'change';
-  el.addEventListener(event, ()=>{
-    artikelFilterState.search  = document.getElementById('filter-artikel-search').value.toLowerCase();
-    artikelFilterState.vendor  = document.getElementById('filter-artikel-vendor').value;
-    artikelFilterState.group   = document.getElementById('filter-artikel-group').value;
-    artikelFilterState.type    = document.getElementById('filter-artikel-type').value;
-    renderArtikelen();
-  });
-});
 
 document.getElementById('btn-add-artikel').addEventListener('click', ()=>{
   const tid = document.getElementById('sel-template-filter').value;
