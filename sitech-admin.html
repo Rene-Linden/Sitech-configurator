@@ -286,7 +286,19 @@ tr.row-selected td{background:var(--blue-light)}
       <!-- ARTIKEL TEMPLATES PANEL -->
       <div class="panel" id="panel-artikel-templates">
         <div class="panel-title">Artikel Templates</div>
-        <div class="panel-sub">Beheer de vaste velden per template-type. Wijzigingen worden direct doorgevoerd in de artikelentabel.</div>
+        <div class="panel-sub">Klik op een rij om deze te selecteren. Beheer de vaste velden per template-type.</div>
+
+        <!-- Actie toolbar -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <button class="btn btn-blue" onclick="openNieuwTemplate()">+ Nieuw template</button>
+          <div id="at-actie-bar" style="display:none;align-items:center;gap:8px;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:6px 14px">
+            <span id="at-sel-naam" style="font-size:13px;font-weight:500;color:var(--blue)"></span>
+            <button class="btn btn-sm" onclick="editArtikelTemplate(atGeselecteerd)">Bewerken</button>
+            <button class="btn btn-sm btn-red" onclick="deleteArtikelTemplate(atGeselecteerd)">Verwijderen</button>
+            <button class="btn btn-sm" onclick="deselecteerTemplate()" style="color:var(--gray-text)">×</button>
+          </div>
+        </div>
+
         <div class="card" style="overflow:hidden">
           <div style="overflow-x:auto">
             <table id="tbl-at" style="min-width:1600px;table-layout:auto;border-collapse:collapse">
@@ -307,11 +319,10 @@ tr.row-selected td{background:var(--blue-light)}
                   <th style="min-width:120px">Item Tracking</th>
                   <th style="min-width:100px">Ser. Nos.</th>
                   <th style="min-width:100px">Incl. BoM</th>
-                  <th style="min-width:80px"></th>
                 </tr>
               </thead>
               <tbody id="tbl-at-body">
-                <tr><td colspan="16" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
+                <tr><td colspan="15" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
               </tbody>
             </table>
           </div>
@@ -330,12 +341,15 @@ tr.row-selected td{background:var(--blue-light)}
     </div>
     <div class="modal-body">
       <input type="hidden" id="at-edit-id" />
-      <div style="background:var(--blue-light);border-radius:7px;padding:8px 12px;font-size:12px;color:var(--blue);margin-bottom:14px">
+      <div id="at-nieuw-info" style="display:none;background:var(--green-light);border-radius:7px;padding:8px 12px;font-size:12px;color:var(--green);margin-bottom:14px">
+        Nieuw template — vul alle velden in. Template ID is uniek en niet meer te wijzigen na opslaan.
+      </div>
+      <div id="at-bewerk-info" style="background:var(--blue-light);border-radius:7px;padding:8px 12px;font-size:12px;color:var(--blue);margin-bottom:14px">
         Template ID en naam zijn vast. Alle andere velden zijn aanpasbaar en worden direct zichtbaar in de artikelentabel.
       </div>
       <div class="form-row cols2">
-        <div class="fg"><label>Template ID</label><input type="text" id="at-id-display" disabled style="background:var(--gray-bg);color:var(--gray-text)" /></div>
-        <div class="fg"><label>Naam</label><input type="text" id="at-naam-display" disabled style="background:var(--gray-bg);color:var(--gray-text)" /></div>
+        <div class="fg"><label>Template ID *</label><input type="text" id="at-id-display" placeholder="bijv. INV-NIEUW-TYPE" /></div>
+        <div class="fg"><label>Naam *</label><input type="text" id="at-naam-display" placeholder="Weergavenaam" /></div>
       </div>
       <div class="form-row cols2">
         <div class="fg"><label>Omschrijving</label><input type="text" id="at-omschrijving" /></div>
@@ -1987,19 +2001,21 @@ window.addEventListener('load', ()=>{
 // ============================================================
 // ARTIKEL TEMPLATES MODULE
 // ============================================================
-let artikelTemplatesData = {}; // id -> template object (uit Firestore of fallback)
+let artikelTemplatesData = {};
+let atGeselecteerd = null;
 let unsubArtikelTemplates;
 
 function startArtikelTemplatesListener(){
   unsubArtikelTemplates = onSnapshot(collection(db,'artikel_templates'), snap=>{
     if(snap.empty){
-      // Eerste keer: seed vanuit hardcoded array
       seedArtikelTemplates();
     } else {
-      snap.docs.forEach(d=>{ artikelTemplatesData[d.id] = {id:d.id,...d.data()}; });
-      // Sync in-memory ARTIKEL_TEMPLATES array
-      ARTIKEL_TEMPLATES.forEach(t=>{
-        if(artikelTemplatesData[t.id]) Object.assign(t, artikelTemplatesData[t.id]);
+      snap.docs.forEach(d=>{ artikelTemplatesData[d.id]={id:d.id,...d.data()}; });
+      // Sync in-memory ARTIKEL_TEMPLATES
+      Object.values(artikelTemplatesData).forEach(t=>{
+        const idx = ARTIKEL_TEMPLATES.findIndex(x=>x.id===t.id);
+        if(idx>-1) Object.assign(ARTIKEL_TEMPLATES[idx],t);
+        else ARTIKEL_TEMPLATES.push(t);
       });
       renderArtikelTemplates();
     }
@@ -2008,64 +2024,105 @@ function startArtikelTemplatesListener(){
 
 async function seedArtikelTemplates(){
   const batch = writeBatch(db);
-  ARTIKEL_TEMPLATES.forEach(t=>{
-    batch.set(doc(db,'artikel_templates',t.id), {...t});
-  });
+  ARTIKEL_TEMPLATES.forEach(t=>{ batch.set(doc(db,'artikel_templates',t.id),{...t}); });
   await batch.commit();
 }
 
 function renderArtikelTemplates(){
   const tbody = document.getElementById('tbl-at-body');
   if(!tbody) return;
-  tbody.innerHTML = ARTIKEL_TEMPLATES.map(t=>`<tr>
-    <td><strong style="font-size:12px">${t.id}</strong></td>
-    <td style="font-size:12px;color:var(--gray-text)">${t.omschrijving||'—'}</td>
-    <td style="font-size:12px">${t.type||'—'}</td>
-    <td style="font-size:12px;text-align:center">${t.uom||'—'}</td>
-    <td style="font-size:12px">${t.costingMeth||'—'}</td>
-    <td style="font-size:12px">${t.genPosting||'—'}</td>
-    <td style="font-size:12px">${t.vatPosting||'—'}</td>
-    <td style="font-size:12px">${t.invenPosting||'—'}</td>
-    <td style="font-size:12px">${t.priceProfit||'—'}</td>
-    <td style="font-size:12px">${t.subscriptie||'—'}</td>
-    <td style="font-size:12px">${t.replen||'—'}</td>
-    <td style="font-size:12px">${t.assemblyPolicy||'—'}</td>
-    <td style="font-size:12px">${t.itemTracking||'—'}</td>
-    <td style="font-size:12px">${t.serNos||'—'}</td>
-    <td style="font-size:12px">${t.includeServiceBom||'—'}</td>
-    <td style="text-align:right">
-      <button class="btn btn-sm" onclick="editArtikelTemplate('${t.id}')">Bewerken</button>
-    </td>
-  </tr>`).join('');
+  tbody.innerHTML = ARTIKEL_TEMPLATES.map(t=>`
+    <tr data-id="${t.id}" onclick="selecteerTemplate('${t.id}')"
+      style="cursor:pointer;${atGeselecteerd===t.id?'background:var(--blue-light)':''}"
+      onmouseenter="if('${t.id}'!==atGeselecteerd)this.style.background='var(--gray-bg)'"
+      onmouseleave="if('${t.id}'!==atGeselecteerd)this.style.background=''">
+      <td><strong style="font-size:12px">${t.id}</strong>${t.naam&&t.naam!==t.id?`<div style="font-size:11px;color:var(--gray-text)">${t.naam}</div>`:''}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${t.omschrijving||'—'}</td>
+      <td style="font-size:12px">${t.type||'—'}</td>
+      <td style="font-size:12px;text-align:center">${t.uom||'—'}</td>
+      <td style="font-size:12px">${t.costingMeth||'—'}</td>
+      <td style="font-size:12px">${t.genPosting||'—'}</td>
+      <td style="font-size:12px">${t.vatPosting||'—'}</td>
+      <td style="font-size:12px">${t.invenPosting||'—'}</td>
+      <td style="font-size:12px">${t.priceProfit||'—'}</td>
+      <td style="font-size:12px">${t.subscriptie||'—'}</td>
+      <td style="font-size:12px">${t.replen||'—'}</td>
+      <td style="font-size:12px">${t.assemblyPolicy||'—'}</td>
+      <td style="font-size:12px">${t.itemTracking||'—'}</td>
+      <td style="font-size:12px">${t.serNos||'—'}</td>
+      <td style="font-size:12px">${t.includeServiceBom||'—'}</td>
+    </tr>`).join('') ||
+    '<tr><td colspan="15" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen templates</td></tr>';
 }
+
+window.selecteerTemplate = function(id){
+  atGeselecteerd = id;
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===id);
+  document.getElementById('at-sel-naam').textContent = t ? `${t.id} — ${t.naam}` : id;
+  document.getElementById('at-actie-bar').style.display='flex';
+  renderArtikelTemplates();
+};
+
+window.deselecteerTemplate = function(){
+  atGeselecteerd = null;
+  document.getElementById('at-actie-bar').style.display='none';
+  renderArtikelTemplates();
+};
+
+function vulAtModal(t, isNieuw){
+  document.getElementById('at-edit-id').value          = isNieuw ? '' : t.id;
+  document.getElementById('at-id-display').value       = isNieuw ? '' : t.id;
+  document.getElementById('at-id-display').disabled    = !isNieuw;
+  document.getElementById('at-id-display').style.background = isNieuw ? '' : 'var(--gray-bg)';
+  document.getElementById('at-id-display').style.color = isNieuw ? '' : 'var(--gray-text)';
+  document.getElementById('at-naam-display').value     = isNieuw ? '' : (t.naam||'');
+  document.getElementById('at-naam-display').disabled  = !isNieuw;
+  document.getElementById('at-naam-display').style.background = isNieuw ? '' : 'var(--gray-bg)';
+  document.getElementById('at-naam-display').style.color = isNieuw ? '' : 'var(--gray-text)';
+  document.getElementById('at-omschrijving').value     = t.omschrijving||'';
+  document.getElementById('at-type').value             = t.type||'';
+  document.getElementById('at-uom').value              = t.uom||'';
+  document.getElementById('at-costingMeth').value      = t.costingMeth||'';
+  document.getElementById('at-genPosting').value       = t.genPosting||'';
+  document.getElementById('at-vatPosting').value       = t.vatPosting||'';
+  document.getElementById('at-invenPosting').value     = t.invenPosting||'';
+  document.getElementById('at-priceProfit').value      = t.priceProfit||'';
+  document.getElementById('at-subscriptie').value      = t.subscriptie||'';
+  document.getElementById('at-replen').value           = t.replen||'';
+  document.getElementById('at-assemblyPolicy').value   = t.assemblyPolicy||'';
+  document.getElementById('at-itemTracking').value     = t.itemTracking||'';
+  document.getElementById('at-serNos').value           = t.serNos||'';
+  document.getElementById('at-includeServiceBom').value= t.includeServiceBom||'';
+  document.getElementById('at-nieuw-info').style.display  = isNieuw ? 'block' : 'none';
+  document.getElementById('at-bewerk-info').style.display = isNieuw ? 'none'  : 'block';
+}
+
+window.openNieuwTemplate = function(){
+  document.getElementById('modal-at-title').textContent = 'Nieuw template toevoegen';
+  vulAtModal({}, true);
+  openModal('modal-at');
+};
 
 window.editArtikelTemplate = function(id){
   const t = ARTIKEL_TEMPLATES.find(x=>x.id===id);
   if(!t) return;
-  document.getElementById('at-edit-id').value        = id;
-  document.getElementById('at-id-display').value     = t.id;
-  document.getElementById('at-naam-display').value   = t.naam;
-  document.getElementById('at-omschrijving').value   = t.omschrijving||'';
-  document.getElementById('at-type').value           = t.type||'';
-  document.getElementById('at-uom').value            = t.uom||'';
-  document.getElementById('at-costingMeth').value    = t.costingMeth||'';
-  document.getElementById('at-genPosting').value     = t.genPosting||'';
-  document.getElementById('at-vatPosting').value     = t.vatPosting||'';
-  document.getElementById('at-invenPosting').value   = t.invenPosting||'';
-  document.getElementById('at-priceProfit').value    = t.priceProfit||'';
-  document.getElementById('at-subscriptie').value    = t.subscriptie||'';
-  document.getElementById('at-replen').value         = t.replen||'';
-  document.getElementById('at-assemblyPolicy').value = t.assemblyPolicy||'';
-  document.getElementById('at-itemTracking').value   = t.itemTracking||'';
-  document.getElementById('at-serNos').value         = t.serNos||'';
-  document.getElementById('at-includeServiceBom').value = t.includeServiceBom||'';
-  document.getElementById('modal-at-title').textContent = `Template bewerken — ${t.naam}`;
+  document.getElementById('modal-at-title').textContent = `Template bewerken — ${t.naam||t.id}`;
+  vulAtModal(t, false);
   openModal('modal-at');
 };
 
 window.saveArtikelTemplate = async function(){
-  const id = document.getElementById('at-edit-id').value;
+  const editId  = document.getElementById('at-edit-id').value;
+  const isNieuw = !editId;
+  const newId   = document.getElementById('at-id-display').value.trim().toUpperCase().replace(/\s+/g,'-');
+  const naam    = document.getElementById('at-naam-display').value.trim();
+  if(!newId || !naam){ alert('Template ID en naam zijn verplicht'); return; }
+  if(isNieuw && ARTIKEL_TEMPLATES.find(x=>x.id===newId)){
+    alert(`Template ID "${newId}" bestaat al`); return;
+  }
+  const id = isNieuw ? newId : editId;
   const updated = {
+    id, naam,
     omschrijving:     document.getElementById('at-omschrijving').value.trim(),
     type:             document.getElementById('at-type').value.trim(),
     uom:              document.getElementById('at-uom').value.trim(),
@@ -2081,15 +2138,42 @@ window.saveArtikelTemplate = async function(){
     serNos:           document.getElementById('at-serNos').value.trim(),
     includeServiceBom:document.getElementById('at-includeServiceBom').value.trim(),
   };
-  // Update in-memory ARTIKEL_TEMPLATES
-  const t = ARTIKEL_TEMPLATES.find(x=>x.id===id);
-  if(t) Object.assign(t, updated);
-  // Sla op in Firestore
-  await setDoc(doc(db,'artikel_templates',id), {...t, ...updated}, {merge:true});
-  showSaving('Template opgeslagen');
+  if(isNieuw){
+    ARTIKEL_TEMPLATES.push(updated);
+  } else {
+    const idx = ARTIKEL_TEMPLATES.findIndex(x=>x.id===id);
+    if(idx>-1) Object.assign(ARTIKEL_TEMPLATES[idx], updated);
+  }
+  await setDoc(doc(db,'artikel_templates',id), updated);
+  showSaving(isNieuw ? 'Template toegevoegd' : 'Template opgeslagen');
   closeModal('modal-at');
+  deselecteerTemplate();
   renderArtikelTemplates();
-  // Herrender artikelentabel als die zichtbaar is
+  vulTemplateSelector();
+  renderArtikelen();
+};
+
+window.deleteArtikelTemplate = async function(id){
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===id);
+  const aantalArtikelen = artikelen.filter(a=>a.templateId===id).length;
+  if(aantalArtikelen>0){
+    if(!confirm(`Template "${t?.naam||id}" heeft nog ${aantalArtikelen} artikel${aantalArtikelen!==1?'en':''}. Verwijder je ook die artikelen?\n\nKlik OK om alles te verwijderen, Annuleren om te stoppen.`)) return;
+    // Verwijder ook de artikelen
+    const artikelIds = artikelen.filter(a=>a.templateId===id).map(a=>a.id);
+    for(let i=0;i<artikelIds.length;i+=500){
+      const batch = writeBatch(db);
+      artikelIds.slice(i,i+500).forEach(aid=>batch.delete(doc(db,'artikelen',aid)));
+      await batch.commit();
+    }
+  } else {
+    if(!confirm(`Template "${t?.naam||id}" verwijderen?`)) return;
+  }
+  await deleteDoc(doc(db,'artikel_templates',id));
+  const idx = ARTIKEL_TEMPLATES.findIndex(x=>x.id===id);
+  if(idx>-1) ARTIKEL_TEMPLATES.splice(idx,1);
+  deselecteerTemplate();
+  showSaving('Template verwijderd');
+  vulTemplateSelector();
   renderArtikelen();
 };
 window.addEventListener('load', ()=>{ setTimeout(vulTemplateSelector, 500); });
