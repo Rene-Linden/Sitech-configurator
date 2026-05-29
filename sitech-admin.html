@@ -242,7 +242,7 @@ tr:hover td{background:var(--gray-bg)}
 
         <div class="card" style="overflow:hidden">
           <div style="overflow-x:auto">
-            <table id="tbl-artikelen" style="min-width:800px">
+            <table id="tbl-artikelen" style="min-width:1100px;table-layout:auto">
               <thead id="tbl-artikelen-head"></thead>
               <tbody id="tbl-artikelen-body"><tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
             </table>
@@ -1403,17 +1403,24 @@ function renderArtikelen(){
   }
   const gefilterd = artikelen.filter(a=>a.templateId===tid);
   thead.innerHTML=`<tr>
-    <th>No.</th><th>Description</th><th>Lead Time</th>
-    <th>Reorder Pt.</th><th>Reorder Qty</th><th>Max Inv.</th>
-    <th>Item Cat.</th><th>Service Grp.</th><th>Reorder Policy</th><th></th>
+    <th style="min-width:120px">No.</th>
+    <th style="min-width:200px">Description</th>
+    <th style="min-width:100px">Lead Time</th>
+    <th style="min-width:90px;text-align:right">Reorder Pt.</th>
+    <th style="min-width:90px;text-align:right">Reorder Qty</th>
+    <th style="min-width:90px;text-align:right">Max Inv.</th>
+    <th style="min-width:100px">Item Cat.</th>
+    <th style="min-width:110px">Service Grp.</th>
+    <th style="min-width:130px">Reorder Policy</th>
+    <th style="min-width:140px"></th>
   </tr>`;
   tbody.innerHTML = gefilterd.map(a=>`<tr>
     <td><strong style="font-size:13px">${a.no||'—'}</strong></td>
-    <td>${a.description||'—'}</td>
+    <td style="font-size:13px">${a.description||'—'}</td>
     <td style="color:var(--gray-text);font-size:12px">${a.leadTime||'—'}</td>
-    <td style="text-align:right;font-size:12px">${a.reorderPt||'—'}</td>
-    <td style="text-align:right;font-size:12px">${a.reorderQty||'—'}</td>
-    <td style="text-align:right;font-size:12px">${a.maxInventory||'—'}</td>
+    <td style="text-align:right;font-size:12px;color:var(--gray-text)">${a.reorderPt||'—'}</td>
+    <td style="text-align:right;font-size:12px;color:var(--gray-text)">${a.reorderQty||'—'}</td>
+    <td style="text-align:right;font-size:12px;color:var(--gray-text)">${a.maxInventory||'—'}</td>
     <td style="font-size:12px;color:var(--gray-text)">${a.itemCatCode||'—'}</td>
     <td style="font-size:12px;color:var(--gray-text)">${a.serviceItemGrp||'—'}</td>
     <td style="font-size:12px;color:var(--gray-text)">${a.reorderingPolicy||'—'}</td>
@@ -1422,7 +1429,7 @@ function renderArtikelen(){
       <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteArtikel('${a.id}')">Verwijderen</button>
     </td>
   </tr>`).join('') ||
-  '<tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Nog geen artikelen voor dit template</td></tr>';
+  `<tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Nog geen artikelen voor dit template</td></tr>`;
 }
 
 document.getElementById('btn-add-artikel').addEventListener('click', ()=>{
