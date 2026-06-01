@@ -1291,9 +1291,14 @@ window.showPanel = function(name,el){
   }
   if(name==='bom-sbu'){ loadBomData(); }
   if(name==='sbu'){
-    vulSbuTemplateSelector();
-    getDocs(collection(db,'artikelen')).then(snap=>{
-      artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
+    const loads = [getDocs(collection(db,'artikelen'))];
+    if(!bomData.length) loads.push(getDocs(collection(db,'bom_sbu')));
+    if(!resourcesData[0]?.kostprijs) loads.push(getDocs(collection(db,'resources')));
+    Promise.all(loads).then(snaps=>{
+      artikelen = snaps[0].docs.map(d=>({id:d.id,...d.data()}));
+      if(snaps[1]) bomData = snaps[1].docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+      if(snaps[2]) snaps[2].docs.forEach(d=>{ const i=resourcesData.findIndex(r=>r.id===d.id); if(i>-1) Object.assign(resourcesData[i],d.data()); });
+      vulSbuTemplateSelector();
       renderSbu();
     });
   }
@@ -4517,6 +4522,7 @@ function renderSbu(){
   thead.innerHTML=`<tr style="position:sticky;top:0;background:var(--gray-bg);z-index:10">
     <th style="width:36px;text-align:center"><input type="checkbox" id="chk-sbu-all" ${alleGeselecteerd?'checked':''} /></th>
     <th style="min-width:140px">Product ID</th>
+    <th style="min-width:120px;text-align:right;color:var(--blue)">Verkoopprijs</th>
     <th style="min-width:260px">Name</th>
     <th style="min-width:180px">Default Vendor</th>
     <th style="min-width:140px">Product ID Vendor</th>
@@ -4555,6 +4561,12 @@ function renderSbu(){
     return `<tr class="${sel?'row-selected':''}">
       <td style="text-align:center;width:36px"><input type="checkbox" class="chk-sbu" data-id="${a.id}" ${sel?'checked':''} /></td>
       <td><strong style="font-size:13px">${a.productId||'—'}</strong></td>
+      <td style="text-align:right;font-size:13px;font-weight:600;color:var(--blue)">${(()=>{
+        const bom=bomData.find(b=>b.sbuId===a.productId);
+        if(!bom)return'—';
+        const tot=berekenBomTotalen(bom);
+        return tot?'€\u00a0'+tot.unitTotaal.toFixed(2):'—';
+      })()}</td>
       <td style="font-size:13px">${a.name||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.defaultVendor||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.productIdVendor||'—'}</td>
