@@ -354,6 +354,7 @@ tr.row-selected td{background:var(--blue-light)}
                 <th style="min-width:90px;text-align:center">Calibration (u)</th>
                 <th style="min-width:120px;text-align:right;color:var(--blue)">Totaal Std.</th>
                 <th style="min-width:120px;text-align:right;color:var(--green)">Totaal Unit</th>
+                <th style="min-width:120px;text-align:right;color:var(--green)">Afgerond &#x2191;</th>
                 <th style="min-width:120px"></th>
               </tr>
             </thead>
@@ -2044,6 +2045,8 @@ document.addEventListener('click', e=>{
 });
 
 let artikelPagina = 1;
+window.artikelPaginaVorige = function(){ if(artikelPagina>1){ artikelPagina--; renderArtikelen(); } };
+window.artikelPaginaVolgende = function(totaal){ if(artikelPagina<totaal){ artikelPagina++; renderArtikelen(); } };
 const ARTIKELEN_PER_PAGINA = 100;
 
 function renderArtikelen(){
@@ -2083,8 +2086,8 @@ function renderArtikelen(){
     : `${all.length} artikel${all.length!==1?'en':''}`;
   const paginaTxt = totaalPaginas > 1
     ? ` &nbsp;|&nbsp; Pagina ${artikelPagina} van ${totaalPaginas} &nbsp;
-        <button class="btn btn-sm" onclick="artikelPagina=Math.max(1,artikelPagina-1);renderArtikelen()" ${artikelPagina<=1?'disabled':''}>‹</button>
-        <button class="btn btn-sm" onclick="artikelPagina=Math.min(${totaalPaginas},artikelPagina+1);renderArtikelen()" ${artikelPagina>=totaalPaginas?'disabled':''}>›</button>`
+        <button class="btn btn-sm" onclick="artikelPaginaVorige()" ${artikelPagina<=1?'disabled':''}>‹</button>
+        <button class="btn btn-sm" onclick="artikelPaginaVolgende(${totaalPaginas})" ${artikelPagina>=totaalPaginas?'disabled':''}>›</button>`
     : '';
   document.getElementById('filter-artikel-count').innerHTML = countTxt + paginaTxt;
 
@@ -2570,6 +2573,7 @@ function renderBomTabel(){
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.calibration||'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--blue)">${totStandard>0?'€\u00a0'+totStandard.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--green)">${totUnit>0?'€\u00a0'+totUnit.toFixed(2):'—'}</td>
+      <td style="text-align:right;font-size:12px;font-weight:600;color:var(--green)">${totUnit>0?'€\u00a0'+Math.ceil(totUnit).toLocaleString('nl-NL'):'—'}</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-sm" onclick="openBomDetailById('${b.id}')">Stuklijst</button>
         <button class="btn btn-sm" style="margin-left:4px" onclick="openBomBewerken('${b.id}')">Bewerken</button>
@@ -2577,7 +2581,7 @@ function renderBomTabel(){
       </td>
     </tr>`;
   }).join('') ||
-  '<tr><td colspan="9" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM data — upload een Excel of voeg handmatig toe</td></tr>';
+  '<tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM data — upload een Excel of voeg handmatig toe</td></tr>';
 }
 
 window.openBomDetail = function(){
@@ -3107,6 +3111,8 @@ document.getElementById('bom-ewv-upload-input').addEventListener('change',async(
 let ewvSelectie = new Set();
 let ewvPaginaData = [];
 let ewvPagina = 1;
+window.ewvPaginaVorige = function(){ if(ewvPagina>1){ ewvPagina--; renderEwv(); } };
+window.ewvPaginaVolgende = function(totaal){ if(ewvPagina<totaal){ ewvPagina++; renderEwv(); } };
 const EWV_PER_PAGINA = 100;
 
 function getEwvTemplates(){ return ARTIKEL_TEMPLATES.filter(t=>t.isEWV); }
@@ -3137,8 +3143,8 @@ function renderEwv(){
   ewvPaginaData = all.slice((ewvPagina-1)*EWV_PER_PAGINA, ewvPagina*EWV_PER_PAGINA);
   const countTxt = all.length+' artikel'+(all.length!==1?'en':'')+
     (totaalPaginas>1?` &nbsp;|&nbsp; Pagina ${ewvPagina} van ${totaalPaginas} &nbsp;
-      <button class="btn btn-sm" onclick="ewvPagina=Math.max(1,ewvPagina-1);renderEwv()" ${ewvPagina<=1?'disabled':''}>‹</button>
-      <button class="btn btn-sm" onclick="ewvPagina=Math.min(${totaalPaginas},ewvPagina+1);renderEwv()" ${ewvPagina>=totaalPaginas?'disabled':''}>›</button>`:'');
+      <button class="btn btn-sm" onclick="ewvPaginaVorige()" ${ewvPagina<=1?'disabled':''}>‹</button>
+      <button class="btn btn-sm" onclick="ewvPaginaVolgende(${totaalPaginas})" ${ewvPagina>=totaalPaginas?'disabled':''}>›</button>`:'');
   document.getElementById('ewv-count').innerHTML = countTxt;
   const alleGeselecteerd = ewvPaginaData.length>0 && ewvPaginaData.every(a=>ewvSelectie.has(a.id));
   thead.innerHTML=`<tr style="position:sticky;top:0;background:var(--gray-bg);z-index:10">
@@ -3375,6 +3381,8 @@ let sbuSelectie = new Set();
 let sbuFilterState = {};
 let sbuPaginaData = [];
 let sbuPagina = 1;
+window.sbuPaginaVorige = function(){ if(sbuPagina>1){ sbuPagina--; renderSbu(); } };
+window.sbuPaginaVolgende = function(totaal){ if(sbuPagina<totaal){ sbuPagina++; renderSbu(); } };
 const SBU_PER_PAGINA = 100;
 
 function getSbuTemplates(){ return ARTIKEL_TEMPLATES.filter(t=>t.isSBU); }
@@ -3407,8 +3415,8 @@ function renderSbu(){
 
   const countTxt = all.length + ' artikel' + (all.length!==1?'en':'') +
     (totaalPaginas>1 ? ` &nbsp;|&nbsp; Pagina ${sbuPagina} van ${totaalPaginas} &nbsp;
-      <button class="btn btn-sm" onclick="sbuPagina=Math.max(1,sbuPagina-1);renderSbu()" ${sbuPagina<=1?'disabled':''}>‹</button>
-      <button class="btn btn-sm" onclick="sbuPagina=Math.min(${totaalPaginas},sbuPagina+1);renderSbu()" ${sbuPagina>=totaalPaginas?'disabled':''}>›</button>` : '');
+      <button class="btn btn-sm" onclick="sbuPaginaVorige()" ${sbuPagina<=1?'disabled':''}>‹</button>
+      <button class="btn btn-sm" onclick="sbuPaginaVolgende(${totaalPaginas})" ${sbuPagina>=totaalPaginas?'disabled':''}>›</button>` : '');
   document.getElementById('sbu-count').innerHTML = countTxt;
 
   const alleGeselecteerd = sbuPaginaData.length>0 && sbuPaginaData.every(a=>sbuSelectie.has(a.id));
