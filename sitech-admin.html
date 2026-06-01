@@ -402,20 +402,27 @@ tr.row-selected td{background:var(--blue-light)}
           <div class="panel-sub">Stuklijsten per SBU. Één rij per SBU met alle subbundel-artikelen en resources.</div>
 
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-            <select id="sel-bom-zoek" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;min-width:240px">
-              <option value="">— Selecteer SBU voor detail —</option>
-            </select>
-            <button class="btn btn-blue" onclick="openBomDetail()">Bekijk stuklijst</button>
-            <button class="btn btn-green" id="btn-bom-upload">Excel uploaden</button>
-            <button class="btn btn-blue" onclick="openNieuwBom()">+ Nieuwe BoM</button>
-            <input type="file" id="bom-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
-            <span id="bom-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
+            <input type="text" id="bom-zoek-tekst" placeholder="Zoek op SBU-nummer of naam…"
+              style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;width:280px;outline:none"
+              oninput="filterBomTabel()" />
+            <button class="btn btn-sm" onclick="clearBomFilter()" style="color:var(--gray-text)">Wis filter</button>
+            <span id="bom-filter-count" style="font-size:12px;color:var(--gray-text)"></span>
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <select id="sel-bom-zoek" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;min-width:240px">
+                <option value="">— Selecteer SBU voor stuklijst —</option>
+              </select>
+              <button class="btn btn-blue" onclick="openBomDetail()">Bekijk stuklijst</button>
+              <button class="btn btn-green" id="btn-bom-upload">Excel uploaden</button>
+              <button class="btn btn-blue" onclick="openNieuwBom()">+ Nieuwe BoM</button>
+              <input type="file" id="bom-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
+              <span id="bom-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
+            </div>
           </div>
         </div>
 
         <!-- Hoofdtabel: één rij per SBU -->
         <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:auto;padding:0 1.5rem 1rem">
-          <table id="tbl-bom" style="min-width:900px;table-layout:auto;border-collapse:collapse">
+          <table id="tbl-bom" style="min-width:1100px;table-layout:auto;border-collapse:collapse">
             <thead style="position:sticky;top:0;z-index:20;background:var(--gray-bg)">
               <tr>
                 <th style="min-width:120px">SBU</th>
@@ -431,7 +438,7 @@ tr.row-selected td{background:var(--blue-light)}
               </tr>
             </thead>
             <tbody id="tbl-bom-body">
-              <tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
+              <tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
             </tbody>
           </table>
         </div>
@@ -2581,10 +2588,32 @@ function vulBomZoekSelector(){
   if(cur && bomData.find(b=>b.id===cur)) sel.value = cur;
 }
 
+let bomFilter = '';
+
+window.filterBomTabel = function(){
+  bomFilter = (document.getElementById('bom-zoek-tekst')?.value||'').toLowerCase().trim();
+  renderBomTabel();
+};
+
+window.clearBomFilter = function(){
+  bomFilter = '';
+  const el = document.getElementById('bom-zoek-tekst');
+  if(el) el.value = '';
+  renderBomTabel();
+};
+
 function renderBomTabel(){
   const tbody = document.getElementById('tbl-bom-body');
   if(!tbody) return;
-  tbody.innerHTML = bomData.map(b=>{
+
+  const gefilterd = bomFilter
+    ? bomData.filter(b=>b.sbuId.toLowerCase().includes(bomFilter)||( b.naam||'').toLowerCase().includes(bomFilter))
+    : bomData;
+
+  const countEl = document.getElementById('bom-filter-count');
+  if(countEl) countEl.textContent = bomFilter ? `${gefilterd.length} van ${bomData.length}` : `${bomData.length} SBU's`;
+
+  tbody.innerHTML = gefilterd.map(b=>{
     const tot = berekenBomTotalen(b);
     const totStandard = tot ? tot.stdTotaal : 0;
     const totUnit     = tot ? tot.unitTotaal : 0;
