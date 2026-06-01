@@ -41,6 +41,7 @@ input,select,textarea{font-family:var(--font)}
 .panel{display:none}.panel.active{display:block}
 #panel-artikelen.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 #panel-sbu.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
+#panel-ewv.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 #panel-bom-sbu.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 .panel-title{font-size:19px;font-weight:500;margin-bottom:4px}
 .panel-sub{font-size:13px;color:var(--gray-text);margin-bottom:1.5rem}
@@ -135,6 +136,7 @@ tr.row-selected td{background:var(--blue-light)}
       <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
       <a class="nav-item" onclick="showPanel('bom-sbu',this)">BoM SBU</a>
       <a class="nav-item" onclick="showPanel('sbu',this)">SBU</a>
+      <a class="nav-item" onclick="showPanel('ewv',this)">EWV</a>
       <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
       <a class="nav-item" onclick="showPanel('gebruikers',this)">Gebruikers</a>
       <a class="nav-item" onclick="showPanel('sitech',this)">Sitech medewerkers</a>
@@ -398,6 +400,52 @@ tr.row-selected td{background:var(--blue-light)}
           <table id="tbl-sbu" style="min-width:3600px;table-layout:auto;border-collapse:collapse">
             <thead id="tbl-sbu-head" style="position:sticky;top:0;z-index:20"></thead>
             <tbody id="tbl-sbu-body"><tr><td colspan="25" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ARTIKEL TEMPLATES PANEL -->
+      <div class="panel" id="panel-ewv" style="flex-direction:column;height:100%;overflow:hidden">
+        <div style="padding:1.5rem 1.5rem 0;flex-shrink:0">
+          <div class="panel-title">EWV</div>
+          <div class="panel-sub">Artikelen van templates waarbij EWV is aangevinkt.</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <select id="sel-ewv-template" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;min-width:220px"></select>
+            <button class="btn btn-blue" id="btn-ewv-nieuw">+ Nieuw artikel</button>
+            <button class="btn btn-green" id="btn-ewv-upload">Excel uploaden</button>
+            <button class="btn" id="btn-ewv-download" style="border-color:rgba(59,109,17,.3);color:var(--green);background:var(--green-light)">Excel downloaden</button>
+            <input type="file" id="ewv-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
+            <span id="ewv-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
+            <span id="ewv-count" style="font-size:13px;color:var(--gray-text);margin-left:auto"></span>
+          </div>
+          <!-- Selectie toolbar -->
+          <div id="ewv-selectie-bar" style="display:none;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:8px 14px;margin-bottom:8px;align-items:center;gap:10px;font-size:13px;flex-wrap:wrap">
+            <span id="ewv-selectie-count" style="color:var(--blue);font-weight:500"></span>
+            <div style="display:flex;align-items:center;gap:6px;border-right:1px solid rgba(24,95,165,.2);padding-right:10px">
+              <label style="font-size:12px;color:var(--gray-text);white-space:nowrap">Veld aanpassen:</label>
+              <select id="sel-ewv-bulk-kolom" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;min-width:160px">
+                <option value="">— Kies kolom —</option>
+                <option value="manufacturer">Manufacturer</option>
+                <option value="category">Category</option>
+                <option value="model">Model</option>
+                <option value="profitPct">Profit (%)</option>
+                <option value="vendorNo">Vendor No.</option>
+                <option value="reorderingPolicy">Reordering Policy</option>
+                <option value="defaultVendor">Default Vendor</option>
+                <option value="productGroup">Product Group</option>
+                <option value="standardCost">Standard Cost</option>
+                <option value="ledgerTurnover">Ledger Turnover</option>
+              </select>
+              <input type="text" id="inp-ewv-bulk-waarde" placeholder="Nieuwe waarde…" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;width:140px;outline:none" />
+              <button class="btn btn-sm" style="background:var(--blue);color:#fff" onclick="bulkEditEWV()">Toepassen</button>
+            </div>
+            <button class="btn btn-sm" onclick="deselecteerEWV()">Selectie opheffen</button>
+          </div>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:auto;padding:0 1.5rem 1rem">
+          <table id="tbl-ewv" style="min-width:3600px;table-layout:auto;border-collapse:collapse">
+            <thead id="tbl-ewv-head" style="position:sticky;top:0;z-index:20"></thead>
+            <tbody id="tbl-ewv-body"><tr><td colspan="25" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -881,6 +929,13 @@ window.showPanel = function(name,el){
     getDocs(collection(db,'artikelen')).then(snap=>{
       artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
       renderSbu();
+    });
+  }
+  if(name==='ewv'){
+    vulEwvTemplateSelector();
+    getDocs(collection(db,'artikelen')).then(snap=>{
+      artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderEwv();
     });
   }
   if(name==='artikel-templates'){ renderArtikelTemplates(); }
@@ -2557,6 +2612,264 @@ document.getElementById('bom-upload-input').addEventListener('change', async (ev
   reader.readAsArrayBuffer(file);
   event.target.value='';
 });
+// ============================================================
+// EWV MODULE
+// ============================================================
+let ewvSelectie = new Set();
+let ewvPaginaData = [];
+let ewvPagina = 1;
+const EWV_PER_PAGINA = 100;
+
+function getEwvTemplates(){ return ARTIKEL_TEMPLATES.filter(t=>t.isEWV); }
+
+function vulEwvTemplateSelector(){
+  const sel = document.getElementById('sel-ewv-template');
+  if(!sel) return;
+  const cur = sel.value;
+  const ewvTemplates = getEwvTemplates();
+  sel.innerHTML = '<option value="">— Alle EWV artikelen —</option>' +
+    ewvTemplates.map(t=>`<option value="${t.id}">${t.naam}</option>`).join('');
+  if(cur && ewvTemplates.find(t=>t.id===cur)) sel.value = cur;
+}
+
+function getEwvArtikelen(){
+  const tid = document.getElementById('sel-ewv-template')?.value||'';
+  const ewvIds = new Set(getEwvTemplates().map(t=>t.id));
+  return artikelen.filter(a=> tid ? a.templateId===tid : ewvIds.has(a.templateId));
+}
+
+function renderEwv(){
+  const thead = document.getElementById('tbl-ewv-head');
+  const tbody = document.getElementById('tbl-ewv-body');
+  if(!thead||!tbody) return;
+  const all = getEwvArtikelen();
+  const totaalPaginas = Math.max(1, Math.ceil(all.length/EWV_PER_PAGINA));
+  if(ewvPagina>totaalPaginas) ewvPagina=1;
+  ewvPaginaData = all.slice((ewvPagina-1)*EWV_PER_PAGINA, ewvPagina*EWV_PER_PAGINA);
+  const countTxt = all.length+' artikel'+(all.length!==1?'en':'')+
+    (totaalPaginas>1?` &nbsp;|&nbsp; Pagina ${ewvPagina} van ${totaalPaginas} &nbsp;
+      <button class="btn btn-sm" onclick="ewvPagina=Math.max(1,ewvPagina-1);renderEwv()" ${ewvPagina<=1?'disabled':''}>‹</button>
+      <button class="btn btn-sm" onclick="ewvPagina=Math.min(${totaalPaginas},ewvPagina+1);renderEwv()" ${ewvPagina>=totaalPaginas?'disabled':''}>›</button>`:'');
+  document.getElementById('ewv-count').innerHTML = countTxt;
+  const alleGeselecteerd = ewvPaginaData.length>0 && ewvPaginaData.every(a=>ewvSelectie.has(a.id));
+  thead.innerHTML=`<tr style="position:sticky;top:0;background:var(--gray-bg);z-index:10">
+    <th style="width:36px;text-align:center"><input type="checkbox" id="chk-ewv-all" ${alleGeselecteerd?'checked':''} /></th>
+    <th style="min-width:140px">Product ID</th>
+    <th style="min-width:260px">Name</th>
+    <th style="min-width:180px">Default Vendor</th>
+    <th style="min-width:140px">Product ID Vendor</th>
+    <th style="min-width:160px">Product Group</th>
+    <th style="min-width:130px">FS Product Type</th>
+    <th style="min-width:100px;text-align:right">Standard Cost</th>
+    <th style="min-width:80px;text-align:center">Serial Nr.</th>
+    <th style="min-width:120px">Ledger Turnover</th>
+    <th style="min-width:150px">Product Posting Grp</th>
+    <th style="min-width:130px">Manufacturer</th>
+    <th style="min-width:130px">Category</th>
+    <th style="min-width:130px">Model</th>
+    <th style="min-width:170px;background:var(--amber-light);color:var(--amber);border-left:2px solid rgba(133,79,11,.2)">Price/Profit</th>
+    <th style="min-width:110px;text-align:right">Unit Price</th>
+    <th style="min-width:90px">Profit (%)</th>
+    <th style="min-width:120px">Vendor No.</th>
+    <th style="min-width:150px">Reordering Policy</th>
+    <th style="min-width:130px;background:var(--amber-light);color:var(--amber)">Template</th>
+    <th style="min-width:140px"></th>
+  </tr>`;
+  document.getElementById('chk-ewv-all').addEventListener('change', function(){
+    if(this.checked) ewvPaginaData.forEach(a=>ewvSelectie.add(a.id));
+    else ewvPaginaData.forEach(a=>ewvSelectie.delete(a.id));
+    updateEwvSelectieBalk(); renderEwv();
+  });
+  tbody.innerHTML = ewvPaginaData.map(a=>{
+    const t=ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId)||{};
+    const pp=(t.priceProfit||'').toLowerCase();
+    const cost=parseFloat(a.standardCost||0);
+    const pct=parseFloat(a.profitPct||'');
+    const unitPrice=(pp.includes('kosten')||pp.includes('prijs'))&&cost&&!isNaN(pct)&&pct!==0?'€\u00a0'+(cost*(1+pct/100)).toFixed(2):'—';
+    const sel=ewvSelectie.has(a.id);
+    return `<tr class="${sel?'row-selected':''}">
+      <td style="text-align:center;width:36px"><input type="checkbox" class="chk-ewv" data-id="${a.id}" ${sel?'checked':''} /></td>
+      <td><strong style="font-size:13px">${a.productId||'—'}</strong></td>
+      <td style="font-size:13px">${a.name||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.defaultVendor||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.productIdVendor||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.productGroup||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.fsProductType||'—'}</td>
+      <td style="text-align:right;font-size:12px;color:var(--blue);font-weight:500">${a.standardCost?'€\u00a0'+parseFloat(a.standardCost).toFixed(2):'—'}</td>
+      <td style="font-size:12px;text-align:center">${a.serialNumber||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.ledgerTurnover||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.productPostingGroup||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.manufacturer||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.category||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.model||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04);border-left:2px solid rgba(133,79,11,.2)">${t.priceProfit||'—'}</td>
+      <td style="font-size:12px;text-align:right;font-weight:500;color:var(--blue)">${unitPrice}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.profitPct?a.profitPct+'%':'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.vendorNo||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.reorderingPolicy||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.naam||a.templateId||'—'}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-sm" onclick="editArtikel('${a.id}')">Bewerken</button>
+        <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteEwvArtikel('${a.id}')">Verwijderen</button>
+      </td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="21" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen EWV artikelen gevonden</td></tr>';
+
+  document.getElementById('tbl-ewv-body').querySelectorAll('.chk-ewv').forEach(chk=>{
+    chk.addEventListener('change', function(){
+      if(this.checked) ewvSelectie.add(this.dataset.id);
+      else ewvSelectie.delete(this.dataset.id);
+      this.closest('tr').className=this.checked?'row-selected':'';
+      const alleChk=document.getElementById('chk-ewv-all');
+      if(alleChk) alleChk.checked=ewvPaginaData.every(a=>ewvSelectie.has(a.id));
+      updateEwvSelectieBalk();
+    });
+  });
+}
+
+function updateEwvSelectieBalk(){
+  const bar=document.getElementById('ewv-selectie-bar');
+  const cnt=ewvSelectie.size;
+  if(cnt>0){bar.style.display='flex';document.getElementById('ewv-selectie-count').textContent=`${cnt} artikel${cnt!==1?'en':''} geselecteerd`;}
+  else bar.style.display='none';
+}
+
+window.deselecteerEWV=function(){ewvSelectie.clear();updateEwvSelectieBalk();renderEwv();};
+
+window.deleteEwvArtikel=async function(id){
+  if(!confirm('Artikel verwijderen?'))return;
+  await deleteDoc(doc(db,'artikelen',id));
+  artikelen=artikelen.filter(x=>x.id!==id);
+  ewvSelectie.delete(id);
+  updateEwvSelectieBalk();
+  renderEwv();
+  showSaving('Artikel verwijderd');
+};
+
+window.bulkEditEWV=async function(){
+  const ids=[...ewvSelectie];
+  const kolom=document.getElementById('sel-ewv-bulk-kolom').value;
+  const waarde=document.getElementById('inp-ewv-bulk-waarde').value.trim();
+  if(!ids.length){alert('Selecteer eerst artikelen');return;}
+  if(!kolom){alert('Kies een kolom');return;}
+  const kolomNaam=document.getElementById('sel-ewv-bulk-kolom').options[document.getElementById('sel-ewv-bulk-kolom').selectedIndex].text;
+  if(!confirm(`"${kolomNaam}" instellen op "${waarde||'(leeg)'}" voor ${ids.length} artikel${ids.length!==1?'en':''}?`))return;
+  for(let i=0;i<ids.length;i+=500){
+    const batch=writeBatch(db);
+    ids.slice(i,i+500).forEach(id=>{
+      batch.update(doc(db,'artikelen',id),{[kolom]:waarde});
+      const a=artikelen.find(x=>x.id===id);if(a)a[kolom]=waarde;
+    });
+    await batch.commit();
+  }
+  document.getElementById('inp-ewv-bulk-waarde').value='';
+  document.getElementById('sel-ewv-bulk-kolom').value='';
+  renderEwv();
+};
+
+// EWV nieuw artikel
+document.getElementById('btn-ewv-nieuw').addEventListener('click',()=>{
+  const tid=document.getElementById('sel-ewv-template').value;
+  if(!tid){alert('Selecteer eerst een EWV template');return;}
+  const t=ARTIKEL_TEMPLATES.find(x=>x.id===tid);
+  document.getElementById('artikel-edit-id').value='';
+  document.getElementById('artikel-template-badge').textContent=`Template: ${t?.naam||tid}`;
+  document.getElementById('modal-artikel-title').textContent='Nieuw artikel';
+  document.getElementById('sel-template-filter').value=tid;
+  vulArtikelForm(t,{});
+  openModal('modal-artikel');
+});
+
+// EWV Excel upload
+document.getElementById('btn-ewv-upload').addEventListener('click',()=>{
+  const tid=document.getElementById('sel-ewv-template').value;
+  if(!tid){alert('Selecteer eerst een EWV template');return;}
+  document.getElementById('ewv-upload-input').click();
+});
+
+document.getElementById('ewv-upload-input').addEventListener('change',async(event)=>{
+  const tid=document.getElementById('sel-ewv-template').value;
+  const status=document.getElementById('ewv-upload-status');
+  const file=event.target.files[0];
+  if(!file)return;
+  if(typeof XLSX==='undefined'){alert('Excel-library nog niet geladen');return;}
+  status.textContent='Bestand lezen…';
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      const startRow=rows[0]&&String(rows[0][0]).trim().toLowerCase()==='product id'?1:0;
+      const dataRows=rows.slice(startRow).filter(r=>String(r[0]||'').trim());
+      if(!dataRows.length){status.textContent='Geen data gevonden';return;}
+      const bestaandeIds=new Set(artikelen.filter(a=>a.templateId===tid).map(a=>a.productId));
+      const bestaandeRijen=dataRows.filter(r=>bestaandeIds.has(String(r[0]||'').trim()));
+      const nieuweRijen=dataRows.filter(r=>!bestaandeIds.has(String(r[0]||'').trim()));
+      let overschrijven=false;
+      if(bestaandeRijen.length>0){
+        overschrijven=confirm(bestaandeRijen.length+' artikel'+(bestaandeRijen.length!==1?'en':'')+' bestaan al.\n\nOK = overschrijven\nAnnuleren = alleen nieuwe toevoegen ('+nieuweRijen.length+')');
+      }
+      const teVerwerken=overschrijven?dataRows:nieuweRijen;
+      if(!teVerwerken.length){status.textContent='Geen nieuwe artikelen';setTimeout(()=>status.textContent='',3000);return;}
+      status.textContent=teVerwerken.length+' rijen verwerken…';
+      let total=0;
+      for(let i=0;i<teVerwerken.length;i+=500){
+        const batch=writeBatch(db);
+        teVerwerken.slice(i,i+500).forEach((r,idx)=>{
+          const productId=String(r[0]||'').trim();
+          if(!productId)return;
+          let docId='art'+(Date.now()+i+idx);
+          if(overschrijven){const ex=artikelen.find(a=>a.templateId===tid&&a.productId===productId);if(ex)docId=ex.id;}
+          const data={templateId:tid,productId,name:String(r[1]||'').trim(),defaultVendor:String(r[2]||'').trim(),
+            productIdVendor:String(r[3]||'').trim(),productGroup:String(r[4]||'').trim(),fsProductType:String(r[5]||'').trim(),
+            standardCost:String(r[6]||'').trim(),serialNumber:String(r[7]||'').trim(),agreementProduct:String(r[8]||'').trim(),
+            mainProduct:String(r[9]||'').trim(),ledgerTurnover:String(r[10]||'').trim(),productPostingGroup:String(r[11]||'').trim()};
+          batch.set(doc(collection(db,'artikelen'),docId),data,{merge:overschrijven});
+          total++;
+        });
+        await batch.commit();
+        status.textContent=Math.min(i+500,teVerwerken.length)+' / '+teVerwerken.length+' verwerkt…';
+      }
+      status.textContent='✓ '+total+' artikel'+(total!==1?'en':'')+' '+(overschrijven?'bijgewerkt':'toegevoegd');
+      setTimeout(()=>status.textContent='',4000);
+      const snap=await getDocs(collection(db,'artikelen'));
+      artikelen=snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderEwv();
+    }catch(err){status.textContent='';alert('Fout: '+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value='';
+});
+
+// EWV Excel download
+document.getElementById('btn-ewv-download').addEventListener('click',()=>{
+  if(typeof XLSX==='undefined'){alert('Excel-library nog niet geladen');return;}
+  const all=getEwvArtikelen();
+  const header=['Product ID','Name','Default Vendor','Product ID Vendor','Product Group',
+    'FS Product Type','Standard Cost','Serial Nr.','Ledger Turnover','Product Posting Grp',
+    'Manufacturer','Category','Model','Price/Profit','Unit Price','Profit (%)','Vendor No.','Reordering Policy','Template'];
+  const rows=[header,...all.map(a=>{
+    const t=ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId)||{};
+    const pp=(t.priceProfit||'').toLowerCase();
+    const cost=parseFloat(a.standardCost||0);
+    const pct=parseFloat(a.profitPct||'');
+    const up=(pp.includes('kosten')||pp.includes('prijs'))&&cost&&!isNaN(pct)&&pct!==0?parseFloat((cost*(1+pct/100)).toFixed(2)):'';
+    return [a.productId||'',a.name||'',a.defaultVendor||'',a.productIdVendor||'',
+      a.productGroup||'',a.fsProductType||'',a.standardCost?parseFloat(a.standardCost):'',
+      a.serialNumber||'',a.ledgerTurnover||'',a.productPostingGroup||'',
+      a.manufacturer||'',a.category||'',a.model||'',t.priceProfit||'',up,a.profitPct||'',
+      a.vendorNo||'',a.reorderingPolicy||'',t.naam||a.templateId||''];
+  })];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'EWV Artikelen');
+  XLSX.writeFile(wb,`ewv-artikelen-${new Date().toISOString().slice(0,10)}.xlsx`);
+});
+
+// EWV template selector
+document.getElementById('sel-ewv-template').addEventListener('change',()=>{ewvPagina=1;renderEwv();});
+
 function initStickyScroll(){
   const wrap  = document.getElementById('artikel-tabel-wrap');
   const stick = document.getElementById('artikel-sticky-scroll');
@@ -3061,6 +3374,7 @@ window.addEventListener('load', ()=>{
   setTimeout(()=>{
     vulTemplateSelector();
     vulSbuTemplateSelector();
+    vulEwvTemplateSelector();
     initStickyScroll();
   }, 500);
 });
