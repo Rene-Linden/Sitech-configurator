@@ -37,7 +37,7 @@ input,select,textarea{font-family:var(--font)}
 .nav-item{display:block;padding:9px 18px;font-size:14px;cursor:pointer;color:#1a1a1a;border-left:2px solid transparent;text-decoration:none}
 .nav-item:hover{background:var(--gray-bg)}
 .nav-item.active{border-left-color:var(--blue);color:var(--blue);font-weight:500;background:var(--blue-light)}
-.main{flex:1;padding:1.5rem;overflow-y:auto}
+.main{flex:1;padding:1.5rem;overflow-y:auto;overflow-x:hidden}
 .panel{display:none}.panel.active{display:block}
 .panel-title{font-size:19px;font-weight:500;margin-bottom:4px}
 .panel-sub{font-size:13px;color:var(--gray-text);margin-bottom:1.5rem}
@@ -637,12 +637,8 @@ function startListeners(){
       .sort((a,b)=>new Date(b.datum)-new Date(a.datum));
     renderAanvragen();
   });
-  // Artikelen listener
-  onSnapshot(collection(db,'artikelen'), snap => {
-    artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderArtikelen();
-  });
-  // Artikel templates listener
+  // Artikelen: niet als live listener (te grote collectie), laden bij paneel openen
+  // startArtikelTemplatesListener
   startArtikelTemplatesListener();
 }
 
@@ -662,7 +658,15 @@ window.showPanel = function(name,el){
     renderPrijslijst();
   }
   if(name==='aanvragen'){ renderFilterMerkAanvragen(); renderAanvragen(); }
-  if(name==='artikelen'){ vulTemplateSelector(); renderArtikelen(); toonTemplateInfo(); }
+  if(name==='artikelen'){
+    vulTemplateSelector();
+    toonTemplateInfo();
+    // Laad alle artikelen vers
+    getDocs(collection(db,'artikelen')).then(snap=>{
+      artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderArtikelen();
+    });
+  }
   if(name==='artikel-templates'){ renderArtikelTemplates(); }
 };
 window.openModal  = id => document.getElementById(id).classList.add('open');
@@ -1506,18 +1510,24 @@ const ARTIKEL_TEMPLATES = [
 
 
 const ARTIKEL_VAR_VELDEN = [
-  { id:'productId',       label:'Product ID *',              placeholder:'bijv. 002084-99S' },
-  { id:'name',            label:'Name *',                    placeholder:'Artikelomschrijving' },
-  { id:'defaultVendor',   label:'Default Vendor',            placeholder:'bijv. Trimble Europe B.V.' },
-  { id:'productIdVendor', label:'Product ID Vendor',         placeholder:'Vendor artikelnummer' },
-  { id:'productGroup',    label:'Product Group',             placeholder:'bijv. Spare Parts Trimble' },
-  { id:'fsProductType',   label:'Field Service Product Type',placeholder:'bijv. Inventory' },
-  { id:'standardCost',    label:'Standard Cost',             placeholder:'bijv. 11.41' },
-  { id:'serialNumber',    label:'Serial Number Product',     placeholder:'Yes / No' },
-  { id:'agreementProduct',label:'Agreement Product',         placeholder:'Yes / No' },
-  { id:'mainProduct',     label:'Main Product',              placeholder:'Yes / No' },
-  { id:'ledgerTurnover',  label:'Ledger Turnover',           placeholder:'bijv. Parts / New / Software' },
-  { id:'productPostingGroup', label:'Product Posting Group', placeholder:'bijv. PARTS / NEW / SOFTWARE' },
+  { id:'productId',          label:'Product ID *',               placeholder:'bijv. 002084-99S' },
+  { id:'name',               label:'Name *',                     placeholder:'Artikelomschrijving' },
+  { id:'defaultVendor',      label:'Default Vendor',             placeholder:'bijv. Trimble Europe B.V.' },
+  { id:'productIdVendor',    label:'Product ID Vendor',          placeholder:'Vendor artikelnummer' },
+  { id:'productGroup',       label:'Product Group',              placeholder:'bijv. Spare Parts Trimble' },
+  { id:'fsProductType',      label:'Field Service Product Type', placeholder:'bijv. Inventory' },
+  { id:'standardCost',       label:'Standard Cost',              placeholder:'bijv. 11.41' },
+  { id:'serialNumber',       label:'Serial Number Product',      placeholder:'Yes / No' },
+  { id:'agreementProduct',   label:'Agreement Product',          placeholder:'Yes / No' },
+  { id:'mainProduct',        label:'Main Product',               placeholder:'Yes / No' },
+  { id:'ledgerTurnover',     label:'Ledger Turnover',            placeholder:'bijv. Parts / New / Software' },
+  { id:'productPostingGroup',label:'Product Posting Group',      placeholder:'bijv. PARTS / NEW / SOFTWARE' },
+  { id:'manufacturer',       label:'Manufacturer',               placeholder:'Fabrikant' },
+  { id:'category',           label:'Category',                   placeholder:'Categorie' },
+  { id:'model',              label:'Model',                      placeholder:'Model' },
+  { id:'profitPct',          label:'Profit (%)',                 placeholder:'bijv. 30' },
+  { id:'vendorNo',           label:'Vendor No.',                 placeholder:'Leveranciersnummer' },
+  { id:'reorderingPolicy',   label:'Reordering Policy',          placeholder:'bijv. Fixed Reorder Qty' },
 ];
 
 function vulTemplateSelector(){
@@ -1678,18 +1688,24 @@ function renderArtikelen(){
     <th style="min-width:140px">FS Product Type ${makeColFilter('type','FS Type','select',types)}</th>
     <th style="min-width:110px;text-align:right">Standard Cost</th>
     <th style="min-width:90px;text-align:center">Serial Nr. ${makeColFilter('serial','Serial Number','select',serials)}</th>
-    <th style="min-width:140px">Ledger Turnover ${makeColFilter('ledger','Ledger Turnover','select',ledgers)}</th>
+    <th style="min-width:120px">Ledger Turnover ${makeColFilter('ledger','Ledger Turnover','select',ledgers)}</th>
     <th style="min-width:160px">Product Posting Grp ${makeColFilter('posting','Posting Group','select',postings)}</th>
     <th style="min-width:130px;background:var(--amber-light);color:var(--amber);border-left:2px solid rgba(133,79,11,.2)">Type</th>
     <th style="min-width:70px;background:var(--amber-light);color:var(--amber)">UoM</th>
+    <th style="min-width:140px">Manufacturer</th>
+    <th style="min-width:140px">Category</th>
+    <th style="min-width:140px">Model</th>
     <th style="min-width:140px;background:var(--amber-light);color:var(--amber)">Costing Method</th>
     <th style="min-width:160px;background:var(--amber-light);color:var(--amber)">Gen. Posting Group</th>
     <th style="min-width:90px;background:var(--amber-light);color:var(--amber)">VAT</th>
     <th style="min-width:120px;background:var(--amber-light);color:var(--amber)">Inven. Posting</th>
     <th style="min-width:180px;background:var(--amber-light);color:var(--amber)">Price/Profit</th>
+    <th style="min-width:100px">Profit (%)</th>
     <th style="min-width:180px;background:var(--amber-light);color:var(--amber)">Subscriptie</th>
     <th style="min-width:130px;background:var(--amber-light);color:var(--amber)">Replen. System</th>
+    <th style="min-width:120px">Vendor No.</th>
     <th style="min-width:150px;background:var(--amber-light);color:var(--amber)">Assembly Policy</th>
+    <th style="min-width:160px">Reordering Policy</th>
     <th style="min-width:120px;background:var(--amber-light);color:var(--amber)">Item Tracking</th>
     <th style="min-width:110px;background:var(--amber-light);color:var(--amber)">Ser. Nos.</th>
     <th style="min-width:160px"></th>
@@ -1718,14 +1734,20 @@ function renderArtikelen(){
       <td style="font-size:12px;color:var(--gray-text)">${a.productPostingGroup||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04);border-left:2px solid rgba(133,79,11,.2)">${t.type||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.uom||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.manufacturer||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.category||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.model||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.costingMeth||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.genPosting||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.vatPosting||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.invenPosting||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.priceProfit||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.profitPct?a.profitPct+'%':'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.subscriptie||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.replen||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.vendorNo||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.assemblyPolicy||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.reorderingPolicy||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.itemTracking||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.serNos||'—'}</td>
       <td style="text-align:right;white-space:nowrap">
