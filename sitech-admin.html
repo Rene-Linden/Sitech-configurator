@@ -2037,17 +2037,34 @@ function vulArtikelForm(t, data){
 }
 
 window.saveArtikel = async function(){
-  const tid    = document.getElementById('sel-template-filter').value;
-  const editId = document.getElementById('artikel-edit-id').value;
+  const editId    = document.getElementById('artikel-edit-id').value;
   const productId = document.getElementById('av-productId').value.trim();
-  const name   = document.getElementById('av-name').value.trim();
+  const name      = document.getElementById('av-name').value.trim();
   if(!productId || !name){ alert('Product ID en Name zijn verplicht'); return; }
+
+  // TemplateId: bij bewerken uit bestaand artikel halen, bij nieuw uit selector
+  let tid;
+  if(editId){
+    const bestaand = artikelen.find(x=>x.id===editId);
+    tid = bestaand?.templateId || document.getElementById('sel-template-filter').value;
+  } else {
+    tid = document.getElementById('sel-template-filter').value;
+  }
+
   const data = { templateId: tid };
   ARTIKEL_VAR_VELDEN.forEach(v=>{ data[v.id] = document.getElementById('av-'+v.id).value.trim(); });
   const id = editId || 'art'+Date.now();
   await setDoc(doc(db,'artikelen',id), data);
+
+  // Update in-memory
+  const idx = artikelen.findIndex(x=>x.id===id);
+  if(idx>-1) Object.assign(artikelen[idx], data);
+  else artikelen.push({id,...data});
+
   showSaving('Artikel opgeslagen');
   closeModal('modal-artikel');
+  renderArtikelen();
+  renderSbu();
 };
 
 window.deleteArtikel = async function(id){
@@ -2254,6 +2271,7 @@ function renderSbu(){
     <th style="min-width:120px">Vendor No.</th>
     <th style="min-width:150px">Reordering Policy</th>
     <th style="min-width:130px;background:var(--amber-light);color:var(--amber)">Template</th>
+    <th style="min-width:100px"></th>
   </tr>`;
 
   document.getElementById('chk-sbu-all').addEventListener('change', function(){
@@ -2291,6 +2309,9 @@ function renderSbu(){
       <td style="font-size:12px;color:var(--gray-text)">${a.vendorNo||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.reorderingPolicy||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.naam||a.templateId||'—'}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-sm" onclick="editArtikel('${a.id}')">Bewerken</button>
+      </td>
     </tr>`;
   }).join('') ||
   '<tr><td colspan="20" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen SBU artikelen gevonden</td></tr>';
