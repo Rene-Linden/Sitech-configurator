@@ -149,6 +149,7 @@ tr.row-selected td{background:var(--blue-light)}
       <div style="padding:14px 18px 4px;font-size:10px;font-weight:600;color:var(--gray-text);letter-spacing:.08em;text-transform:uppercase;border-top:0.5px solid var(--gray-border);margin-top:8px">Configurator</div>
       <a class="nav-item" onclick="showPanel('basis-config',this)">Basis Configuratie</a>
       <a class="nav-item" onclick="showPanel('sbu-config',this)">SBU Configurator</a>
+      <a class="nav-item" onclick="showPanel('blokken',this)">Blokken</a>
       <a class="nav-item" onclick="showPanel('prijslijsten',this)">Prijslijsten</a>
       <a class="nav-item" onclick="showPanel('aanvragen',this)">Aanvragen</a>
 
@@ -639,6 +640,33 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
       </div>
 
+      <!-- BLOKKEN PANEL -->
+      <div class="panel" id="panel-blokken">
+        <div class="panel-title">Blokken</div>
+        <div class="panel-sub">Beheer de blokken die in de SBU Configurator en Prijslijsten worden gebruikt. Blokken bepalen de volgorde in de configurator.</div>
+
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <button class="btn btn-blue" onclick="blokNieuw()">+ Nieuw blok</button>
+          <span id="blokken-status" style="font-size:13px;color:var(--gray-text)"></span>
+        </div>
+
+        <div class="card" style="overflow:hidden">
+          <table style="border-collapse:collapse;font-size:13px;width:100%">
+            <thead style="background:var(--gray-bg)">
+              <tr>
+                <th style="padding:10px 14px;min-width:80px;text-align:center">Blok nr.</th>
+                <th style="padding:10px 14px;min-width:260px">Naam</th>
+                <th style="padding:10px 14px;min-width:80px;text-align:center">SBU's</th>
+                <th style="padding:10px 14px;min-width:120px"></th>
+              </tr>
+            </thead>
+            <tbody id="tbl-blokken-body">
+              <tr><td colspan="4" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- ARTIKEL TEMPLATES PANEL -->
       <div class="panel active" id="panel-artikel-templates">
         <div class="panel-title">Artikel Templates</div>
@@ -756,6 +784,31 @@ tr.row-selected td{background:var(--blue-light)}
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-at')">Annuleren</button>
       <button class="btn btn-blue" onclick="saveArtikelTemplate()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL BLOK BEWERKEN -->
+<div class="modal-bg" id="modal-blok-edit">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3 id="modal-blok-edit-title">Blok</h3>
+      <button class="modal-close" onclick="closeModal('modal-blok-edit')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="blok-edit-nr" />
+      <div class="form-row cols2">
+        <div class="fg"><label>Blok nummer *</label>
+          <input type="number" id="blok-edit-nummer" min="1" placeholder="bijv. 1" style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px" />
+        </div>
+        <div class="fg"><label>Naam *</label>
+          <input type="text" id="blok-edit-naam" placeholder="bijv. Basis Configuratie" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-blok-edit')">Annuleren</button>
+      <button class="btn btn-blue" onclick="blokOpslaan()">Opslaan</button>
     </div>
   </div>
 </div>
@@ -1303,6 +1356,7 @@ window.showPanel = function(name,el){
     });
   }
   if(name==='basis-config'){ loadBasisConfig(); }
+  if(name==='blokken'){ loadBlokken(); }
   if(name==='sbu-config'){ loadSbuConfig(); }
   if(name==='resources'){ loadResources(); }
   if(name==='bom-ewv'){ loadBomEwvData(); }
@@ -4105,6 +4159,147 @@ window.bcRijVerwijderen = async function(ri){
   await setDoc(doc(db,'basis_config',bcHuidigMerk),{rijen:bcData[bcHuidigMerk]});
   renderBcTabel();
   showSaving('Configuratie verwijderd');
+};
+
+// ============================================================
+// BLOKKEN MODULE
+// ============================================================
+// Blokken worden afgeleid uit sbuConfigData (blok-nummers per SBU)
+// en kunnen ook een naam hebben opgeslagen in 'blok_namen' collectie
+let blokNamen = {}; // { '1': 'Basis Configuratie', '2': 'Display', ... }
+
+async function loadBlokken(){
+  // Laad namen
+  const [namenSnap, configSnap, bomSnap] = await Promise.all([
+    getDocs(collection(db,'blok_namen')),
+    getDocs(collection(db,'sbu_config')),
+    getDocs(collection(db,'bom_sbu')),
+  ]);
+  blokNamen = {};
+  namenSnap.docs.forEach(d=>{ blokNamen[d.id] = d.data().naam||''; });
+  if(!Object.keys(sbuConfigData).length){
+    configSnap.docs.forEach(d=>{ sbuConfigData[d.id]=d.data(); });
+  }
+  if(!bomData.length){
+    bomData = bomSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+  }
+  renderBlokken();
+}
+
+function renderBlokken(){
+  const tbody = document.getElementById('tbl-blokken-body');
+  if(!tbody) return;
+
+  // Verzamel alle unieke bloknummers uit sbuConfigData
+  const blokTelling = {}; // blokNr -> [sbuIds]
+  Object.entries(sbuConfigData).forEach(([sbuId, cfg])=>{
+    const nr = cfg.blok;
+    if(nr){ if(!blokTelling[nr]) blokTelling[nr]=[]; blokTelling[nr].push(sbuId); }
+  });
+
+  // Sorteer op bloknummer
+  const nummers = Object.keys(blokTelling).sort((a,b)=>parseInt(a)-parseInt(b));
+
+  // Voeg ook blokken toe die alleen een naam hebben maar geen SBU's
+  Object.keys(blokNamen).forEach(nr=>{ if(!blokTelling[nr]) blokTelling[nr]=[]; nummers.includes(nr)||nummers.push(nr); });
+  nummers.sort((a,b)=>parseInt(a)-parseInt(b));
+
+  if(!nummers.length){
+    tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen blokken gevonden. Voeg blokken toe via de SBU Configurator of maak een nieuw blok aan.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = nummers.map(nr=>{
+    const naam = blokNamen[nr]||'';
+    const sbus = blokTelling[nr]||[];
+    return `<tr>
+      <td style="padding:10px 14px;text-align:center;font-weight:600;font-size:15px;color:var(--blue)">${nr}</td>
+      <td style="padding:10px 14px;font-size:13px">${naam||`<span style="color:var(--gray-text);font-style:italic">Geen naam</span>`}</td>
+      <td style="padding:10px 14px;text-align:center;font-size:12px;color:var(--gray-text)">${sbus.length}</td>
+      <td style="padding:10px 14px;text-align:right;white-space:nowrap">
+        <button class="btn btn-sm" onclick="blokBewerken('${nr}')">Bewerken</button>
+        <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="blokVerwijderen('${nr}')">Verwijderen</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+window.blokNieuw = function(){
+  // Bepaal eerst vrij bloknummer
+  const bestaand = Object.keys(sbuConfigData).map(s=>parseInt(sbuConfigData[s].blok||0)).filter(n=>n>0);
+  const bestaandNamen = Object.keys(blokNamen).map(n=>parseInt(n));
+  const alle = [...new Set([...bestaand,...bestaandNamen])].sort((a,b)=>a-b);
+  let volgend=1; for(const n of alle){ if(n===volgend)volgend++; else break; }
+  document.getElementById('blok-edit-nr').value = '';
+  document.getElementById('blok-edit-nummer').value = volgend;
+  document.getElementById('blok-edit-naam').value = '';
+  document.getElementById('modal-blok-edit-title').textContent = 'Nieuw blok';
+  openModal('modal-blok-edit');
+};
+
+window.blokBewerken = function(nr){
+  document.getElementById('blok-edit-nr').value = nr;
+  document.getElementById('blok-edit-nummer').value = nr;
+  document.getElementById('blok-edit-naam').value = blokNamen[nr]||'';
+  document.getElementById('modal-blok-edit-title').textContent = `Blok ${nr} bewerken`;
+  openModal('modal-blok-edit');
+};
+
+window.blokOpslaan = async function(){
+  const oudNr   = document.getElementById('blok-edit-nr').value;
+  const nieuwNr = document.getElementById('blok-edit-nummer').value.trim();
+  const naam    = document.getElementById('blok-edit-naam').value.trim();
+  if(!nieuwNr){ alert('Bloknummer is verplicht'); return; }
+
+  const status = document.getElementById('blokken-status');
+  status.textContent = 'Opslaan…';
+
+  // Sla naam op
+  await setDoc(doc(db,'blok_namen',nieuwNr), { naam });
+  blokNamen[nieuwNr] = naam;
+
+  // Als nummer gewijzigd: update sbuConfigData
+  if(oudNr && oudNr!==nieuwNr){
+    delete blokNamen[oudNr];
+    await deleteDoc(doc(db,'blok_namen',oudNr));
+    // Update alle SBU's met het oude blok naar nieuw nummer
+    const teUpdaten = Object.entries(sbuConfigData).filter(([,cfg])=>cfg.blok===oudNr);
+    if(teUpdaten.length){
+      const batch = writeBatch(db);
+      teUpdaten.forEach(([sbuId,cfg])=>{
+        cfg.blok = nieuwNr;
+        batch.set(doc(db,'sbu_config',sbuId), cfg);
+      });
+      await batch.commit();
+    }
+  }
+
+  closeModal('modal-blok-edit');
+  renderBlokken();
+  status.textContent = '✓ Opgeslagen';
+  setTimeout(()=>status.textContent='',3000);
+};
+
+window.blokVerwijderen = async function(nr){
+  const sbus = Object.entries(sbuConfigData).filter(([,cfg])=>cfg.blok===nr).map(([id])=>id);
+  const msg = sbus.length>0
+    ? `Blok ${nr} verwijderen?\n\nLet op: ${sbus.length} SBU('s) hebben dit blok toegewezen. Het bloknummer wordt gewist maar de SBU's blijven bestaan.`
+    : `Blok ${nr} verwijderen?`;
+  if(!confirm(msg)) return;
+
+  // Verwijder naam
+  await deleteDoc(doc(db,'blok_namen',nr));
+  delete blokNamen[nr];
+
+  // Wis bloknummer bij alle betrokken SBU's
+  if(sbus.length){
+    const batch = writeBatch(db);
+    sbus.forEach(sbuId=>{ sbuConfigData[sbuId].blok=''; batch.set(doc(db,'sbu_config',sbuId),sbuConfigData[sbuId]); });
+    await batch.commit();
+  }
+
+  renderBlokken();
+  showSaving('Blok verwijderd');
 };
 
 // ============================================================
