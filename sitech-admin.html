@@ -2070,6 +2070,10 @@ function renderArtikelen(){
   const pagina = gefilterd.slice(start, start+ARTIKELEN_PER_PAGINA);
   artikelPaginaData = pagina;
 
+  // Hoeveel van de gefilterde artikelen zijn geselecteerd
+  const aantalGeselecteerdGefilterd = gefilterd.filter(a=>artikelSelectie.has(a.id)).length;
+  const alleGefilterdGeselecteerd = gefilterd.length>0 && aantalGeselecteerdGefilterd===gefilterd.length;
+
   const countTxt = gefilterd.length !== all.length
     ? `${gefilterd.length} van ${all.length} — <a href="#" onclick="clearArtikelFilters();return false" style="color:var(--blue)">wis filters</a>`
     : `${all.length} artikel${all.length!==1?'en':''}`;
@@ -2080,7 +2084,8 @@ function renderArtikelen(){
     : '';
   document.getElementById('filter-artikel-count').innerHTML = countTxt + paginaTxt;
 
-  const alleGeselecteerd = artikelPaginaData.length>0 && artikelPaginaData.every(a=>artikelSelectie.has(a.id));
+  // Toon "selecteer alle X" banner als pagina-subset geselecteerd maar niet alles
+  const alleGeselecteerd = pagina.length>0 && pagina.every(a=>artikelSelectie.has(a.id));
 
   thead.innerHTML=`<tr style="position:sticky;top:0;background:var(--gray-bg);z-index:10">
     <th style="width:36px;min-width:36px;text-align:center"><input type="checkbox" id="chk-all" ${alleGeselecteerd?'checked':''} /></th>
@@ -2117,8 +2122,12 @@ function renderArtikelen(){
   </tr>`;
 
   document.getElementById('chk-all').addEventListener('change', function(){
-    if(this.checked) artikelPaginaData.forEach(a=>artikelSelectie.add(a.id));
-    else artikelPaginaData.forEach(a=>artikelSelectie.delete(a.id));
+    if(this.checked){
+      // Selecteer alle gefilterde artikelen (alle pagina's)
+      gefilterd.forEach(a=>artikelSelectie.add(a.id));
+    } else {
+      gefilterd.forEach(a=>artikelSelectie.delete(a.id));
+    }
     updateSelectieBalk();
     renderArtikelen();
   });
@@ -2179,8 +2188,10 @@ function renderArtikelen(){
       else artikelSelectie.delete(this.dataset.id);
       const rij = this.closest('tr');
       if(rij) rij.className = this.checked ? 'row-selected' : '';
+      // Update "alles" checkbox op basis van alle gefilterde (niet alleen pagina)
+      const alleGefilterd = getGefilterdeArtikelen();
       const alleChk = document.getElementById('chk-all');
-      if(alleChk) alleChk.checked = artikelPaginaData.length > 0 && artikelPaginaData.every(a=>artikelSelectie.has(a.id));
+      if(alleChk) alleChk.checked = alleGefilterd.length>0 && alleGefilterd.every(a=>artikelSelectie.has(a.id));
       updateSelectieBalk();
     });
   });
@@ -2205,9 +2216,13 @@ window.toggleArtikelFlag = async function(event){
 function updateSelectieBalk(){
   const bar = document.getElementById('artikel-selectie-bar');
   const cnt = artikelSelectie.size;
+  const gefilterd = getGefilterdeArtikelen();
   if(cnt>0){
     bar.style.display='flex';
-    document.getElementById('selectie-count').textContent = `${cnt} artikel${cnt!==1?'en':''} geselecteerd`;
+    const totaal = gefilterd.length;
+    document.getElementById('selectie-count').innerHTML =
+      `<strong>${cnt}</strong> artikel${cnt!==1?'en':''} geselecteerd` +
+      (totaal>cnt ? ` &nbsp;<a href="#" onclick="selecteerAlleGefilterd();return false" style="color:var(--blue);font-size:12px">Selecteer alle ${totaal}</a>` : '');
     const huidigTid = document.getElementById('sel-template-filter').value;
     const sel = document.getElementById('sel-verplaats-template');
     sel.innerHTML = '<option value="">— Kies doeltemplate —</option>' +
@@ -2219,6 +2234,13 @@ function updateSelectieBalk(){
     bar.style.display='none';
   }
 }
+
+window.selecteerAlleGefilterd = function(){
+  const gefilterd = getGefilterdeArtikelen();
+  gefilterd.forEach(a=>artikelSelectie.add(a.id));
+  updateSelectieBalk();
+  renderArtikelen();
+};
 
 window.verplaatsNaarTemplate = async function(){
   const doelId = document.getElementById('sel-verplaats-template').value;
