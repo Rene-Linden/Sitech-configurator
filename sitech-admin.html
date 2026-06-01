@@ -39,6 +39,7 @@ input,select,textarea{font-family:var(--font)}
 .nav-item.active{border-left-color:var(--blue);color:var(--blue);font-weight:500;background:var(--blue-light)}
 .main{flex:1;padding:1.5rem;overflow-y:auto;overflow-x:auto;min-width:0}
 .panel{display:none}.panel.active{display:block}
+#panel-artikelen.active{display:flex}
 .panel-title{font-size:19px;font-weight:500;margin-bottom:4px}
 .panel-sub{font-size:13px;color:var(--gray-text);margin-bottom:1.5rem}
 .card{background:var(--white);border-radius:10px;border:0.5px solid var(--gray-border);margin-bottom:1rem;overflow:hidden}
@@ -234,51 +235,77 @@ tr.row-selected td{background:var(--blue-light)}
       </div>
 
       <!-- ARTIKELEN PANEL -->
-      <div class="panel" id="panel-artikelen">
-        <div class="panel-title">Artikelen</div>
-        <div class="panel-sub">Beheer artikelen per template-type. Vaste velden worden automatisch ingevuld vanuit het template.</div>
+      <div class="panel" id="panel-artikelen" style="display:flex;flex-direction:column;height:calc(100vh - 60px);overflow:hidden;padding:0">
 
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-          <select id="sel-template-filter" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;min-width:220px">
-            <option value="">— Selecteer template —</option>
-          </select>
-          <button class="btn btn-blue" id="btn-add-artikel">+ Artikel toevoegen</button>
-          <button class="btn btn-green" id="btn-artikel-upload">Excel uploaden</button>
-          <button class="btn" id="btn-artikel-download" style="border-color:rgba(59,109,17,.3);color:var(--green);background:var(--green-light)">Excel downloaden</button>
-          <input type="file" id="artikel-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
-          <span id="artikel-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
-        </div>
+        <!-- Vaste bovenkant -->
+        <div style="padding:1.5rem 1.5rem 0;flex-shrink:0">
+          <div class="panel-title">Artikelen</div>
+          <div class="panel-sub">Beheer artikelen per template-type.</div>
 
-        <!-- Template info kaart -->
-        <div id="template-info-card" style="display:none;margin-bottom:12px;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:12px 16px;font-size:12px">
-          <div style="font-weight:500;color:var(--blue);margin-bottom:6px" id="template-info-naam"></div>
-          <div id="template-info-velden" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px;color:var(--gray-text)"></div>
-        </div>
-
-        <!-- Selectie toolbar -->
-        <div id="artikel-selectie-bar" style="display:none;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:8px 14px;margin-bottom:10px;align-items:center;gap:12px;font-size:13px;flex-wrap:wrap">
-          <span id="selectie-count" style="color:var(--blue);font-weight:500"></span>
-          <div style="display:flex;align-items:center;gap:6px">
-            <label style="font-size:12px;color:var(--gray-text);white-space:nowrap">Verplaats naar template:</label>
-            <select id="sel-verplaats-template" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;min-width:240px"></select>
-            <button class="btn btn-sm btn-blue" onclick="verplaatsNaarTemplate()">Verplaatsen →</button>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <select id="sel-template-filter" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;min-width:220px"></select>
+            <button class="btn btn-blue" id="btn-add-artikel">+ Artikel toevoegen</button>
+            <button class="btn btn-green" id="btn-artikel-upload">Excel uploaden</button>
+            <button class="btn" id="btn-artikel-download" style="border-color:rgba(59,109,17,.3);color:var(--green);background:var(--green-light)">Excel downloaden</button>
+            <input type="file" id="artikel-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
+            <span id="artikel-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
           </div>
-          <button class="btn btn-sm btn-red" onclick="verwijderGeselecteerd()">Verwijderen</button>
-          <button class="btn btn-sm" onclick="deselecteerAlles()">Selectie opheffen</button>
-          <span id="filter-artikel-count" style="margin-left:auto;font-size:12px;color:var(--gray-text)"></span>
+
+          <!-- Template info kaart -->
+          <div id="template-info-card" style="display:none;margin-bottom:8px;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:10px 14px;font-size:12px">
+            <div style="font-weight:500;color:var(--blue);margin-bottom:4px" id="template-info-naam"></div>
+            <div id="template-info-velden" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:3px;color:var(--gray-text)"></div>
+          </div>
+
+          <!-- Selectie toolbar -->
+          <div id="artikel-selectie-bar" style="display:none;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:8px 14px;margin-bottom:8px;align-items:center;gap:10px;font-size:13px;flex-wrap:wrap">
+            <span id="selectie-count" style="color:var(--blue);font-weight:500"></span>
+
+            <!-- Verplaatsen -->
+            <div style="display:flex;align-items:center;gap:6px;border-right:1px solid rgba(24,95,165,.2);padding-right:10px">
+              <label style="font-size:12px;color:var(--gray-text);white-space:nowrap">Verplaats naar:</label>
+              <select id="sel-verplaats-template" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;min-width:180px"></select>
+              <button class="btn btn-sm btn-blue" onclick="verplaatsNaarTemplate()">Verplaatsen →</button>
+            </div>
+
+            <!-- Bulk edit workflow -->
+            <div style="display:flex;align-items:center;gap:6px;border-right:1px solid rgba(24,95,165,.2);padding-right:10px">
+              <label style="font-size:12px;color:var(--gray-text);white-space:nowrap">Veld aanpassen:</label>
+              <select id="sel-bulk-kolom" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;min-width:160px">
+                <option value="">— Kies kolom —</option>
+                <option value="manufacturer">Manufacturer</option>
+                <option value="category">Category</option>
+                <option value="model">Model</option>
+                <option value="profitPct">Profit (%)</option>
+                <option value="vendorNo">Vendor No.</option>
+                <option value="reorderingPolicy">Reordering Policy</option>
+                <option value="defaultVendor">Default Vendor</option>
+                <option value="productIdVendor">Product ID Vendor</option>
+                <option value="productGroup">Product Group</option>
+                <option value="fsProductType">FS Product Type</option>
+                <option value="standardCost">Standard Cost</option>
+                <option value="serialNumber">Serial Number</option>
+                <option value="ledgerTurnover">Ledger Turnover</option>
+                <option value="productPostingGroup">Product Posting Group</option>
+              </select>
+              <input type="text" id="inp-bulk-waarde" placeholder="Nieuwe waarde…" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;width:160px;outline:none" />
+              <button class="btn btn-sm" style="background:var(--blue);color:#fff" onclick="bulkEditArtikel()">Toepassen</button>
+            </div>
+
+            <button class="btn btn-sm btn-red" onclick="verwijderGeselecteerd()">Verwijderen</button>
+            <button class="btn btn-sm" onclick="deselecteerAlles()">Selectie opheffen</button>
+            <span id="filter-artikel-count" style="margin-left:auto;font-size:12px;color:var(--gray-text)"></span>
+          </div>
         </div>
 
-        <div class="card" style="overflow:hidden">
-          <div id="artikel-tabel-wrap" style="overflow-x:auto;overflow-y:visible">
+        <!-- Scrollbare tabel (vult resterende hoogte) -->
+        <div style="flex:1;overflow:auto;padding:0 1.5rem;min-height:0">
+          <div id="artikel-tabel-wrap" style="overflow-x:auto;overflow-y:visible;min-height:100%">
             <table id="tbl-artikelen" style="min-width:4000px;table-layout:auto;border-collapse:collapse">
               <thead id="tbl-artikelen-head" style="position:sticky;top:0;z-index:20"></thead>
               <tbody id="tbl-artikelen-body"><tr><td colspan="30" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
             </table>
           </div>
-        </div>
-        <!-- Sticky scrollbar altijd onderaan scherm zichtbaar -->
-        <div id="artikel-sticky-scroll" style="position:sticky;bottom:0;overflow-x:auto;overflow-y:hidden;background:var(--white);border-top:0.5px solid var(--gray-border);z-index:30;padding:2px 0">
-          <div id="artikel-sticky-inner" style="height:1px;min-width:4000px"></div>
         </div>
       </div>
 
@@ -1834,6 +1861,35 @@ window.verplaatsNaarTemplate = async function(){
   showSaving('Artikelen verplaatst');
 };
 
+window.bulkEditArtikel = async function(){
+  const ids   = [...artikelSelectie];
+  const kolom = document.getElementById('sel-bulk-kolom').value;
+  const waarde= document.getElementById('inp-bulk-waarde').value.trim();
+  if(!ids.length){ alert('Selecteer eerst artikelen'); return; }
+  if(!kolom){ alert('Kies een kolom om aan te passen'); return; }
+  if(!waarde && waarde!==''){ return; }
+  const kolomNaam = document.getElementById('sel-bulk-kolom').options[document.getElementById('sel-bulk-kolom').selectedIndex].text;
+  if(!confirm(`"${kolomNaam}" instellen op "${waarde||'(leeg)'}" voor ${ids.length} artikel${ids.length!==1?'en':''}?`)) return;
+
+  const status = document.getElementById('artikel-upload-status');
+  status.textContent = `${ids.length} artikelen bijwerken…`;
+
+  for(let i=0;i<ids.length;i+=500){
+    const batch = writeBatch(db);
+    ids.slice(i,i+500).forEach(id=>{
+      batch.update(doc(db,'artikelen',id),{ [kolom]: waarde });
+      const a = artikelen.find(x=>x.id===id);
+      if(a) a[kolom] = waarde;
+    });
+    await batch.commit();
+  }
+  document.getElementById('inp-bulk-waarde').value='';
+  document.getElementById('sel-bulk-kolom').value='';
+  status.textContent=`✓ ${ids.length} artikel${ids.length!==1?'en':''} bijgewerkt`;
+  setTimeout(()=>status.textContent='',3000);
+  renderArtikelen();
+};
+
 window.deselecteerAlles = function(){
   artikelSelectie.clear();
   updateSelectieBalk();
@@ -1942,39 +1998,51 @@ document.getElementById('artikel-upload-input').addEventListener('change', async
       const dataRows = rows.slice(startRow).filter(r=>String(r[0]||'').trim());
       if(!dataRows.length){ status.textContent='Geen data gevonden'; return; }
 
-      status.textContent = `${dataRows.length} rijen verwerken…`;
+      // Overschrijven vraag
+      const bestaandeIds = new Set(artikelen.filter(a=>a.templateId===tid).map(a=>a.productId));
+      const bestaandeRijen = dataRows.filter(r=>bestaandeIds.has(String(r[0]||'').trim()));
+      const nieuweRijen    = dataRows.filter(r=>!bestaandeIds.has(String(r[0]||'').trim()));
+      let overschrijven = false;
+      if(bestaandeRijen.length>0){
+        overschrijven = confirm(
+          bestaandeRijen.length+' artikel'+(bestaandeRijen.length!==1?'en':'')+' bestaan al.\n\n'+
+          'OK = overschrijven ('+dataRows.length+' artikelen)\n'+
+          'Annuleren = alleen nieuwe toevoegen ('+nieuweRijen.length+')'
+        );
+      }
+      const teVerwerken = overschrijven ? dataRows : nieuweRijen;
+      if(!teVerwerken.length){ status.textContent='Geen nieuwe artikelen'; setTimeout(()=>status.textContent='',3000); return; }
 
-      // Splits in batches van max 500 (Firestore limiet)
+      status.textContent = teVerwerken.length+' rijen verwerken…';
       const BATCH_SIZE = 500;
       let total = 0;
-      for(let i=0; i<dataRows.length; i+=BATCH_SIZE){
+      for(let i=0; i<teVerwerken.length; i+=BATCH_SIZE){
         const batch = writeBatch(db);
-        const chunk = dataRows.slice(i, i+BATCH_SIZE);
-        chunk.forEach((r, idx)=>{
+        teVerwerken.slice(i, i+BATCH_SIZE).forEach((r, idx)=>{
+          const productId = String(r[0]||'').trim();
+          if(!productId) return;
+          let docId = 'art'+(Date.now()+i+idx);
+          if(overschrijven){ const ex=artikelen.find(a=>a.templateId===tid&&a.productId===productId); if(ex) docId=ex.id; }
           const data = {
-            templateId:          tid,
-            productId:           String(r[0]||'').trim(),
-            name:                String(r[1]||'').trim(),
-            defaultVendor:       String(r[2]||'').trim(),
-            productIdVendor:     String(r[3]||'').trim(),
-            productGroup:        String(r[4]||'').trim(),
-            fsProductType:       String(r[5]||'').trim(),
-            standardCost:        String(r[6]||'').trim(),
-            serialNumber:        String(r[7]||'').trim(),
-            agreementProduct:    String(r[8]||'').trim(),
-            mainProduct:         String(r[9]||'').trim(),
-            ledgerTurnover:      String(r[10]||'').trim(),
-            productPostingGroup: String(r[11]||'').trim(),
+            templateId:tid, productId,
+            name:String(r[1]||'').trim(), defaultVendor:String(r[2]||'').trim(),
+            productIdVendor:String(r[3]||'').trim(), productGroup:String(r[4]||'').trim(),
+            fsProductType:String(r[5]||'').trim(), standardCost:String(r[6]||'').trim(),
+            serialNumber:String(r[7]||'').trim(), agreementProduct:String(r[8]||'').trim(),
+            mainProduct:String(r[9]||'').trim(), ledgerTurnover:String(r[10]||'').trim(),
+            productPostingGroup:String(r[11]||'').trim(),
           };
-          if(!data.productId) return;
-          batch.set(doc(collection(db,'artikelen'), 'art'+(Date.now()+i+idx)), data);
+          batch.set(doc(collection(db,'artikelen'),docId), data, {merge:overschrijven});
           total++;
         });
         await batch.commit();
-        status.textContent = `${Math.min(i+BATCH_SIZE, dataRows.length)} / ${dataRows.length} rijen verwerkt…`;
+        status.textContent = Math.min(i+BATCH_SIZE,teVerwerken.length)+' / '+teVerwerken.length+' verwerkt…';
       }
-      status.textContent = `✓ ${total} artikel${total!==1?'en':''} geïmporteerd`;
-      setTimeout(()=>status.textContent='', 4000);
+      status.textContent = '✓ '+total+' artikel'+(total!==1?'en':'')+' '+(overschrijven?'bijgewerkt':'toegevoegd');
+      setTimeout(()=>status.textContent='',4000);
+      const snap = await getDocs(collection(db,'artikelen'));
+      artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderArtikelen();
     } catch(err){
       status.textContent = '';
       alert('Fout bij verwerken: '+err.message);
