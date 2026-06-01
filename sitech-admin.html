@@ -293,8 +293,8 @@ tr.row-selected td{background:var(--blue-light)}
           <button class="btn btn-blue" onclick="openNieuwTemplate()">+ Nieuw template</button>
           <div id="at-actie-bar" style="display:none;align-items:center;gap:8px;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:6px 14px">
             <span id="at-sel-naam" style="font-size:13px;font-weight:500;color:var(--blue)"></span>
-            <button class="btn btn-sm" onclick="editArtikelTemplate(atGeselecteerd)">Bewerken</button>
-            <button class="btn btn-sm btn-red" onclick="deleteArtikelTemplate(atGeselecteerd)">Verwijderen</button>
+            <button class="btn btn-sm" onclick="editHuidigeTemplate()">Bewerken</button>
+            <button class="btn btn-sm btn-red" onclick="deleteHuidigeTemplate()">Verwijderen</button>
             <button class="btn btn-sm" onclick="deselecteerTemplate()" style="color:var(--gray-text)">×</button>
           </div>
         </div>
@@ -2102,6 +2102,9 @@ function renderArtikelTemplates(){
     </tr>`).join('') ||
     '<tr><td colspan="15" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen templates</td></tr>';
 }
+
+window.editHuidigeTemplate   = ()=>{ if(atGeselecteerd) editArtikelTemplate(atGeselecteerd); };
+window.deleteHuidigeTemplate = ()=>{ if(atGeselecteerd) deleteArtikelTemplate(atGeselecteerd); };
 
 window.selecteerTemplate = function(id){
   atGeselecteerd = id;
