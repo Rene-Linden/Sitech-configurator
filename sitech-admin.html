@@ -2114,6 +2114,7 @@ function renderArtikelen(){
   });
 
   tbody.innerHTML = pagina.map(a=>{
+    const t = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId) || {};
     const sel = artikelSelectie.has(a.id);
     return `<tr class="${sel?'row-selected':''}">
       <td style="text-align:center;width:36px"><input type="checkbox" class="chk-artikel" data-id="${a.id}" ${sel?'checked':''} /></td>
