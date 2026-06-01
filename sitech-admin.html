@@ -41,6 +41,7 @@ input,select,textarea{font-family:var(--font)}
 .panel{display:none}.panel.active{display:block}
 #panel-artikelen.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 #panel-sbu.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
+#panel-bom-sbu.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 .panel-title{font-size:19px;font-weight:500;margin-bottom:4px}
 .panel-sub{font-size:13px;color:var(--gray-text);margin-bottom:1.5rem}
 .card{background:var(--white);border-radius:10px;border:0.5px solid var(--gray-border);margin-bottom:1rem;overflow:hidden}
@@ -132,6 +133,7 @@ tr.row-selected td{background:var(--blue-light)}
     <div class="sidebar">
       <a class="nav-item active" onclick="showPanel('artikel-templates',this)">Artikel Templates</a>
       <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
+      <a class="nav-item" onclick="showPanel('bom-sbu',this)">BoM SBU</a>
       <a class="nav-item" onclick="showPanel('sbu',this)">SBU</a>
       <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
       <a class="nav-item" onclick="showPanel('gebruikers',this)">Gebruikers</a>
@@ -309,6 +311,45 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
       </div>
 
+      <!-- BOM SBU PANEL -->
+      <div class="panel" id="panel-bom-sbu" style="flex-direction:column;height:100%;overflow:hidden">
+        <div style="padding:1.5rem 1.5rem 0;flex-shrink:0">
+          <div class="panel-title">BoM SBU</div>
+          <div class="panel-sub">Stuklijsten per SBU. Één rij per SBU met alle subbundel-artikelen en resources.</div>
+
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <select id="sel-bom-zoek" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;min-width:240px">
+              <option value="">— Selecteer SBU voor detail —</option>
+            </select>
+            <button class="btn btn-blue" onclick="openBomDetail()">Bekijk stuklijst</button>
+            <button class="btn btn-green" id="btn-bom-upload">Excel uploaden</button>
+            <button class="btn btn-blue" onclick="openNieuwBom()">+ Nieuwe BoM</button>
+            <input type="file" id="bom-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
+            <span id="bom-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
+          </div>
+        </div>
+
+        <!-- Hoofdtabel: één rij per SBU -->
+        <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:auto;padding:0 1.5rem 1rem">
+          <table id="tbl-bom" style="min-width:900px;table-layout:auto;border-collapse:collapse">
+            <thead style="position:sticky;top:0;z-index:20;background:var(--gray-bg)">
+              <tr>
+                <th style="min-width:120px">SBU</th>
+                <th style="min-width:280px">Naam</th>
+                <th style="min-width:80px;text-align:center">Artikelen</th>
+                <th style="min-width:80px;text-align:center">Welding (u)</th>
+                <th style="min-width:80px;text-align:center">Mounting (u)</th>
+                <th style="min-width:90px;text-align:center">Calibration (u)</th>
+                <th style="min-width:120px"></th>
+              </tr>
+            </thead>
+            <tbody id="tbl-bom-body">
+              <tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- SBU PANEL -->
       <div class="panel" id="panel-sbu" style="flex-direction:column;height:100%;overflow:hidden">
 
@@ -478,6 +519,80 @@ tr.row-selected td{background:var(--blue-light)}
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-at')">Annuleren</button>
       <button class="btn btn-blue" onclick="saveArtikelTemplate()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL BOM DETAIL -->
+<div class="modal-bg" id="modal-bom-detail">
+  <div class="modal" style="max-width:860px">
+    <div class="modal-header">
+      <h3 id="modal-bom-detail-title">Stuklijst</h3>
+      <button class="modal-close" onclick="closeModal('modal-bom-detail')">×</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div id="bom-detail-info" style="padding:12px 18px;font-size:13px;color:var(--gray-text);border-bottom:0.5px solid var(--gray-border)"></div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;min-width:600px;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:var(--gray-bg)">
+              <th style="padding:8px 12px;min-width:140px">Artikel ID</th>
+              <th style="padding:8px 12px;min-width:260px">Naam</th>
+              <th style="padding:8px 12px;min-width:80px;text-align:right">Aantal</th>
+              <th style="padding:8px 12px;min-width:70px;text-align:center">Eenheid</th>
+              <th style="padding:8px 12px;min-width:80px"></th>
+            </tr>
+          </thead>
+          <tbody id="tbl-bom-detail-body"></tbody>
+        </table>
+      </div>
+      <div style="padding:12px 18px;border-top:0.5px solid var(--gray-border);background:var(--gray-bg)">
+        <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Artikel toevoegen</div>
+        <div style="display:grid;grid-template-columns:140px 1fr 80px 90px auto;gap:8px;align-items:end">
+          <div><label style="font-size:11px;color:var(--gray-text);display:block;margin-bottom:3px">Artikel ID</label>
+            <input type="text" id="bom-add-id" placeholder="ST-00001" style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" /></div>
+          <div><label style="font-size:11px;color:var(--gray-text);display:block;margin-bottom:3px">Naam</label>
+            <input type="text" id="bom-add-naam" placeholder="Artikelnaam" style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" /></div>
+          <div><label style="font-size:11px;color:var(--gray-text);display:block;margin-bottom:3px">Aantal</label>
+            <input type="text" id="bom-add-aantal" placeholder="1" style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none;text-align:right" /></div>
+          <div><label style="font-size:11px;color:var(--gray-text);display:block;margin-bottom:3px">Eenheid</label>
+            <select id="bom-add-eenheid" style="width:100%;padding:6px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px">
+              <option value="Stuks">Stuks</option><option value="Hour">Hour</option>
+            </select></div>
+          <button class="btn btn-blue" onclick="bomArtikelToevoegen()" style="white-space:nowrap;padding:7px 12px">+ Toevoegen</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-bom-detail')">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL BOM BEWERKEN -->
+<div class="modal-bg" id="modal-bom-edit">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 id="modal-bom-edit-title">BoM bewerken</h3>
+      <button class="modal-close" onclick="closeModal('modal-bom-edit')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="bom-edit-id" />
+      <div class="form-row cols2">
+        <div class="fg"><label>SBU ID *</label><input type="text" id="bom-edit-sbu-id" placeholder="bijv. SBU-0012" /></div>
+        <div class="fg"><label>Naam *</label><input type="text" id="bom-edit-naam" placeholder="Omschrijving" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Welding (uren)</label><input type="text" id="bom-edit-welding" placeholder="bijv. 4" /></div>
+        <div class="fg"><label>Mounting (uren)</label><input type="text" id="bom-edit-mounting" placeholder="bijv. 10" /></div>
+      </div>
+      <div class="form-row">
+        <div class="fg"><label>Calibration (uren)</label><input type="text" id="bom-edit-calibration" placeholder="bijv. 6" /></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-bom-edit')">Annuleren</button>
+      <button class="btn btn-blue" onclick="saveBom()">Opslaan</button>
     </div>
   </div>
 </div>
@@ -760,6 +875,7 @@ window.showPanel = function(name,el){
       setTimeout(initStickyScroll, 100);
     });
   }
+  if(name==='bom-sbu'){ loadBomData(); }
   if(name==='sbu'){
     vulSbuTemplateSelector();
     getDocs(collection(db,'artikelen')).then(snap=>{
@@ -2195,8 +2311,252 @@ document.getElementById('btn-artikel-download').addEventListener('click', ()=>{
 });
 
 // ============================================================
-// STICKY SCROLLBAR
+// BOM SBU MODULE
 // ============================================================
+let bomData = []; // array van {id, sbuId, naam, artikelen:[{artikelId,naam,aantal,eenheid}], welding, mounting, calibration}
+let bomDetailId = null; // huidige open BoM in detail modal
+
+async function loadBomData(){
+  const snap = await getDocs(collection(db,'bom_sbu'));
+  bomData = snap.docs.map(d=>({id:d.id,...d.data()}))
+    .sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+  renderBomTabel();
+  vulBomZoekSelector();
+}
+
+function vulBomZoekSelector(){
+  const sel = document.getElementById('sel-bom-zoek');
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Selecteer SBU voor detail —</option>' +
+    bomData.map(b=>`<option value="${b.id}">${b.sbuId} — ${b.naam}</option>`).join('');
+  if(cur && bomData.find(b=>b.id===cur)) sel.value = cur;
+}
+
+function renderBomTabel(){
+  const tbody = document.getElementById('tbl-bom-body');
+  if(!tbody) return;
+  tbody.innerHTML = bomData.map(b=>`<tr>
+    <td><strong style="font-size:13px">${b.sbuId}</strong></td>
+    <td style="font-size:13px">${b.naam}</td>
+    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${(b.artikelen||[]).length}</td>
+    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.welding||'—'}</td>
+    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.mounting||'—'}</td>
+    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.calibration||'—'}</td>
+    <td style="text-align:right;white-space:nowrap">
+      <button class="btn btn-sm" onclick="openBomDetailById('${b.id}')">Stuklijst</button>
+      <button class="btn btn-sm" style="margin-left:4px" onclick="openBomBewerken('${b.id}')">Bewerken</button>
+      <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteBom('${b.id}')">Verwijderen</button>
+    </td>
+  </tr>`).join('') ||
+  '<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM data — upload een Excel of voeg handmatig toe</td></tr>';
+}
+
+window.openBomDetail = function(){
+  const id = document.getElementById('sel-bom-zoek').value;
+  if(!id){ alert('Selecteer eerst een SBU'); return; }
+  openBomDetailById(id);
+};
+
+window.openBomDetailById = function(id){
+  const b = bomData.find(x=>x.id===id);
+  if(!b) return;
+  bomDetailId = id;
+  document.getElementById('modal-bom-detail-title').textContent = `${b.sbuId} — ${b.naam}`;
+  document.getElementById('bom-detail-info').innerHTML =
+    `<strong>${b.sbuId}</strong> &nbsp;·&nbsp; ${b.naam} &nbsp;·&nbsp; `+
+    `Welding: <strong>${b.welding||'—'}</strong> u &nbsp; `+
+    `Mounting: <strong>${b.mounting||'—'}</strong> u &nbsp; `+
+    `Calibration: <strong>${b.calibration||'—'}</strong> u`;
+  renderBomDetailTabel(b);
+  openModal('modal-bom-detail');
+};
+
+function renderBomDetailTabel(b){
+  const tbody = document.getElementById('tbl-bom-detail-body');
+  const arts = b.artikelen||[];
+  tbody.innerHTML = arts.map((a,i)=>`<tr id="bom-rij-${i}">
+    <td><input type="text" value="${a.artikelId||''}" data-idx="${i}" data-field="artikelId"
+      onchange="bomRijUpdate(${i},'artikelId',this.value)"
+      style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none" /></td>
+    <td><input type="text" value="${a.naam||''}" data-idx="${i}" data-field="naam"
+      onchange="bomRijUpdate(${i},'naam',this.value)"
+      style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none" /></td>
+    <td><input type="text" value="${a.aantal||''}" data-idx="${i}" data-field="aantal"
+      onchange="bomRijUpdate(${i},'aantal',this.value)"
+      style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none;text-align:right" /></td>
+    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${a.eenheid||'Stuks'}</td>
+    <td style="text-align:right">
+      <button class="btn btn-sm btn-red" onclick="bomRijVerwijder(${i})">×</button>
+    </td>
+  </tr>`).join('') ||
+  '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:1rem;font-size:13px">Geen artikelen</td></tr>';
+}
+
+window.bomRijUpdate = function(idx, field, value){
+  const b = bomData.find(x=>x.id===bomDetailId);
+  if(!b||!b.artikelen[idx]) return;
+  b.artikelen[idx][field] = value;
+  setDoc(doc(db,'bom_sbu',bomDetailId), b);
+};
+
+window.bomRijVerwijder = function(idx){
+  const b = bomData.find(x=>x.id===bomDetailId);
+  if(!b) return;
+  b.artikelen.splice(idx,1);
+  setDoc(doc(db,'bom_sbu',bomDetailId), b);
+  renderBomDetailTabel(b);
+  renderBomTabel();
+};
+
+window.bomArtikelToevoegen = function(){
+  const b = bomData.find(x=>x.id===bomDetailId);
+  if(!b) return;
+  const artikelId = document.getElementById('bom-add-id').value.trim();
+  const naam      = document.getElementById('bom-add-naam').value.trim();
+  const aantal    = document.getElementById('bom-add-aantal').value.trim();
+  const eenheid   = document.getElementById('bom-add-eenheid').value;
+  if(!artikelId){ alert('Artikel ID is verplicht'); return; }
+  if(!b.artikelen) b.artikelen = [];
+  b.artikelen.push({artikelId, naam, aantal, eenheid});
+  setDoc(doc(db,'bom_sbu',bomDetailId), b);
+  document.getElementById('bom-add-id').value='';
+  document.getElementById('bom-add-naam').value='';
+  document.getElementById('bom-add-aantal').value='';
+  renderBomDetailTabel(b);
+  renderBomTabel();
+};
+
+window.openNieuwBom = function(){
+  document.getElementById('bom-edit-id').value = '';
+  document.getElementById('bom-edit-sbu-id').value = '';
+  document.getElementById('bom-edit-naam').value = '';
+  document.getElementById('bom-edit-welding').value = '';
+  document.getElementById('bom-edit-mounting').value = '';
+  document.getElementById('bom-edit-calibration').value = '';
+  document.getElementById('modal-bom-edit-title').textContent = 'Nieuwe BoM aanmaken';
+  openModal('modal-bom-edit');
+};
+
+window.openBomBewerken = function(id){
+  const b = bomData.find(x=>x.id===id);
+  if(!b) return;
+  document.getElementById('bom-edit-id').value          = id;
+  document.getElementById('bom-edit-sbu-id').value      = b.sbuId;
+  document.getElementById('bom-edit-naam').value        = b.naam;
+  document.getElementById('bom-edit-welding').value     = b.welding||'';
+  document.getElementById('bom-edit-mounting').value    = b.mounting||'';
+  document.getElementById('bom-edit-calibration').value = b.calibration||'';
+  document.getElementById('modal-bom-edit-title').textContent = `BoM bewerken — ${b.sbuId}`;
+  openModal('modal-bom-edit');
+};
+
+window.saveBom = async function(){
+  const editId      = document.getElementById('bom-edit-id').value;
+  const sbuId       = document.getElementById('bom-edit-sbu-id').value.trim().toUpperCase();
+  const naam        = document.getElementById('bom-edit-naam').value.trim();
+  const welding     = document.getElementById('bom-edit-welding').value.trim();
+  const mounting    = document.getElementById('bom-edit-mounting').value.trim();
+  const calibration = document.getElementById('bom-edit-calibration').value.trim();
+  if(!sbuId||!naam){ alert('SBU ID en naam zijn verplicht'); return; }
+  const id = editId || 'bom'+Date.now();
+  const bestaand = bomData.find(x=>x.id===id);
+  const data = { sbuId, naam, welding, mounting, calibration, artikelen: bestaand?.artikelen||[] };
+  await setDoc(doc(db,'bom_sbu',id), data);
+  const idx = bomData.findIndex(x=>x.id===id);
+  if(idx>-1) Object.assign(bomData[idx], data);
+  else bomData.push({id,...data});
+  bomData.sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+  closeModal('modal-bom-edit');
+  renderBomTabel();
+  vulBomZoekSelector();
+  showSaving('BoM opgeslagen');
+};
+
+window.deleteBom = async function(id){
+  const b = bomData.find(x=>x.id===id);
+  if(!confirm(`BoM "${b?.sbuId} — ${b?.naam}" verwijderen?`)) return;
+  await deleteDoc(doc(db,'bom_sbu',id));
+  bomData = bomData.filter(x=>x.id!==id);
+  renderBomTabel();
+  vulBomZoekSelector();
+  showSaving('BoM verwijderd');
+};
+
+// Excel upload BoM
+document.getElementById('btn-bom-upload').addEventListener('click',()=>document.getElementById('bom-upload-input').click());
+
+document.getElementById('bom-upload-input').addEventListener('change', async (event)=>{
+  const status = document.getElementById('bom-upload-status');
+  const file   = event.target.files[0];
+  if(!file) return;
+  if(typeof XLSX==='undefined'){alert('Excel-library nog niet geladen');return;}
+  status.textContent='Bestand lezen…';
+  const reader = new FileReader();
+  reader.onload = async e=>{
+    try{
+      const wb  = XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const ws  = wb.Sheets[wb.SheetNames[0]];
+      const rows= XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      // Sla header rij over
+      const start = rows[0]&&String(rows[0][0]).toLowerCase().includes('product')?1:0;
+      const data  = rows.slice(start).filter(r=>String(r[0]||'').trim());
+
+      // Groepeer per SBU
+      const sbuMap = {};
+      data.forEach(r=>{
+        const sbuId  = String(r[0]||'').trim();
+        const naam   = String(r[1]||'').trim();
+        const subId  = String(r[4]||'').trim();
+        const subNaam= String(r[5]||'').trim();
+        const aantal = String(r[6]||'').trim();
+        const eenheid= String(r[7]||'').trim();
+        if(!sbuId) return;
+        if(!sbuMap[sbuId]){ sbuMap[sbuId]={sbuId,naam,artikelen:[],welding:'',mounting:'',calibration:''}; }
+        const b = sbuMap[sbuId];
+        if(naam && !b.naam) b.naam=naam;
+        if(subId==='Welding')     b.welding=aantal;
+        else if(subId==='Mounting')    b.mounting=aantal;
+        else if(subId==='Calibration') b.calibration=aantal;
+        else if(subId) b.artikelen.push({artikelId:subId,naam:subNaam,aantal,eenheid});
+      });
+
+      const bestaandeIds = new Set(bomData.map(b=>b.sbuId));
+      const sbus = Object.values(sbuMap);
+      const nieuw = sbus.filter(b=>!bestaandeIds.has(b.sbuId));
+      const bestaand = sbus.filter(b=>bestaandeIds.has(b.sbuId));
+      let overschrijven = false;
+      if(bestaand.length>0){
+        overschrijven = confirm(
+          bestaand.length+' SBU BoM records bestaan al.\n\n'+
+          'OK = overschrijven\nAnnuleren = alleen nieuwe toevoegen ('+nieuw.length+')'
+        );
+      }
+      const teVerwerken = overschrijven ? sbus : nieuw;
+      if(!teVerwerken.length){status.textContent='Geen nieuwe BoM records';setTimeout(()=>status.textContent='',3000);return;}
+
+      status.textContent=teVerwerken.length+' BoM records opslaan…';
+      for(let i=0;i<teVerwerken.length;i+=500){
+        const batch=writeBatch(db);
+        teVerwerken.slice(i,i+500).forEach(b=>{
+          let docId;
+          if(overschrijven){ const ex=bomData.find(x=>x.sbuId===b.sbuId); docId=ex?ex.id:'bom'+Date.now()+Math.random(); }
+          else docId='bom'+Date.now()+Math.random();
+          batch.set(doc(db,'bom_sbu',docId),b);
+        });
+        await batch.commit();
+      }
+      await loadBomData();
+      status.textContent='✓ '+teVerwerken.length+' BoM records geïmporteerd';
+      setTimeout(()=>status.textContent='',4000);
+    }catch(err){
+      status.textContent='';
+      alert('Fout: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value='';
+});
 function initStickyScroll(){
   const wrap  = document.getElementById('artikel-tabel-wrap');
   const stick = document.getElementById('artikel-sticky-scroll');
