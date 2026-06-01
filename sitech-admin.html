@@ -140,6 +140,7 @@ tr.row-selected td{background:var(--blue-light)}
         <a class="nav-item" onclick="showPanel('sbu',this)">SBU</a>
         <a class="nav-item" onclick="showPanel('bom-ewv',this)">BoM EWV</a>
         <a class="nav-item" onclick="showPanel('ewv',this)">EWV</a>
+      <a class="nav-item" onclick="showPanel('basis-config',this)">Basis Configuratie</a>
       <a class="nav-item" onclick="showPanel('sbu-config',this)">SBU Configurator</a>
         <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
         <a class="nav-item" onclick="showPanel('prijslijsten',this)">Prijslijsten</a>
@@ -525,6 +526,18 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
       </div>
 
+      <!-- BASIS CONFIGURATIE PANEL -->
+      <div class="panel" id="panel-basis-config">
+        <div class="panel-title">Basis Configuratie</div>
+        <div class="panel-sub">Beheer de basisconfiguraties per merk en machinetype. Prijzen worden automatisch berekend vanuit de SBU stuklijsten.</div>
+
+        <!-- Merk tabs -->
+        <div id="basis-config-tabs" style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap"></div>
+
+        <!-- Blokken per merk -->
+        <div id="basis-config-content"></div>
+      </div>
+
       <!-- SBU CONFIGURATOR PANEL -->
       <div class="panel" id="panel-sbu-config">
         <div class="panel-title">SBU Configurator</div>
@@ -748,6 +761,96 @@ tr.row-selected td{background:var(--blue-light)}
 </div>
 
 <!-- MODAL BOM DETAIL -->
+<!-- MODAL BASIS CONFIG BLOK BEWERKEN -->
+<div class="modal-bg" id="modal-bc-blok">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3 id="modal-bc-blok-title">Blok</h3>
+      <button class="modal-close" onclick="closeModal('modal-bc-blok')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="bc-blok-merk" />
+      <input type="hidden" id="bc-blok-idx" />
+      <div class="fg"><label>Naam blok *</label><input type="text" id="bc-blok-naam" placeholder="bijv. Basis Configuratie" /></div>
+      <div class="form-row cols2" style="margin-top:10px">
+        <div class="fg"><label>Verplicht / Optioneel</label>
+          <select id="bc-blok-verplicht" style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px">
+            <option value="1">Verplicht</option><option value="0">Optioneel</option>
+          </select></div>
+        <div class="fg"><label>Instructietekst</label><input type="text" id="bc-blok-instructie" placeholder="bijv. Kies een machinetype" /></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-bc-blok')">Annuleren</button>
+      <button class="btn btn-blue" onclick="saveBcBlok()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL BASIS CONFIG RIJ BEWERKEN -->
+<div class="modal-bg" id="modal-bc-rij">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header">
+      <h3 id="modal-bc-rij-title">Configuratieregel</h3>
+      <button class="modal-close" onclick="closeModal('modal-bc-rij')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="bc-rij-merk" />
+      <input type="hidden" id="bc-rij-blok" />
+      <input type="hidden" id="bc-rij-idx" />
+      <div class="form-row cols2">
+        <div class="fg"><label>Machine type *</label><input type="text" id="bc-rij-type" placeholder="bijv. Volvo EC140E - EC550E" /></div>
+        <div class="fg"><label>Omschrijving *</label><input type="text" id="bc-rij-omschrijving" placeholder="bijv. Trimble Earthworks voorbereiding" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Artikelnr. (SBU) *</label>
+          <select id="bc-rij-artikelnr" style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px">
+            <option value="">— Kies SBU —</option>
+          </select></div>
+        <div class="fg"><label>Criterium</label>
+          <select id="bc-rij-criterium" style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px">
+            <option value="">—</option>
+            <option value="Vast">Vast</option>
+            <option value="Los">Los</option>
+          </select></div>
+      </div>
+      <div class="fg" style="margin-top:8px"><label>Kleur</label>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+            <input type="radio" name="bc-rij-kleur" value="yellow" id="bc-kleur-yellow" />
+            <span style="display:inline-block;width:20px;height:20px;background:#FDE68A;border:1px solid #D97706;border-radius:3px"></span> Geel (vaste ontvangers)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+            <input type="radio" name="bc-rij-kleur" value="blue" id="bc-kleur-blue" />
+            <span style="display:inline-block;width:20px;height:20px;background:#BFDBFE;border:1px solid #185FA5;border-radius:3px"></span> Blauw (losse ontvangers)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+            <input type="radio" name="bc-rij-kleur" value="" id="bc-kleur-geen" checked />
+            <span style="display:inline-block;width:20px;height:20px;background:#fff;border:1px solid #ccc;border-radius:3px"></span> Geen
+          </label>
+        </div>
+      </div>
+      <div style="margin-top:12px;border-top:0.5px solid var(--gray-border);padding-top:12px">
+        <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin-bottom:8px">SBU's (1-4)</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <div class="fg"><label style="font-size:11px">SBU 1</label>
+            <select id="bc-sbu1" style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px"><option value="">—</option></select></div>
+          <div class="fg"><label style="font-size:11px">SBU 2</label>
+            <select id="bc-sbu2" style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px"><option value="">—</option></select></div>
+          <div class="fg"><label style="font-size:11px">SBU 3</label>
+            <select id="bc-sbu3" style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px"><option value="">—</option></select></div>
+          <div class="fg"><label style="font-size:11px">SBU 4</label>
+            <select id="bc-sbu4" style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px"><option value="">—</option></select></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-bc-rij')">Annuleren</button>
+      <button class="btn btn-blue" onclick="saveBcRij()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-bom-detail">
   <div class="modal" style="max-width:860px">
     <div class="modal-header">
@@ -1110,6 +1213,7 @@ window.showPanel = function(name,el){
       renderSbu();
     });
   }
+  if(name==='basis-config'){ loadBasisConfig(); }
   if(name==='sbu-config'){ loadSbuConfig(); }
   if(name==='resources'){ loadResources(); }
   if(name==='bom-ewv'){ loadBomEwvData(); }
@@ -3618,6 +3722,271 @@ window.saveResources = async function(){
   status.textContent = '✓ Opgeslagen';
   setTimeout(()=>status.textContent='', 3000);
   showSaving('Resources opgeslagen');
+};
+
+// ============================================================
+// BASIS CONFIGURATIE MODULE
+// ============================================================
+// Data: { merkId: [ { naam, verplicht, instructie, rijen: [ {type,omschrijving,artikelnr,inkoop,verkoop,kleur,criterium,sbu1,sbu2,sbu3,sbu4} ] } ] }
+let bcData = {};
+let bcHuidigMerk = null;
+
+async function loadBasisConfig(){
+  const [merkenSnap, bcSnap, bomSnap, artSnap] = await Promise.all([
+    getDocs(collection(db,'merken')),
+    getDocs(collection(db,'basis_config')),
+    getDocs(collection(db,'bom_sbu')),
+    getDocs(collection(db,'artikelen')),
+  ]);
+  if(!merken.length) merken = merkenSnap.docs.map(d=>({id:d.id,...d.data()}));
+  if(!bomData.length) bomData = bomSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+  if(!artikelen.length) artikelen = artSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+  bcData = {};
+  bcSnap.docs.forEach(d=>{ bcData[d.id] = d.data().blokken||[]; });
+
+  // Selecteer eerste merk als default
+  const gesorteerd = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||''));
+  bcHuidigMerk = gesorteerd[0]?.id || null;
+  renderBcTabs();
+  renderBcContent();
+}
+
+function renderBcTabs(){
+  const tabs = document.getElementById('basis-config-tabs');
+  if(!tabs) return;
+  const gesorteerd = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||''));
+  tabs.innerHTML = gesorteerd.map(m=>`
+    <button onclick="bcSelecteerMerk('${m.id}')"
+      style="padding:7px 16px;border-radius:20px;border:0.5px solid ${bcHuidigMerk===m.id?'var(--blue)':'var(--gray-border)'};
+             background:${bcHuidigMerk===m.id?'var(--blue)':'var(--white)'};
+             color:${bcHuidigMerk===m.id?'#fff':'#1a1a1a'};font-size:13px;cursor:pointer;font-weight:${bcHuidigMerk===m.id?'500':'400'}">
+      ${m.naam||m.id}
+    </button>`).join('') +
+    `<button onclick="bcNieuwBlok()" style="padding:7px 16px;border-radius:20px;border:0.5px solid var(--blue);background:var(--blue-light);color:var(--blue);font-size:13px;cursor:pointer">+ Blok toevoegen</button>`;
+}
+
+window.bcSelecteerMerk = function(id){ bcHuidigMerk=id; renderBcTabs(); renderBcContent(); };
+
+function renderBcContent(){
+  const content = document.getElementById('basis-config-content');
+  if(!content) return;
+  if(!bcHuidigMerk){ content.innerHTML='<p style="color:var(--gray-text)">Geen merken beschikbaar. Voeg eerst merken toe.</p>'; return; }
+  const blokken = bcData[bcHuidigMerk] || [];
+  if(!blokken.length){
+    content.innerHTML=`<div style="color:var(--gray-text);font-size:13px;padding:2rem;text-align:center">Geen blokken voor dit merk. Klik "+ Blok toevoegen".</div>`;
+    return;
+  }
+  content.innerHTML = blokken.map((blok,bi)=>`
+    <div style="background:var(--white);border:0.5px solid var(--gray-border);border-radius:10px;margin-bottom:16px;overflow:hidden">
+      <!-- Blok header -->
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:0.5px solid var(--gray-border);background:var(--gray-bg)">
+        <span style="background:var(--blue);color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0">${bi+1}</span>
+        <strong style="font-size:15px;flex:1">${blok.naam||'Blok '+(bi+1)}</strong>
+        <span style="font-size:12px;color:var(--gray-text)">${blok.verplicht==='1'||blok.verplicht===true?'Verplicht':'Optioneel'} · ${(blok.rijen||[]).length} opties</span>
+        <button class="btn btn-sm" onclick="bcBlokBewerken(${bi})">Bewerken</button>
+        <button class="btn btn-sm btn-red" onclick="bcBlokVerwijderen(${bi})">Verwijderen</button>
+      </div>
+      ${blok.instructie?`<div style="padding:8px 16px;font-size:12px;color:var(--gray-text);border-bottom:0.5px solid var(--gray-border);background:#fafafa">${blok.instructie}</div>`:''}
+      <!-- Rijen tabel -->
+      <div style="overflow-x:auto">
+        <table style="width:100%;min-width:900px;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:var(--gray-bg)">
+              <th style="padding:8px 12px;min-width:160px">Machine type</th>
+              <th style="padding:8px 12px;min-width:260px">Omschrijving</th>
+              <th style="padding:8px 12px;min-width:110px">Artikelnr.</th>
+              <th style="padding:8px 12px;min-width:100px;text-align:right">Inkoop</th>
+              <th style="padding:8px 12px;min-width:110px;text-align:right">Verkoopadvies</th>
+              <th style="padding:8px 12px;min-width:60px;text-align:center">Kleur</th>
+              <th style="padding:8px 12px;min-width:90px;text-align:center">Criterium</th>
+              <th style="padding:8px 12px;min-width:90px">SBU 1</th>
+              <th style="padding:8px 12px;min-width:90px">SBU 2</th>
+              <th style="padding:8px 12px;min-width:90px">SBU 3</th>
+              <th style="padding:8px 12px;min-width:90px">SBU 4</th>
+              <th style="padding:8px 12px;min-width:100px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(blok.rijen||[]).map((r,ri)=>{
+              const inkoop   = berekenBcInkoop(r);
+              const verkoop  = berekenBcVerkoop(r);
+              const kleurDot = r.kleur==='yellow'
+                ? `<span style="display:inline-block;width:16px;height:16px;background:#FDE68A;border:1px solid #D97706;border-radius:3px"></span>`
+                : r.kleur==='blue'
+                ? `<span style="display:inline-block;width:16px;height:16px;background:#BFDBFE;border:1px solid #185FA5;border-radius:3px"></span>`
+                : '—';
+              const critBadge = r.criterium
+                ? `<span style="padding:2px 8px;border-radius:20px;font-size:11px;border:0.5px solid;${r.criterium==='Vast'?'background:#FEF9C3;color:#854D0E;border-color:#D97706':'background:#DBEAFE;color:#1e40af;border-color:#3b82f6'}">${r.criterium}</span>`
+                : '—';
+              return `<tr>
+                <td style="padding:8px 12px">${r.type||'—'}</td>
+                <td style="padding:8px 12px">${r.omschrijving||'—'}</td>
+                <td style="padding:8px 12px;font-family:monospace;font-size:12px">${r.artikelnr||'—'}</td>
+                <td style="padding:8px 12px;text-align:right">${inkoop!==null?'€ '+inkoop.toFixed(2):'—'}</td>
+                <td style="padding:8px 12px;text-align:right;color:var(--blue);font-weight:500">${verkoop!==null?'€ '+verkoop.toFixed(2):'—'}</td>
+                <td style="padding:8px 12px;text-align:center">${kleurDot}</td>
+                <td style="padding:8px 12px;text-align:center">${critBadge}</td>
+                <td style="padding:8px 12px;font-size:12px;color:var(--blue)">${r.sbu1||'—'}</td>
+                <td style="padding:8px 12px;font-size:12px;color:var(--blue)">${r.sbu2||'—'}</td>
+                <td style="padding:8px 12px;font-size:12px;color:var(--blue)">${r.sbu3||'—'}</td>
+                <td style="padding:8px 12px;font-size:12px;color:var(--blue)">${r.sbu4||'—'}</td>
+                <td style="padding:8px 12px;text-align:right;white-space:nowrap">
+                  <button class="btn btn-sm" onclick="bcRijBewerken(${bi},${ri})">Bewerken</button>
+                  <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="bcRijVerwijderen(${bi},${ri})">×</button>
+                </td>
+              </tr>`;
+            }).join('')}
+            <tr>
+              <td colspan="12" style="padding:6px 12px">
+                <button class="btn btn-sm btn-blue" onclick="bcRijToevoegen(${bi})" style="font-size:12px">+ Regel toevoegen</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`).join('');
+}
+
+// Prijs berekeningen via SBU's
+function berekenBcInkoop(r){
+  // Inkoop = Totaal Std van het hoofd-artikelnr (SBU)
+  if(!r.artikelnr) return null;
+  const tot = getSbuTotaalStd(r.artikelnr);
+  return tot;
+}
+
+function berekenBcVerkoop(r){
+  if(!r.artikelnr) return null;
+  const bom = bomData.find(b=>b.sbuId===r.artikelnr);
+  if(!bom) return null;
+  const tot = berekenBomTotalen(bom);
+  return tot ? tot.unitTotaal : null;
+}
+
+// Blok acties
+window.bcNieuwBlok = function(){
+  document.getElementById('bc-blok-merk').value = bcHuidigMerk;
+  document.getElementById('bc-blok-idx').value = '-1';
+  document.getElementById('bc-blok-naam').value = '';
+  document.getElementById('bc-blok-verplicht').value = '1';
+  document.getElementById('bc-blok-instructie').value = '';
+  document.getElementById('modal-bc-blok-title').textContent = 'Nieuw blok';
+  openModal('modal-bc-blok');
+};
+
+window.bcBlokBewerken = function(bi){
+  const blok = (bcData[bcHuidigMerk]||[])[bi];
+  if(!blok) return;
+  document.getElementById('bc-blok-merk').value = bcHuidigMerk;
+  document.getElementById('bc-blok-idx').value = bi;
+  document.getElementById('bc-blok-naam').value = blok.naam||'';
+  document.getElementById('bc-blok-verplicht').value = blok.verplicht==='1'||blok.verplicht===true?'1':'0';
+  document.getElementById('bc-blok-instructie').value = blok.instructie||'';
+  document.getElementById('modal-bc-blok-title').textContent = `Blok bewerken — ${blok.naam||''}`;
+  openModal('modal-bc-blok');
+};
+
+window.saveBcBlok = async function(){
+  const merk = document.getElementById('bc-blok-merk').value;
+  const bi   = parseInt(document.getElementById('bc-blok-idx').value);
+  const naam        = document.getElementById('bc-blok-naam').value.trim();
+  const verplicht   = document.getElementById('bc-blok-verplicht').value;
+  const instructie  = document.getElementById('bc-blok-instructie').value.trim();
+  if(!naam){ alert('Naam is verplicht'); return; }
+  if(!bcData[merk]) bcData[merk] = [];
+  const blokData = { naam, verplicht, instructie, rijen: [] };
+  if(bi===-1){ bcData[merk].push(blokData); }
+  else { blokData.rijen = bcData[merk][bi].rijen||[]; Object.assign(bcData[merk][bi], blokData); }
+  await setDoc(doc(db,'basis_config',merk), { blokken: bcData[merk] });
+  closeModal('modal-bc-blok');
+  renderBcContent();
+  showSaving('Blok opgeslagen');
+};
+
+window.bcBlokVerwijderen = async function(bi){
+  if(!confirm('Blok verwijderen inclusief alle regels?')) return;
+  bcData[bcHuidigMerk].splice(bi,1);
+  await setDoc(doc(db,'basis_config',bcHuidigMerk), { blokken: bcData[bcHuidigMerk] });
+  renderBcContent();
+  showSaving('Blok verwijderd');
+};
+
+// Rij acties
+function vulBcSbuSelects(waarden){
+  const opties = '<option value="">—</option>' + bomData.map(b=>`<option value="${b.sbuId}">${b.sbuId} — ${b.naam}</option>`).join('');
+  ['bc-rij-artikelnr','bc-sbu1','bc-sbu2','bc-sbu3','bc-sbu4'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.innerHTML = opties;
+  });
+  if(waarden){
+    ['artikelnr','sbu1','sbu2','sbu3','sbu4'].forEach(k=>{
+      const el = document.getElementById(k==='artikelnr'?'bc-rij-artikelnr':`bc-${k}`);
+      if(el && waarden[k]) el.value = waarden[k];
+    });
+  }
+}
+
+window.bcRijToevoegen = function(bi){
+  document.getElementById('bc-rij-merk').value = bcHuidigMerk;
+  document.getElementById('bc-rij-blok').value = bi;
+  document.getElementById('bc-rij-idx').value  = '-1';
+  document.getElementById('bc-rij-type').value = '';
+  document.getElementById('bc-rij-omschrijving').value = '';
+  document.getElementById('bc-rij-criterium').value = '';
+  document.getElementById('bc-kleur-geen').checked = true;
+  vulBcSbuSelects(null);
+  document.getElementById('modal-bc-rij-title').textContent = 'Nieuwe regel';
+  openModal('modal-bc-rij');
+};
+
+window.bcRijBewerken = function(bi, ri){
+  const rij = ((bcData[bcHuidigMerk]||[])[bi]?.rijen||[])[ri];
+  if(!rij) return;
+  document.getElementById('bc-rij-merk').value = bcHuidigMerk;
+  document.getElementById('bc-rij-blok').value = bi;
+  document.getElementById('bc-rij-idx').value  = ri;
+  document.getElementById('bc-rij-type').value = rij.type||'';
+  document.getElementById('bc-rij-omschrijving').value = rij.omschrijving||'';
+  document.getElementById('bc-rij-criterium').value = rij.criterium||'';
+  const kleurEl = document.getElementById(`bc-kleur-${rij.kleur||'geen'}`);
+  if(kleurEl) kleurEl.checked = true; else document.getElementById('bc-kleur-geen').checked=true;
+  vulBcSbuSelects(rij);
+  document.getElementById('modal-bc-rij-title').textContent = `Regel bewerken`;
+  openModal('modal-bc-rij');
+};
+
+window.saveBcRij = async function(){
+  const merk = document.getElementById('bc-rij-merk').value;
+  const bi   = parseInt(document.getElementById('bc-rij-blok').value);
+  const ri   = parseInt(document.getElementById('bc-rij-idx').value);
+  const type        = document.getElementById('bc-rij-type').value.trim();
+  const omschrijving= document.getElementById('bc-rij-omschrijving').value.trim();
+  const artikelnr   = document.getElementById('bc-rij-artikelnr').value;
+  const criterium   = document.getElementById('bc-rij-criterium').value;
+  const kleur       = document.querySelector('input[name="bc-rij-kleur"]:checked')?.value||'';
+  const sbu1 = document.getElementById('bc-sbu1').value;
+  const sbu2 = document.getElementById('bc-sbu2').value;
+  const sbu3 = document.getElementById('bc-sbu3').value;
+  const sbu4 = document.getElementById('bc-sbu4').value;
+  if(!type||!omschrijving){ alert('Machine type en omschrijving zijn verplicht'); return; }
+  const rij = { type, omschrijving, artikelnr, criterium, kleur, sbu1, sbu2, sbu3, sbu4 };
+  if(!bcData[merk]) bcData[merk]=[];
+  if(!bcData[merk][bi]) bcData[merk][bi] = { naam:'', verplicht:'1', instructie:'', rijen:[] };
+  if(!bcData[merk][bi].rijen) bcData[merk][bi].rijen=[];
+  if(ri===-1) bcData[merk][bi].rijen.push(rij);
+  else bcData[merk][bi].rijen[ri] = rij;
+  await setDoc(doc(db,'basis_config',merk), { blokken: bcData[merk] });
+  closeModal('modal-bc-rij');
+  renderBcContent();
+  showSaving('Regel opgeslagen');
+};
+
+window.bcRijVerwijderen = async function(bi, ri){
+  if(!confirm('Regel verwijderen?')) return;
+  bcData[bcHuidigMerk][bi].rijen.splice(ri,1);
+  await setDoc(doc(db,'basis_config',bcHuidigMerk), { blokken: bcData[bcHuidigMerk] });
+  renderBcContent();
+  showSaving('Regel verwijderd');
 };
 
 // ============================================================
