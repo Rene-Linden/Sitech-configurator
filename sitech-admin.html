@@ -268,17 +268,13 @@ tr.row-selected td{background:var(--blue-light)}
           <span id="filter-artikel-count" style="margin-left:auto;font-size:12px;color:var(--gray-text)"></span>
         </div>
 
-        <div class="card" style="overflow:hidden;display:flex;flex-direction:column">
-          <!-- Scrollbare wrapper met vaste hoogte zodat header sticky blijft -->
-          <div id="artikel-tabel-wrap" style="overflow-x:scroll;overflow-y:auto;max-height:calc(100vh - 340px);flex:1">
-            <table id="tbl-artikelen" style="min-width:3200px;table-layout:auto;border-collapse:collapse">
+        <div class="card" style="overflow:hidden">
+          <!-- Enige scroll container: horizontaal + verticaal, sticky header via CSS -->
+          <div id="artikel-tabel-wrap" style="overflow-x:scroll;overflow-y:visible;width:100%">
+            <table id="tbl-artikelen" style="min-width:4000px;table-layout:auto;border-collapse:collapse">
               <thead id="tbl-artikelen-head" style="position:sticky;top:0;z-index:20"></thead>
-              <tbody id="tbl-artikelen-body"><tr><td colspan="24" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
+              <tbody id="tbl-artikelen-body"><tr><td colspan="30" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
             </table>
-          </div>
-          <!-- Gesynchroniseerde scrollbar altijd onderaan zichtbaar -->
-          <div id="artikel-scroll-bar" style="overflow-x:scroll;overflow-y:hidden;border-top:0.5px solid var(--gray-border)">
-            <div id="artikel-scroll-inner" style="height:1px"></div>
           </div>
         </div>
       </div>
@@ -1565,6 +1561,7 @@ function toonTemplateInfo(){
 
 let artikelSelectie = new Set();
 let artikelFilterState = { productId:'', name:'', vendor:'', vendorId:'', group:'', type:'', cost:'', serial:'', ledger:'', posting:'' };
+let artikelPaginaData = []; // huidige pagina artikelen, beschikbaar voor checkbox handlers
 
 function getGefilterdeArtikelen(){
   const tid = document.getElementById('sel-template-filter').value;
@@ -1665,6 +1662,7 @@ function renderArtikelen(){
   if(artikelPagina > totaalPaginas) artikelPagina = 1;
   const start = (artikelPagina-1)*ARTIKELEN_PER_PAGINA;
   const pagina = gefilterd.slice(start, start+ARTIKELEN_PER_PAGINA);
+  artikelPaginaData = pagina;
 
   const countTxt = gefilterd.length !== all.length
     ? `${gefilterd.length} van ${all.length} — <a href="#" onclick="clearArtikelFilters();return false" style="color:var(--blue)">wis filters</a>`
@@ -1676,7 +1674,7 @@ function renderArtikelen(){
     : '';
   document.getElementById('filter-artikel-count').innerHTML = countTxt + paginaTxt;
 
-  const alleGeselecteerd = pagina.length>0 && pagina.every(a=>artikelSelectie.has(a.id));
+  const alleGeselecteerd = artikelPaginaData.length>0 && artikelPaginaData.every(a=>artikelSelectie.has(a.id));
 
   thead.innerHTML=`<tr style="position:sticky;top:0;background:var(--gray-bg);z-index:10">
     <th style="width:36px;min-width:36px;text-align:center"><input type="checkbox" id="chk-all" ${alleGeselecteerd?'checked':''} /></th>
@@ -1712,8 +1710,8 @@ function renderArtikelen(){
   </tr>`;
 
   document.getElementById('chk-all').addEventListener('change', function(){
-    if(this.checked) pagina.forEach(a=>artikelSelectie.add(a.id));
-    else pagina.forEach(a=>artikelSelectie.delete(a.id));
+    if(this.checked) artikelPaginaData.forEach(a=>artikelSelectie.add(a.id));
+    else artikelPaginaData.forEach(a=>artikelSelectie.delete(a.id));
     updateSelectieBalk();
     renderArtikelen();
   });
@@ -1765,7 +1763,7 @@ function renderArtikelen(){
       const rij = this.closest('tr');
       if(rij) rij.className = this.checked ? 'row-selected' : '';
       const alleChk = document.getElementById('chk-all');
-      if(alleChk) alleChk.checked = pagina.every(a=>artikelSelectie.has(a.id));
+      if(alleChk) alleChk.checked = artikelPaginaData.length > 0 && artikelPaginaData.every(a=>artikelSelectie.has(a.id));
       updateSelectieBalk();
     });
   });
@@ -2014,49 +2012,6 @@ document.getElementById('btn-artikel-download').addEventListener('click', ()=>{
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, tid ? tid.substring(0,31) : 'Alle artikelen');
   XLSX.writeFile(wb, `artikelen-${tid||'alle'}-${new Date().toISOString().slice(0,10)}.xlsx`);
-});
-
-// Gesynchroniseerde scrollbar voor artikelentabel
-function initArtikelScroll(){
-  const wrap  = document.getElementById('artikel-tabel-wrap');
-  const bar   = document.getElementById('artikel-scroll-bar');
-  const inner = document.getElementById('artikel-scroll-inner');
-  if(!wrap||!bar||!inner) return;
-  // Stel breedte scrollinner in op tabelbreedte
-  const tbl = document.getElementById('tbl-artikelen');
-  inner.style.width = (tbl?.scrollWidth||3200)+'px';
-  // Synchroniseer scrollen
-  let syncingWrap=false, syncingBar=false;
-  wrap.addEventListener('scroll', ()=>{
-    if(syncingBar) return;
-    syncingWrap=true;
-    bar.scrollLeft=wrap.scrollLeft;
-    syncingWrap=false;
-  });
-  bar.addEventListener('scroll', ()=>{
-    if(syncingWrap) return;
-    syncingBar=true;
-    wrap.scrollLeft=bar.scrollLeft;
-    syncingBar=false;
-  });
-}
-
-// Aanroepen na elke renderArtikelen
-const _origRenderArtikelen = renderArtikelen;
-// (direct na renderArtikelen definitie al beschikbaar via closure — init via showPanel)
-
-window.addEventListener('load', ()=>{
-  setTimeout(()=>{
-    initArtikelScroll();
-    // Update inner breedte na render
-    const obs = new MutationObserver(()=>{
-      const tbl = document.getElementById('tbl-artikelen');
-      const inner = document.getElementById('artikel-scroll-inner');
-      if(tbl&&inner) inner.style.width=tbl.scrollWidth+'px';
-    });
-    const tbody = document.getElementById('tbl-artikelen-body');
-    if(tbody) obs.observe(tbody, {childList:true, subtree:false});
-  }, 800);
 });
 
 // ============================================================
