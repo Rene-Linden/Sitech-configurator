@@ -428,6 +428,7 @@ tr.row-selected td{background:var(--blue-light)}
               <tr>
                 <th style="min-width:120px">EWV ID</th>
                 <th style="min-width:280px">Naam</th>
+                <th style="min-width:220px">Oude naam (kolom C)</th>
                 <th style="min-width:80px;text-align:center">Artikelen</th>
                 <th style="min-width:80px;text-align:center">Welding (u)</th>
                 <th style="min-width:80px;text-align:center">Mounting (u)</th>
@@ -667,6 +668,9 @@ tr.row-selected td{background:var(--blue-light)}
       <div class="form-row cols2">
         <div class="fg"><label>EWV ID *</label><input type="text" id="bom-ewv-edit-sbu-id" placeholder="bijv. EWV-0001" /></div>
         <div class="fg"><label>Naam *</label><input type="text" id="bom-ewv-edit-naam" placeholder="Omschrijving" /></div>
+      </div>
+      <div class="form-row">
+        <div class="fg"><label>Oude naam (kolom C)</label><input type="text" id="bom-ewv-edit-oud-naam" placeholder="Vorige naam" /></div>
       </div>
       <div class="form-row cols2">
         <div class="fg"><label>Welding (uren)</label><input type="text" id="bom-ewv-edit-welding" placeholder="bijv. 4" /></div>
@@ -2754,6 +2758,7 @@ function renderBomEwvTabel(){
   tbody.innerHTML = bomEwvData.map(b=>`<tr>
     <td><strong style="font-size:13px">${b.sbuId}</strong></td>
     <td style="font-size:13px">${b.naam}</td>
+    <td style="font-size:12px;color:var(--gray-text)">${b.oudNaam||'—'}</td>
     <td style="text-align:center;font-size:12px;color:var(--gray-text)">${(b.artikelen||[]).length}</td>
     <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.welding||'—'}</td>
     <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.mounting||'—'}</td>
@@ -2779,8 +2784,9 @@ window.openBomEwvDetailById = function(id){
   bomEwvDetailId = id;
   document.getElementById('modal-bom-ewv-detail-title').textContent = `${b.sbuId} — ${b.naam}`;
   document.getElementById('bom-ewv-detail-info').innerHTML =
-    `<strong>${b.sbuId}</strong> &nbsp;·&nbsp; ${b.naam} &nbsp;·&nbsp; `+
-    `Welding: <strong>${b.welding||'—'}</strong> u &nbsp; `+
+    `<strong>${b.sbuId}</strong> &nbsp;·&nbsp; ${b.naam}`+
+    (b.oudNaam?` &nbsp;<span style="color:var(--gray-text);font-size:12px">(${b.oudNaam})</span>`:'')+
+    ` &nbsp;·&nbsp; Welding: <strong>${b.welding||'—'}</strong> u &nbsp; `+
     `Mounting: <strong>${b.mounting||'—'}</strong> u &nbsp; `+
     `Calibration: <strong>${b.calibration||'—'}</strong> u`;
   renderBomEwvDetailTabel(b);
@@ -2843,6 +2849,7 @@ window.openNieuwBomEwv = function(){
   document.getElementById('bom-ewv-edit-id').value='';
   document.getElementById('bom-ewv-edit-sbu-id').value='';
   document.getElementById('bom-ewv-edit-naam').value='';
+  document.getElementById('bom-ewv-edit-oud-naam').value='';
   document.getElementById('bom-ewv-edit-welding').value='';
   document.getElementById('bom-ewv-edit-mounting').value='';
   document.getElementById('bom-ewv-edit-calibration').value='';
@@ -2856,6 +2863,7 @@ window.openBomEwvBewerken = function(id){
   document.getElementById('bom-ewv-edit-id').value          = id;
   document.getElementById('bom-ewv-edit-sbu-id').value      = b.sbuId;
   document.getElementById('bom-ewv-edit-naam').value        = b.naam;
+  document.getElementById('bom-ewv-edit-oud-naam').value    = b.oudNaam||'';
   document.getElementById('bom-ewv-edit-welding').value     = b.welding||'';
   document.getElementById('bom-ewv-edit-mounting').value    = b.mounting||'';
   document.getElementById('bom-ewv-edit-calibration').value = b.calibration||'';
@@ -2867,13 +2875,14 @@ window.saveBomEwv = async function(){
   const editId      = document.getElementById('bom-ewv-edit-id').value;
   const sbuId       = document.getElementById('bom-ewv-edit-sbu-id').value.trim().toUpperCase();
   const naam        = document.getElementById('bom-ewv-edit-naam').value.trim();
+  const oudNaam     = document.getElementById('bom-ewv-edit-oud-naam').value.trim();
   const welding     = document.getElementById('bom-ewv-edit-welding').value.trim();
   const mounting    = document.getElementById('bom-ewv-edit-mounting').value.trim();
   const calibration = document.getElementById('bom-ewv-edit-calibration').value.trim();
   if(!sbuId||!naam){ alert('ID en naam zijn verplicht'); return; }
   const id = editId||'bomewv'+Date.now();
   const bestaand = bomEwvData.find(x=>x.id===id);
-  const data = {sbuId,naam,welding,mounting,calibration,artikelen:bestaand?.artikelen||[]};
+  const data = {sbuId,naam,oudNaam,welding,mounting,calibration,artikelen:bestaand?.artikelen||[]};
   await setDoc(doc(db,'bom_ewv',id),data);
   const idx = bomEwvData.findIndex(x=>x.id===id);
   if(idx>-1) Object.assign(bomEwvData[idx],data);
@@ -2916,14 +2925,16 @@ document.getElementById('bom-ewv-upload-input').addEventListener('change',async(
       data.forEach(r=>{
         const ewvId =String(r[0]||'').trim();
         const naam  =String(r[1]||'').trim();
+        const oudNaam=String(r[2]||'').trim();
         const subId =String(r[4]||'').trim();
         const subNaam=String(r[5]||'').trim();
         const aantal=String(r[6]||'').trim();
         const eenheid=String(r[7]||'').trim();
         if(!ewvId)return;
-        if(!ewvMap[ewvId]) ewvMap[ewvId]={sbuId:ewvId,naam,artikelen:[],welding:'',mounting:'',calibration:''};
+        if(!ewvMap[ewvId]) ewvMap[ewvId]={sbuId:ewvId,naam,oudNaam,artikelen:[],welding:'',mounting:'',calibration:''};
         const b=ewvMap[ewvId];
         if(naam&&!b.naam) b.naam=naam;
+        if(oudNaam&&!b.oudNaam) b.oudNaam=oudNaam;
         if(subId==='Welding') b.welding=aantal;
         else if(subId==='Mounting') b.mounting=aantal;
         else if(subId==='Calibration') b.calibration=aantal;
