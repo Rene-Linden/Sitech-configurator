@@ -2575,17 +2575,9 @@ function renderBomTabel(){
   const tbody = document.getElementById('tbl-bom-body');
   if(!tbody) return;
   tbody.innerHTML = bomData.map(b=>{
-    // Bereken totalen uit stuklijst
-    let totStandard=0, totUnit=0;
-    (b.artikelen||[]).forEach(a=>{
-      const art = getArtikelByProductId(a.artikelId);
-      if(!art) return;
-      const stdCost = parseFloat(art.standardCost||0);
-      const unitPrice = berekenUnitPrice(art);
-      const aantal = parseFloat(a.aantal||0);
-      if(stdCost && aantal) totStandard += stdCost*aantal;
-      if(unitPrice && aantal) totUnit += unitPrice*aantal;
-    });
+    const tot = berekenBomTotalen(b);
+    const totStandard = tot ? tot.stdTotaal : 0;
+    const totUnit     = tot ? tot.unitTotaal : 0;
     return `<tr>
       <td><strong style="font-size:13px">${b.sbuId}</strong></td>
       <td style="font-size:13px">${b.naam}</td>
@@ -2675,14 +2667,60 @@ function renderBomDetailTabel(b){
       </td>
     </tr>`;
   });
-  const totaalRij = (totStandard>0||totUnit>0) ? `
-    <tr style="background:var(--gray-bg);font-weight:500">
-      <td colspan="5" style="padding:8px 12px;font-size:12px;color:var(--gray-text)">Totaal</td>
-      <td style="text-align:right;font-size:12px;color:var(--blue);padding:8px 12px">${totStandard>0?'€\u00a0'+totStandard.toFixed(2):'—'}</td>
-      <td style="text-align:right;font-size:12px;color:var(--green);padding:8px 12px">${totUnit>0?'€\u00a0'+totUnit.toFixed(2):'—'}</td>
+  // Voeg resource uren × tarief toe aan totalen
+  const welding     = parseFloat(b.welding||0);
+  const mounting    = parseFloat(b.mounting||0);
+  const calibration = parseFloat(b.calibration||0);
+  const resStd  = welding*getResourceKostprijs('welding')
+                + mounting*getResourceKostprijs('mounting')
+                + calibration*getResourceKostprijs('calibration');
+  const resUnit = welding*getResourceVerkoopprijs('welding')
+                + mounting*getResourceVerkoopprijs('mounting')
+                + calibration*getResourceVerkoopprijs('calibration');
+  const eindStd  = totStandard + resStd;
+  const eindUnit = totUnit + resUnit;
+
+  // Resource rijen tonen in de tabel
+  const resourceRijen = [];
+  if(welding)     resourceRijen.push(`<tr style="background:rgba(133,79,11,.03)">
+    <td style="padding:6px 12px;font-size:12px;color:var(--amber)">Welding</td>
+    <td style="padding:6px 12px;font-size:12px;color:var(--amber)">${b.welding} uur × €${getResourceKostprijs('welding')} / €${getResourceVerkoopprijs('welding')}</td>
+    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">${welding}</td>
+    <td style="padding:6px 12px;text-align:center;font-size:12px;color:var(--amber)">Hour</td>
+    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${getResourceKostprijs('welding').toFixed(2)}</td>
+    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${(welding*getResourceKostprijs('welding')).toFixed(2)}</td>
+    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${(welding*getResourceVerkoopprijs('welding')).toFixed(2)}</td>
+    <td></td>
+  </tr>`);
+  if(mounting)    resourceRijen.push(`<tr style="background:rgba(133,79,11,.03)">
+    <td style="padding:6px 12px;font-size:12px;color:var(--amber)">Mounting</td>
+    <td style="padding:6px 12px;font-size:12px;color:var(--amber)">${b.mounting} uur × €${getResourceKostprijs('mounting')} / €${getResourceVerkoopprijs('mounting')}</td>
+    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">${mounting}</td>
+    <td style="padding:6px 12px;text-align:center;font-size:12px;color:var(--amber)">Hour</td>
+    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${getResourceKostprijs('mounting').toFixed(2)}</td>
+    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${(mounting*getResourceKostprijs('mounting')).toFixed(2)}</td>
+    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${(mounting*getResourceVerkoopprijs('mounting')).toFixed(2)}</td>
+    <td></td>
+  </tr>`);
+  if(calibration) resourceRijen.push(`<tr style="background:rgba(133,79,11,.03)">
+    <td style="padding:6px 12px;font-size:12px;color:var(--amber)">Calibration</td>
+    <td style="padding:6px 12px;font-size:12px;color:var(--amber)">${b.calibration} uur × €${getResourceKostprijs('calibration')} / €${getResourceVerkoopprijs('calibration')}</td>
+    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">${calibration}</td>
+    <td style="padding:6px 12px;text-align:center;font-size:12px;color:var(--amber)">Hour</td>
+    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${getResourceKostprijs('calibration').toFixed(2)}</td>
+    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${(calibration*getResourceKostprijs('calibration')).toFixed(2)}</td>
+    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${(calibration*getResourceVerkoopprijs('calibration')).toFixed(2)}</td>
+    <td></td>
+  </tr>`);
+
+  const totaalRij = (eindStd>0||eindUnit>0) ? `
+    <tr style="background:var(--gray-bg);font-weight:600;border-top:1.5px solid var(--gray-border)">
+      <td colspan="5" style="padding:8px 12px;font-size:12px;color:var(--gray-text)">Totaal (incl. resources)</td>
+      <td style="text-align:right;font-size:13px;color:var(--blue);padding:8px 12px">€\u00a0${eindStd.toFixed(2)}</td>
+      <td style="text-align:right;font-size:13px;color:var(--green);padding:8px 12px">€\u00a0${eindUnit.toFixed(2)}</td>
       <td></td>
     </tr>` : '';
-  tbody.innerHTML = rijen.join('') + totaalRij ||
+  tbody.innerHTML = rijen.join('') + resourceRijen.join('') + totaalRij ||
     '<tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:1rem;font-size:13px">Geen artikelen</td></tr>';
 }
 
@@ -2926,19 +2964,64 @@ window.openBomEwvDetailById = function(id){
 };
 
 // Hulpfunctie: som Totaal Std. voor een SBU uit bomData
-function getSbuTotaalStd(sbuId){
-  const bom = bomData.find(b=>b.sbuId===sbuId);
-  if(!bom) return null;
-  let totaal = 0;
-  let gevonden = false;
+// Hulpfunctie: haal resourcetarief op uit resourcesData
+function getResourceKostprijs(resourceId){
+  const r = resourcesData.find(x=>x.id===resourceId.toLowerCase());
+  return r ? r.kostprijs : 0;
+}
+function getResourceVerkoopprijs(resourceId){
+  const r = resourcesData.find(x=>x.id===resourceId.toLowerCase());
+  return r ? r.verkoopprijs : 0;
+}
+
+// Hulpfunctie: bereken totalen voor een BoM record
+// Geeft { stdTotaal, unitTotaal } terug inclusief resources
+function berekenBomTotalen(bom){
+  let stdTotaal = 0, unitTotaal = 0;
+  let heeftData = false;
+
+  // Artikelen
   (bom.artikelen||[]).forEach(a=>{
     const art = getArtikelByProductId(a.artikelId);
     if(!art) return;
-    const stdCost = parseFloat(art.standardCost||0);
-    const aantal  = parseFloat(a.aantal||0);
-    if(stdCost && aantal){ totaal += stdCost*aantal; gevonden=true; }
+    const stdCost   = parseFloat(art.standardCost||0);
+    const unitPrice = berekenUnitPrice(art) || stdCost; // fallback op stdCost
+    const aantal    = parseFloat(a.aantal||0);
+    if(aantal){
+      stdTotaal  += stdCost   * aantal;
+      unitTotaal += unitPrice * aantal;
+      heeftData = true;
+    }
   });
-  return gevonden ? totaal : null;
+
+  // Resources: welding, mounting, calibration uren × tarief
+  const welding     = parseFloat(bom.welding||0);
+  const mounting    = parseFloat(bom.mounting||0);
+  const calibration = parseFloat(bom.calibration||0);
+  if(welding){
+    stdTotaal  += welding * getResourceKostprijs('welding');
+    unitTotaal += welding * getResourceVerkoopprijs('welding');
+    heeftData = true;
+  }
+  if(mounting){
+    stdTotaal  += mounting * getResourceKostprijs('mounting');
+    unitTotaal += mounting * getResourceVerkoopprijs('mounting');
+    heeftData = true;
+  }
+  if(calibration){
+    stdTotaal  += calibration * getResourceKostprijs('calibration');
+    unitTotaal += calibration * getResourceVerkoopprijs('calibration');
+    heeftData = true;
+  }
+
+  return heeftData ? { stdTotaal, unitTotaal } : null;
+}
+
+function getSbuTotaalStd(sbuId){
+  const bom = bomData.find(b=>b.sbuId===sbuId);
+  if(!bom) return null;
+  const tot = berekenBomTotalen(bom);
+  return tot ? tot.stdTotaal : null;
 }
 
 // Hulpfunctie: afgerond Totaal Std. voor SBU (Math.ceil)
