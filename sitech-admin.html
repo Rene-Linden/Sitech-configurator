@@ -37,7 +37,7 @@ input,select,textarea{font-family:var(--font)}
 .nav-item{display:block;padding:9px 18px;font-size:14px;cursor:pointer;color:#1a1a1a;border-left:2px solid transparent;text-decoration:none}
 .nav-item:hover{background:var(--gray-bg)}
 .nav-item.active{border-left-color:var(--blue);color:var(--blue);font-weight:500;background:var(--blue-light)}
-.main{flex:1;padding:1.5rem;overflow-y:auto;overflow-x:hidden}
+.main{flex:1;padding:1.5rem;overflow-y:auto;overflow-x:auto;min-width:0}
 .panel{display:none}.panel.active{display:block}
 .panel-title{font-size:19px;font-weight:500;margin-bottom:4px}
 .panel-sub{font-size:13px;color:var(--gray-text);margin-bottom:1.5rem}
@@ -269,8 +269,7 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
 
         <div class="card" style="overflow:hidden">
-          <!-- Enige scroll container: horizontaal + verticaal, sticky header via CSS -->
-          <div id="artikel-tabel-wrap" style="overflow-x:scroll;overflow-y:visible;width:100%">
+          <div id="artikel-tabel-wrap" style="overflow-x:auto;overflow-y:visible">
             <table id="tbl-artikelen" style="min-width:4000px;table-layout:auto;border-collapse:collapse">
               <thead id="tbl-artikelen-head" style="position:sticky;top:0;z-index:20"></thead>
               <tbody id="tbl-artikelen-body"><tr><td colspan="30" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
@@ -1786,16 +1785,16 @@ window.toggleArtikelFlag = async function(event){
 };
 
 function updateSelectieBalk(){
+  const bar = document.getElementById('artikel-selectie-bar');
   const cnt = artikelSelectie.size;
   if(cnt>0){
     bar.style.display='flex';
     document.getElementById('selectie-count').textContent = `${cnt} artikel${cnt!==1?'en':''} geselecteerd`;
-    // Vul template dropdown — zonder huidig template
     const huidigTid = document.getElementById('sel-template-filter').value;
     const sel = document.getElementById('sel-verplaats-template');
     sel.innerHTML = '<option value="">— Kies doeltemplate —</option>' +
       ARTIKEL_TEMPLATES
-        .filter(t=>t.id!==huidigTid)
+        .filter(t=>t.isArtikel && t.id!==huidigTid)
         .map(t=>`<option value="${t.id}">${t.naam}</option>`)
         .join('');
   } else {
