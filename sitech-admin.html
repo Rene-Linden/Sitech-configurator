@@ -1611,25 +1611,32 @@ async function renderPrijslijstNieuw(){
 
   let html = '';
 
+  // Laad aanpassingen eerst
+  await laadPlAanpassingen(merkId);
+
   // Blok 1: Basis Configuratie per merk
   if(bcRijen.length>0){
-    html += renderPlBlok('1','Basis Configuratie',bcRijen.map(r=>({
+    let opties1 = bcRijen.map(r=>({
       naam:`${r.type} \u2014 ${r.omschrijving}`,
       artikelnr:r.artikelnr,
       kleur:r.kleur,
       criterium:r.criterium,
       verkoop:berekenBcVerkoopSBUs(r),
-    })));
+    }));
+    opties1 = pasPlAanpassingenToe(merkId,'1',opties1);
+    html += renderPlBlok('1','Basis Configuratie',opties1);
   }
 
   // Overige blokken
   blokNrs.forEach(nr=>{
+    if(nr==='1') return;
     const naam = blokNamen[nr]||`Blok ${nr}`;
-    const opties = blokMap[nr].map(sbuId=>{
+    let opties = blokMap[nr].map(sbuId=>{
       const bom = bomData.find(b=>b.sbuId===sbuId);
       const tot = bom ? berekenBomTotalen(bom) : null;
-      return { naam: bom?`${bom.sbuId} \u2014 ${bom.naam}`:sbuId, artikelnr:sbuId, verkoop:tot?tot.unitTotaal:null };
+      return { naam: bom?`${bom.sbuId} \u2014 ${bom.naam}`:sbuId, artikelnr:sbuId, verkoop:tot?tot.unitTotaal:null, kleur:'', criterium:'' };
     });
+    opties = pasPlAanpassingenToe(merkId, nr, opties);
     html += renderPlBlok(nr, naam, opties);
   });
 
@@ -1637,29 +1644,95 @@ async function renderPrijslijstNieuw(){
   container.innerHTML = html;
 }
 
-function renderPlBlok(nr, naam, opties){
-  return `<div style="background:var(--white);border:0.5px solid var(--gray-border);border-radius:10px;margin-bottom:14px;overflow:hidden">
+function renderPlBlok(nr, naam, opties, bron){
+  // bron = 'bc' (basis config) of 'sbu' (configurator)
+  const rijHtml = opties.map((o,ri)=>{
+    // Rij-achtergrond op basis van kleur
+    const rowBg = o.kleur==='yellow'?'background:#FFFBEB':o.kleur==='blue'?'background:#EFF6FF':'';
+    const kleurKnop = (kleur)=>{
+      const actief = o.kleur===kleur;
+      if(kleur==='yellow') return `<button onclick="plWijzigKleur('${nr}',${ri},'yellow')"
+        style="width:22px;height:22px;background:#FDE68A;border:${actief?'2px solid #D97706':'1px solid #ccc'};border-radius:3px;cursor:pointer;${actief?'box-shadow:0 0 0 2px rgba(217,119,6,.3)':''}"></button>`;
+      if(kleur==='blue') return `<button onclick="plWijzigKleur('${nr}',${ri},'blue')"
+        style="width:22px;height:22px;background:#BFDBFE;border:${actief?'2px solid #185FA5':'1px solid #ccc'};border-radius:3px;cursor:pointer;${actief?'box-shadow:0 0 0 2px rgba(24,95,165,.3)':''}"></button>`;
+      return `<button onclick="plWijzigKleur('${nr}',${ri},'')"
+        style="width:22px;height:22px;background:#fff;border:${actief?'2px solid #888':'1px solid #ccc'};border-radius:3px;cursor:pointer;font-size:10px;color:#888">&times;</button>`;
+    };
+    const critHtml = `<select onchange="plWijzigCriterium('${nr}',${ri},this.value)"
+      style="padding:3px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;outline:none;background:var(--white)">
+      <option value="" ${!o.criterium?'selected':''}>—</option>
+      <option value="Vast" ${o.criterium==='Vast'?'selected':''}>Vast</option>
+      <option value="Los" ${o.criterium==='Los'?'selected':''}>Los</option>
+    </select>`;
+    return `<tr style="${rowBg}">
+      <td style="padding:8px 14px;font-size:13px;font-weight:500">${o.naam||'—'}</td>
+      <td style="padding:8px 14px;font-family:monospace;font-size:12px;color:var(--blue)">${o.artikelnr||'—'}</td>
+      <td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600;color:var(--blue)">${o.verkoop!=null?'\u20ac\u00a0'+o.verkoop.toFixed(2):'—'}</td>
+      <td style="padding:8px 14px;text-align:center">
+        <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+          ${kleurKnop('yellow')}${kleurKnop('blue')}${kleurKnop('')}
+        </div>
+      </td>
+      <td style="padding:8px 14px;text-align:center">${critHtml}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div data-blok="${nr}" style="background:var(--white);border:0.5px solid var(--gray-border);border-radius:10px;margin-bottom:14px;overflow:hidden">
     <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:0.5px solid var(--gray-border);background:var(--gray-bg)">
       <span style="background:var(--blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0">${nr}</span>
       <strong style="font-size:14px;flex:1">${naam}</strong>
       <span style="font-size:12px;color:var(--gray-text)">${opties.length} optie${opties.length!==1?'s':''}</span>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <thead><tr style="background:#fafafa">
-        <th style="padding:7px 12px;font-weight:500;color:var(--gray-text);font-size:12px">Omschrijving</th>
-        <th style="padding:7px 12px;font-weight:500;color:var(--gray-text);font-size:12px">Artikelnr.</th>
-        <th style="padding:7px 12px;text-align:right;font-weight:500;color:var(--blue);font-size:12px">Verkoopadvies</th>
-        <th style="padding:7px 12px;text-align:center;font-weight:500;color:var(--gray-text);font-size:12px">Kleur</th>
-        <th style="padding:7px 12px;text-align:center;font-weight:500;color:var(--gray-text);font-size:12px">Criterium</th>
+      <thead><tr style="background:#fafafa;border-bottom:0.5px solid var(--gray-border)">
+        <th style="padding:8px 14px;font-weight:600;font-size:12px;color:var(--gray-text);min-width:260px">Omschrijving</th>
+        <th style="padding:8px 14px;font-weight:600;font-size:12px;color:var(--gray-text);min-width:120px">Artikelnr.</th>
+        <th style="padding:8px 14px;text-align:right;font-weight:600;font-size:12px;color:var(--blue);min-width:120px">Verkoopadvies</th>
+        <th style="padding:8px 14px;text-align:center;font-weight:600;font-size:12px;color:var(--gray-text);min-width:110px">Kleur</th>
+        <th style="padding:8px 14px;text-align:center;font-weight:600;font-size:12px;color:var(--gray-text);min-width:110px">Criterium</th>
       </tr></thead>
-      <tbody>${opties.map(o=>{
-        const kl=o.kleur==='yellow'?'<span style="display:inline-block;width:14px;height:14px;background:#FDE68A;border:1px solid #D97706;border-radius:2px"></span>':o.kleur==='blue'?'<span style="display:inline-block;width:14px;height:14px;background:#BFDBFE;border:1px solid #185FA5;border-radius:2px"></span>':'--';
-        const cr=o.criterium?`<span style="padding:1px 7px;border-radius:20px;font-size:11px;${o.criterium==='Vast'?'background:#FEF9C3;color:#854D0E':'background:#DBEAFE;color:#1e40af'}">${o.criterium}</span>`:'--';
-        return `<tr><td style="padding:8px 12px">${o.naam||'--'}</td><td style="padding:8px 12px;font-family:monospace;font-size:12px;color:var(--blue)">${o.artikelnr||'--'}</td><td style="padding:8px 12px;text-align:right;font-weight:600;color:var(--blue)">${o.verkoop!=null?'\u20ac '+o.verkoop.toFixed(2):'--'}</td><td style="padding:8px 12px;text-align:center">${kl}</td><td style="padding:8px 12px;text-align:center">${cr}</td></tr>`;
-      }).join('')}</tbody>
+      <tbody id="plblok-${nr}">${rijHtml}</tbody>
     </table>
   </div>`;
 }
+
+// Opslag van prijslijst aanpassingen (kleur/criterium) per merk
+let plAanpassingen = {}; // { merkId: { blokNr: [ {kleur, criterium} ] } }
+
+async function laadPlAanpassingen(merkId){
+  if(!plAanpassingen[merkId]){
+    try {
+      const snap = await getDocs(collection(db,'pl_aanpassingen'));
+      snap.docs.forEach(d=>{ plAanpassingen[d.id] = d.data().blokken||{}; });
+    } catch(e){}
+    if(!plAanpassingen[merkId]) plAanpassingen[merkId]={};
+  }
+}
+
+// Pas opties aan met opgeslagen aanpassingen
+function pasPlAanpassingenToe(merkId, nr, opties){
+  const aanp = plAanpassingen[merkId]?.[nr]||[];
+  return opties.map((o,i)=>({...o, ...(aanp[i]||{})}));
+}
+
+window.plWijzigKleur = async function(nr, ri, kleur){
+  const merkId = plHuidigMerk;
+  if(!plAanpassingen[merkId]) plAanpassingen[merkId]={};
+  if(!plAanpassingen[merkId][nr]) plAanpassingen[merkId][nr]=[];
+  if(!plAanpassingen[merkId][nr][ri]) plAanpassingen[merkId][nr][ri]={};
+  plAanpassingen[merkId][nr][ri].kleur = kleur;
+  await setDoc(doc(db,'pl_aanpassingen',merkId),{blokken:plAanpassingen[merkId]});
+  renderPrijslijstNieuw();
+};
+
+window.plWijzigCriterium = async function(nr, ri, criterium){
+  const merkId = plHuidigMerk;
+  if(!plAanpassingen[merkId]) plAanpassingen[merkId]={};
+  if(!plAanpassingen[merkId][nr]) plAanpassingen[merkId][nr]=[];
+  if(!plAanpassingen[merkId][nr][ri]) plAanpassingen[merkId][nr][ri]={};
+  plAanpassingen[merkId][nr][ri].criterium = criterium;
+  await setDoc(doc(db,'pl_aanpassingen',merkId),{blokken:plAanpassingen[merkId]});
+};
 
 window.genereerPrijslijst = async function(){
   plHuidigMerk = plHuidigMerk || document.getElementById('sel-merk-filter')?.value;
