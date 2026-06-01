@@ -4397,7 +4397,8 @@ function renderSbu(){
         const bom=bomData.find(b=>b.sbuId===a.productId);
         if(!bom)return'—';
         const tot=berekenBomTotalen(bom);
-        return tot?'€\u00a0'+tot.unitTotaal.toFixed(2):'—';
+        if(!tot)return'—';
+        return '€\u00a0'+Math.ceil(tot.unitTotaal).toLocaleString('nl-NL');
       })()}</td>
       <td style="font-size:13px">${a.name||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.defaultVendor||'—'}</td>
