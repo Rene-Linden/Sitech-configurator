@@ -222,10 +222,7 @@ tr.row-selected td{background:var(--blue-light)}
         <div class="panel-sub">Per merk automatisch opgebouwd vanuit Basis Configuratie (blok 1) en SBU Configurator (overige blokken).</div>
 
         <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <select id="sel-merk-filter" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px">
-            <option value="">— Selecteer merk —</option>
-          </select>
-          <button class="btn btn-blue" onclick="genereerPrijslijst()">↻ Prijslijst genereren</button>
+          <button class="btn btn-blue" onclick="genereerPrijslijst()">↻ Prijslijst vernieuwen</button>
           <button class="btn" id="btn-pdf-download" style="border-color:rgba(133,79,11,.3);color:var(--amber);background:var(--amber-light)">PDF downloaden</button>
           <span id="pl-status" style="font-size:13px;color:var(--gray-text)"></span>
         </div>
@@ -1324,8 +1321,11 @@ window.showPanel = function(name,el){
   document.getElementById('panel-'+name).classList.add('active');
   if(el) el.classList.add('active');
   if(name==='prijslijsten'){
-    renderMerkFilterOpties();
-    renderPrijslijst();
+    if(!plHuidigMerk && merken.length){
+      plHuidigMerk = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||''))[0].id;
+    }
+    vulMerkSelectorPL();
+    renderPrijslijstNieuw();
   }
   if(name==='aanvragen'){ renderFilterMerkAanvragen(); renderAanvragen(); }
   if(name==='assemblage'){
@@ -1549,26 +1549,17 @@ function renderPrijslijst(){
 let plHuidigMerk = null;
 
 function vulMerkSelectorPL(){
-  const sel = document.getElementById('sel-merk-filter');
-  if(!sel) return;
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">— Selecteer merk —</option>' +
-    [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||'')).map(m=>`<option value="${m.id}">${m.naam||m.id}</option>`).join('');
-  if(cur) sel.value = cur;
   const tabs = document.getElementById('pl-merk-tabs');
-  if(tabs){
-    tabs.innerHTML = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||'')).map(m=>`
-      <button onclick="plSelecteerMerk('${m.id}')"
-        style="padding:7px 16px;border-radius:20px;border:0.5px solid ${plHuidigMerk===m.id?'var(--blue)':'var(--gray-border)'};background:${plHuidigMerk===m.id?'var(--blue)':'var(--white)'};color:${plHuidigMerk===m.id?'#fff':'#1a1a1a'};font-size:13px;cursor:pointer">
-        ${m.naam||m.id}
-      </button>`).join('');
-  }
+  if(!tabs) return;
+  tabs.innerHTML = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||'')).map(m=>`
+    <button onclick="plSelecteerMerk('${m.id}')"
+      style="padding:7px 16px;border-radius:20px;border:0.5px solid ${plHuidigMerk===m.id?'var(--blue)':'var(--gray-border)'};background:${plHuidigMerk===m.id?'var(--blue)':'var(--white)'};color:${plHuidigMerk===m.id?'#fff':'#1a1a1a'};font-size:13px;cursor:pointer;font-weight:${plHuidigMerk===m.id?'500':'400'}">
+      ${m.naam||m.id}
+    </button>`).join('');
 }
 
 window.plSelecteerMerk = function(id){
   plHuidigMerk = id;
-  const sel = document.getElementById('sel-merk-filter');
-  if(sel) sel.value = id;
   vulMerkSelectorPL();
   renderPrijslijstNieuw();
 };
@@ -1595,7 +1586,7 @@ async function laadPlData(){
 async function renderPrijslijstNieuw(){
   const container = document.getElementById('prijslijst-editor');
   if(!container) return;
-  const merkId = plHuidigMerk || document.getElementById('sel-merk-filter')?.value;
+  const merkId = plHuidigMerk;
   if(!merkId){ container.innerHTML='<div style="color:var(--gray-text);padding:1rem">Selecteer een merk.</div>'; return; }
   container.innerHTML='<div style="color:var(--gray-text);padding:1rem">Laden\u2026</div>';
 
@@ -1744,11 +1735,12 @@ window.plWijzigCriterium = async function(nr, ri, criterium){
 };
 
 window.genereerPrijslijst = async function(){
-  plHuidigMerk = plHuidigMerk || document.getElementById('sel-merk-filter')?.value;
-  if(!plHuidigMerk){ alert('Selecteer eerst een merk'); return; }
+  if(!plHuidigMerk && merken.length){
+    plHuidigMerk = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||''))[0].id;
+  }
+  if(!plHuidigMerk){ alert('Geen merken beschikbaar'); return; }
   const status = document.getElementById('pl-status');
   status.textContent='Genereren\u2026';
-  // Reset data voor verse laad
   bomData=[];
   artikelen=[];
   Object.keys(sbuConfigData).forEach(k=>delete sbuConfigData[k]);
@@ -1759,16 +1751,11 @@ window.genereerPrijslijst = async function(){
   setTimeout(()=>status.textContent='',3000);
 };
 
-document.getElementById('sel-merk-filter').addEventListener('change',()=>{
-  plHuidigMerk = document.getElementById('sel-merk-filter').value;
-  vulMerkSelectorPL();
-  renderPrijslijstNieuw();
-});
 document.getElementById('filter-merk-aanvragen').addEventListener('change', ()=>renderAanvragen());
 document.getElementById('filter-periode').addEventListener('change', ()=>renderAanvragen());
 
 document.getElementById('btn-pdf-download').addEventListener('click', ()=>{
-  const merkId = plHuidigMerk||document.getElementById('sel-merk-filter').value;
+  const merkId = plHuidigMerk;
   if(!merkId){ alert('Selecteer eerst een merk'); return; }
   const merk = merken.find(m=>m.id===merkId);
   const datum = new Date().toLocaleDateString('nl-NL');
