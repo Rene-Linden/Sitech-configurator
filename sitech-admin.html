@@ -1301,6 +1301,14 @@ function startListeners(){
   // Artikelen: niet als live listener (te grote collectie), laden bij paneel openen
   // startArtikelTemplatesListener
   startArtikelTemplatesListener();
+
+  // SBU configuratie en blokken persistent laden bij opstarten
+  getDocs(collection(db,'sbu_config')).then(snap=>{
+    snap.docs.forEach(d=>{ sbuConfigData[d.id]=d.data(); });
+  });
+  getDocs(collection(db,'blok_namen')).then(snap=>{
+    snap.docs.forEach(d=>{ blokNamen[d.id]=d.data().naam||''; });
+  });
 }
 
 function showSaving(msg='Opgeslagen'){
