@@ -1522,8 +1522,12 @@ const ARTIKEL_VAR_VELDEN = [
 
 function vulTemplateSelector(){
   const sel = document.getElementById('sel-template-filter');
-  sel.innerHTML = '<option value="">— Selecteer template —</option>' +
-    ARTIKEL_TEMPLATES.map(t=>`<option value="${t.id}">${t.naam} — ${t.omschrijving.substring(0,40)}</option>`).join('');
+  const cur = sel.value;
+  const artikelTemplates = ARTIKEL_TEMPLATES.filter(t=>t.isArtikel);
+  sel.innerHTML =
+    '<option value="">— Alle artikelen —</option>' +
+    artikelTemplates.map(t=>`<option value="${t.id}">${t.naam} — ${t.omschrijving.substring(0,40)}</option>`).join('');
+  if(cur && artikelTemplates.find(t=>t.id===cur)) sel.value = cur;
 }
 
 document.getElementById('sel-template-filter').addEventListener('change', ()=>{
@@ -1536,6 +1540,7 @@ function toonTemplateInfo(){
   const card = document.getElementById('template-info-card');
   if(!tid){ card.style.display='none'; return; }
   const t = ARTIKEL_TEMPLATES.find(x=>x.id===tid);
+  if(!t){ card.style.display='none'; return; }
   card.style.display='block';
   document.getElementById('template-info-naam').textContent = `${t.naam} — ${t.omschrijving}`;
   const vasteVelden = [
@@ -1553,10 +1558,12 @@ let artikelFilterState = { productId:'', name:'', vendor:'', vendorId:'', group:
 
 function getGefilterdeArtikelen(){
   const tid = document.getElementById('sel-template-filter').value;
-  if(!tid) return [];
   const s = artikelFilterState;
+  // Geen template geselecteerd = alle artikelen van templates met isArtikel=true
+  const artikelTemplateIds = new Set(ARTIKEL_TEMPLATES.filter(t=>t.isArtikel).map(t=>t.id));
   return artikelen.filter(a=>{
-    if(a.templateId!==tid) return false;
+    if(tid){ if(a.templateId!==tid) return false; }
+    else    { if(!artikelTemplateIds.has(a.templateId)) return false; }
     if(s.productId && !(a.productId||'').toLowerCase().includes(s.productId))     return false;
     if(s.name     && !(a.name||'').toLowerCase().includes(s.name))                 return false;
     if(s.vendor   && (a.defaultVendor||'')!==s.vendor)                             return false;
@@ -1626,14 +1633,12 @@ function renderArtikelen(){
   const tid = document.getElementById('sel-template-filter').value;
   const thead = document.getElementById('tbl-artikelen-head');
   const tbody = document.getElementById('tbl-artikelen-body');
-  if(!tid){
-    thead.innerHTML='';
-    tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr>';
-    document.getElementById('filter-artikel-count').textContent='';
-    return;
-  }
+  if(!thead || !tbody) return;
 
-  const all = artikelen.filter(a=>a.templateId===tid);
+  const artikelTemplateIds = new Set(ARTIKEL_TEMPLATES.filter(t=>t.isArtikel).map(t=>t.id));
+  const all = tid
+    ? artikelen.filter(a=>a.templateId===tid)
+    : artikelen.filter(a=>artikelTemplateIds.has(a.templateId));
   const gefilterd = getGefilterdeArtikelen();
   const t = ARTIKEL_TEMPLATES.find(x=>x.id===tid) || {};
 
