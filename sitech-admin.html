@@ -645,6 +645,7 @@ tr.row-selected td{background:var(--blue-light)}
           <table style="border-collapse:collapse;font-size:13px;width:100%">
             <thead style="background:var(--gray-bg)">
               <tr>
+                <th style="padding:10px 14px;min-width:80px;text-align:center">Volgorde</th>
                 <th style="padding:10px 14px;min-width:80px;text-align:center">Blok nr.</th>
                 <th style="padding:10px 14px;min-width:260px">Naam</th>
                 <th style="padding:10px 14px;min-width:80px;text-align:center">SBU's</th>
@@ -1607,7 +1608,14 @@ async function renderPrijslijstNieuw(){
     if(!blokMap[nr]) blokMap[nr]=[];
     blokMap[nr].push(sbuId);
   });
-  const blokNrs = Object.keys(blokMap).sort((a,b)=>parseInt(a)-parseInt(b));
+  // Bepaal blok-volgorde — gebruik blokVolgorde als beschikbaar, anders numeriek
+  let volgordeSnap;
+  if(!blokVolgorde.length){
+    try { volgordeSnap = await getDocs(collection(db,'blok_volgorde')); const v=volgordeSnap.docs[0]; if(v) blokVolgorde=v.data().volgorde||[]; } catch(e){}
+  }
+  const alleBlokNrs = Object.keys(blokMap).filter(nr=>nr!=='1');
+  const gesorteerdeBlokNrs = blokVolgorde.filter(nr=>alleBlokNrs.includes(nr));
+  alleBlokNrs.forEach(nr=>{ if(!gesorteerdeBlokNrs.includes(nr)) gesorteerdeBlokNrs.push(nr); });
 
   let html = '';
 
@@ -1627,9 +1635,8 @@ async function renderPrijslijstNieuw(){
     html += renderPlBlok('1','Basis Configuratie',opties1);
   }
 
-  // Overige blokken
-  blokNrs.forEach(nr=>{
-    if(nr==='1') return;
+  // Overige blokken in de ingestelde volgorde
+  gesorteerdeBlokNrs.forEach(nr=>{
     const naam = blokNamen[nr]||`Blok ${nr}`;
     let opties = blokMap[nr].map(sbuId=>{
       const bom = bomData.find(b=>b.sbuId===sbuId);
@@ -3789,11 +3796,11 @@ window.bcRijVerwijderen = async function(ri){
 let blokNamen = {}; // { '1': 'Basis Configuratie', '2': 'Display', ... }
 
 async function loadBlokken(){
-  // Laad namen
-  const [namenSnap, configSnap, bomSnap] = await Promise.all([
+  const [namenSnap, configSnap, bomSnap, volgordeSnap] = await Promise.all([
     getDocs(collection(db,'blok_namen')),
     getDocs(collection(db,'sbu_config')),
     getDocs(collection(db,'bom_sbu')),
+    getDocs(collection(db,'blok_volgorde')),
   ]);
   blokNamen = {};
   namenSnap.docs.forEach(d=>{ blokNamen[d.id] = d.data().naam||''; });
@@ -3803,36 +3810,63 @@ async function loadBlokken(){
   if(!bomData.length){
     bomData = bomSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
   }
+  // Laad volgorde
+  const vol0 = volgordeSnap.docs[0];
+  blokVolgorde = vol0 ? vol0.data().volgorde||[] : [];
   renderBlokken();
+}
+
+// Volgorde van blokken — apart opgeslagen in Firestore als array van bloknummers
+let blokVolgorde = []; // ['2','1','3',...] — volgorde zoals de gebruiker wil
+
+async function laadBlokVolgorde(){
+  try {
+    const snap = await getDocs(collection(db,'blok_volgorde'));
+    const doc0 = snap.docs[0];
+    if(doc0) blokVolgorde = doc0.data().volgorde||[];
+  } catch(e){}
+}
+
+async function slaBlokVolgordeOp(){
+  await setDoc(doc(db,'blok_volgorde','volgorde'), { volgorde: blokVolgorde });
+}
+
+function getGesorteerdeBloknummers(){
+  // Verzamel alle unieke bloknummers
+  const blokTelling = {};
+  Object.entries(sbuConfigData).forEach(([sbuId,cfg])=>{
+    const nr=cfg.blok; if(nr){ if(!blokTelling[nr]) blokTelling[nr]=[]; blokTelling[nr].push(sbuId); }
+  });
+  Object.keys(blokNamen).forEach(nr=>{ if(!blokTelling[nr]) blokTelling[nr]=[]; });
+  const alleNrs = [...new Set([...Object.keys(blokTelling)])];
+
+  // Gebruik blokVolgorde als basis, voeg nieuwe blokken toe aan het einde
+  const gesorteerd = blokVolgorde.filter(nr=>alleNrs.includes(nr));
+  alleNrs.forEach(nr=>{ if(!gesorteerd.includes(nr)) gesorteerd.push(nr); });
+  return { gesorteerd, blokTelling };
 }
 
 function renderBlokken(){
   const tbody = document.getElementById('tbl-blokken-body');
   if(!tbody) return;
 
-  // Verzamel alle unieke bloknummers uit sbuConfigData
-  const blokTelling = {}; // blokNr -> [sbuIds]
-  Object.entries(sbuConfigData).forEach(([sbuId, cfg])=>{
-    const nr = cfg.blok;
-    if(nr){ if(!blokTelling[nr]) blokTelling[nr]=[]; blokTelling[nr].push(sbuId); }
-  });
+  const { gesorteerd, blokTelling } = getGesorteerdeBloknummers();
 
-  // Sorteer op bloknummer
-  const nummers = Object.keys(blokTelling).sort((a,b)=>parseInt(a)-parseInt(b));
-
-  // Voeg ook blokken toe die alleen een naam hebben maar geen SBU's
-  Object.keys(blokNamen).forEach(nr=>{ if(!blokTelling[nr]) blokTelling[nr]=[]; nummers.includes(nr)||nummers.push(nr); });
-  nummers.sort((a,b)=>parseInt(a)-parseInt(b));
-
-  if(!nummers.length){
-    tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen blokken gevonden. Voeg blokken toe via de SBU Configurator of maak een nieuw blok aan.</td></tr>';
+  if(!gesorteerd.length){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen blokken gevonden. Voeg blokken toe via de SBU Configurator of maak een nieuw blok aan.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = nummers.map(nr=>{
+  tbody.innerHTML = gesorteerd.map((nr,idx)=>{
     const naam = blokNamen[nr]||'';
     const sbus = blokTelling[nr]||[];
+    const isEerste = idx===0;
+    const isLaatste = idx===gesorteerd.length-1;
     return `<tr>
+      <td style="padding:8px 10px;text-align:center;white-space:nowrap">
+        <button class="btn btn-sm" onclick="blokOmhoog(${idx})" ${isEerste?'disabled':''} style="padding:3px 7px;font-size:13px" title="Omhoog">↑</button>
+        <button class="btn btn-sm" onclick="blokOmlaag(${idx})" ${isLaatste?'disabled':''} style="padding:3px 7px;font-size:13px;margin-left:3px" title="Omlaag">↓</button>
+      </td>
       <td style="padding:10px 14px;text-align:center;font-weight:600;font-size:15px;color:var(--blue)">${nr}</td>
       <td style="padding:10px 14px;font-size:13px">${naam||`<span style="color:var(--gray-text);font-style:italic">Geen naam</span>`}</td>
       <td style="padding:10px 14px;text-align:center;font-size:12px;color:var(--gray-text)">${sbus.length}</td>
@@ -3843,6 +3877,26 @@ function renderBlokken(){
     </tr>`;
   }).join('');
 }
+
+window.blokOmhoog = async function(idx){
+  const { gesorteerd } = getGesorteerdeBloknummers();
+  if(idx<=0) return;
+  [gesorteerd[idx-1], gesorteerd[idx]] = [gesorteerd[idx], gesorteerd[idx-1]];
+  blokVolgorde = gesorteerd;
+  await slaBlokVolgordeOp();
+  renderBlokken();
+  showSaving('Volgorde opgeslagen');
+};
+
+window.blokOmlaag = async function(idx){
+  const { gesorteerd } = getGesorteerdeBloknummers();
+  if(idx>=gesorteerd.length-1) return;
+  [gesorteerd[idx], gesorteerd[idx+1]] = [gesorteerd[idx+1], gesorteerd[idx]];
+  blokVolgorde = gesorteerd;
+  await slaBlokVolgordeOp();
+  renderBlokken();
+  showSaving('Volgorde opgeslagen');
+};
 
 window.blokNieuw = function(){
   // Bepaal eerst vrij bloknummer
