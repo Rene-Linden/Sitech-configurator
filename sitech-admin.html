@@ -617,7 +617,8 @@ tr.row-selected td{background:var(--blue-light)}
         <div class="panel-sub">Geef per SBU en per merk aan of de SBU beschikbaar is in de configurator. Klik op een cel om te wijzigen.</div>
 
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-          <button class="btn btn-blue" onclick="saveSbuConfig()">Wijzigingen opslaan</button>
+          <span style="font-size:12px;color:var(--green)">✓ Wijzigingen worden automatisch opgeslagen</span>
+          <button class="btn btn-sm" onclick="saveSbuConfig()" style="color:var(--gray-text)">Alles opslaan</button>
           <span id="sbu-config-status" style="font-size:13px;color:var(--gray-text)"></span>
         </div>
 
@@ -4024,12 +4025,14 @@ function renderSbuConfig(){
   `<tr><td colspan="${4+merkLijst.length}" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen SBU data — upload eerst BoM SBU</td></tr>`;
 }
 
-window.sbuConfigToggle = function(sbuId, merkId){
+window.sbuConfigToggle = async function(sbuId, merkId){
   if(!sbuConfigData[sbuId]) sbuConfigData[sbuId] = { blok:'', merken:{} };
   if(!sbuConfigData[sbuId].merken) sbuConfigData[sbuId].merken = {};
   const huidig = sbuId in sbuConfigData && merkId in sbuConfigData[sbuId].merken
     ? sbuConfigData[sbuId].merken[merkId] : true;
   sbuConfigData[sbuId].merken[merkId] = !huidig;
+  // Direct opslaan naar Firestore
+  await setDoc(doc(db,'sbu_config',sbuId), sbuConfigData[sbuId]);
   // Update knop direct zonder full re-render
   const btn = document.querySelector(`button[data-sbu="${sbuId}"][data-merk="${merkId}"]`);
   if(btn){
@@ -4041,15 +4044,17 @@ window.sbuConfigToggle = function(sbuId, merkId){
   }
 };
 
-window.sbuConfigWijzig = function(sbuId, field, value){
+window.sbuConfigWijzig = async function(sbuId, field, value){
   if(!sbuConfigData[sbuId]) sbuConfigData[sbuId] = { blok:'', merken:{} };
   sbuConfigData[sbuId][field] = value;
+  // Direct opslaan naar Firestore
+  await setDoc(doc(db,'sbu_config',sbuId), sbuConfigData[sbuId]);
 };
 
 window.saveSbuConfig = async function(){
+  // Handmatig alles opslaan als backup (bijv. na bulk-import)
   const status = document.getElementById('sbu-config-status');
-  status.textContent = 'Opslaan…';
-  // Batch schrijf alle config records
+  status.textContent = 'Alles opslaan…';
   const BATCH_SIZE = 500;
   const entries = Object.entries(sbuConfigData);
   for(let i=0; i<entries.length; i+=BATCH_SIZE){
