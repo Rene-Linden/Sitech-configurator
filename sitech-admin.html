@@ -348,6 +348,8 @@ tr.row-selected td{background:var(--blue-light)}
                 <th style="min-width:80px;text-align:center">Welding (u)</th>
                 <th style="min-width:80px;text-align:center">Mounting (u)</th>
                 <th style="min-width:90px;text-align:center">Calibration (u)</th>
+                <th style="min-width:120px;text-align:right;color:var(--blue)">Totaal Std.</th>
+                <th style="min-width:120px;text-align:right;color:var(--green)">Totaal Unit</th>
                 <th style="min-width:120px"></th>
               </tr>
             </thead>
@@ -437,6 +439,8 @@ tr.row-selected td{background:var(--blue-light)}
                 <th style="min-width:80px;text-align:center">Welding (u)</th>
                 <th style="min-width:80px;text-align:center">Mounting (u)</th>
                 <th style="min-width:90px;text-align:center">Calibration (u)</th>
+                <th style="min-width:120px;text-align:right;color:var(--blue)">Totaal Std.</th>
+                <th style="min-width:120px;text-align:right;color:var(--green)">Totaal Unit</th>
                 <th style="min-width:120px"></th>
               </tr>
             </thead>
@@ -2519,20 +2523,35 @@ function vulBomZoekSelector(){
 function renderBomTabel(){
   const tbody = document.getElementById('tbl-bom-body');
   if(!tbody) return;
-  tbody.innerHTML = bomData.map(b=>`<tr>
-    <td><strong style="font-size:13px">${b.sbuId}</strong></td>
-    <td style="font-size:13px">${b.naam}</td>
-    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${(b.artikelen||[]).length}</td>
-    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.welding||'—'}</td>
-    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.mounting||'—'}</td>
-    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.calibration||'—'}</td>
-    <td style="text-align:right;white-space:nowrap">
-      <button class="btn btn-sm" onclick="openBomDetailById('${b.id}')">Stuklijst</button>
-      <button class="btn btn-sm" style="margin-left:4px" onclick="openBomBewerken('${b.id}')">Bewerken</button>
-      <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteBom('${b.id}')">Verwijderen</button>
-    </td>
-  </tr>`).join('') ||
-  '<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM data — upload een Excel of voeg handmatig toe</td></tr>';
+  tbody.innerHTML = bomData.map(b=>{
+    // Bereken totalen uit stuklijst
+    let totStandard=0, totUnit=0;
+    (b.artikelen||[]).forEach(a=>{
+      const art = getArtikelByProductId(a.artikelId);
+      if(!art) return;
+      const stdCost = parseFloat(art.standardCost||0);
+      const unitPrice = berekenUnitPrice(art);
+      const aantal = parseFloat(a.aantal||0);
+      if(stdCost && aantal) totStandard += stdCost*aantal;
+      if(unitPrice && aantal) totUnit += unitPrice*aantal;
+    });
+    return `<tr>
+      <td><strong style="font-size:13px">${b.sbuId}</strong></td>
+      <td style="font-size:13px">${b.naam}</td>
+      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${(b.artikelen||[]).length}</td>
+      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.welding||'—'}</td>
+      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.mounting||'—'}</td>
+      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.calibration||'—'}</td>
+      <td style="text-align:right;font-size:12px;font-weight:500;color:var(--blue)">${totStandard>0?'€\u00a0'+totStandard.toFixed(2):'—'}</td>
+      <td style="text-align:right;font-size:12px;font-weight:500;color:var(--green)">${totUnit>0?'€\u00a0'+totUnit.toFixed(2):'—'}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-sm" onclick="openBomDetailById('${b.id}')">Stuklijst</button>
+        <button class="btn btn-sm" style="margin-left:4px" onclick="openBomBewerken('${b.id}')">Bewerken</button>
+        <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteBom('${b.id}')">Verwijderen</button>
+      </td>
+    </tr>`;
+  }).join('') ||
+  '<tr><td colspan="9" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM data — upload een Excel of voeg handmatig toe</td></tr>';
 }
 
 window.openBomDetail = function(){
@@ -2805,21 +2824,35 @@ function vulBomEwvZoekSelector(){
 function renderBomEwvTabel(){
   const tbody = document.getElementById('tbl-bom-ewv-body');
   if(!tbody) return;
-  tbody.innerHTML = bomEwvData.map(b=>`<tr>
-    <td><strong style="font-size:13px">${b.sbuId}</strong></td>
-    <td style="font-size:13px">${b.naam}</td>
-    <td style="font-size:12px;color:var(--gray-text)">${b.oudNaam||'—'}</td>
-    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${(b.artikelen||[]).length}</td>
-    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.welding||'—'}</td>
-    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.mounting||'—'}</td>
-    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.calibration||'—'}</td>
-    <td style="text-align:right;white-space:nowrap">
-      <button class="btn btn-sm" onclick="openBomEwvDetailById('${b.id}')">Stuklijst</button>
-      <button class="btn btn-sm" style="margin-left:4px" onclick="openBomEwvBewerken('${b.id}')">Bewerken</button>
-      <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteBomEwv('${b.id}')">Verwijderen</button>
-    </td>
-  </tr>`).join('') ||
-  '<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM EWV data — upload een Excel of voeg handmatig toe</td></tr>';
+  tbody.innerHTML = bomEwvData.map(b=>{
+    let totStandard=0, totUnit=0;
+    (b.artikelen||[]).forEach(a=>{
+      const art = getArtikelByProductId(a.artikelId);
+      if(!art) return;
+      const stdCost = parseFloat(art.standardCost||0);
+      const unitPrice = berekenUnitPrice(art);
+      const aantal = parseFloat(a.aantal||0);
+      if(stdCost && aantal) totStandard += stdCost*aantal;
+      if(unitPrice && aantal) totUnit += unitPrice*aantal;
+    });
+    return `<tr>
+      <td><strong style="font-size:13px">${b.sbuId}</strong></td>
+      <td style="font-size:13px">${b.naam}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${b.oudNaam||'—'}</td>
+      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${(b.artikelen||[]).length}</td>
+      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.welding||'—'}</td>
+      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.mounting||'—'}</td>
+      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.calibration||'—'}</td>
+      <td style="text-align:right;font-size:12px;font-weight:500;color:var(--blue)">${totStandard>0?'\u20ac\u00a0'+totStandard.toFixed(2):'—'}</td>
+      <td style="text-align:right;font-size:12px;font-weight:500;color:var(--green)">${totUnit>0?'\u20ac\u00a0'+totUnit.toFixed(2):'—'}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-sm" onclick="openBomEwvDetailById('${b.id}')">Stuklijst</button>
+        <button class="btn btn-sm" style="margin-left:4px" onclick="openBomEwvBewerken('${b.id}')">Bewerken</button>
+        <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteBomEwv('${b.id}')">Verwijderen</button>
+      </td>
+    </tr>`;
+  }).join('') ||
+  '<tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM EWV data — upload een Excel of voeg handmatig toe</td></tr>';
 }
 
 window.openBomEwvDetail = function(){
