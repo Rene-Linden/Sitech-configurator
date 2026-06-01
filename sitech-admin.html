@@ -140,6 +140,7 @@ tr.row-selected td{background:var(--blue-light)}
         <a class="nav-item" onclick="showPanel('sbu',this)">SBU</a>
         <a class="nav-item" onclick="showPanel('bom-ewv',this)">BoM EWV</a>
         <a class="nav-item" onclick="showPanel('ewv',this)">EWV</a>
+      <a class="nav-item" onclick="showPanel('sbu-config',this)">SBU Configurator</a>
         <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
         <a class="nav-item" onclick="showPanel('prijslijsten',this)">Prijslijsten</a>
         <a class="nav-item" onclick="showPanel('aanvragen',this)">Aanvragen</a>
@@ -521,6 +522,28 @@ tr.row-selected td{background:var(--blue-light)}
             <thead id="tbl-ewv-head" style="position:sticky;top:0;z-index:20"></thead>
             <tbody id="tbl-ewv-body"><tr><td colspan="25" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- SBU CONFIGURATOR PANEL -->
+      <div class="panel" id="panel-sbu-config">
+        <div class="panel-title">SBU Configurator</div>
+        <div class="panel-sub">Geef per SBU en per merk aan of de SBU beschikbaar is in de configurator. Klik op een cel om te wijzigen.</div>
+
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <button class="btn btn-blue" onclick="saveSbuConfig()">Wijzigingen opslaan</button>
+          <span id="sbu-config-status" style="font-size:13px;color:var(--gray-text)"></span>
+        </div>
+
+        <div class="card" style="overflow:hidden">
+          <div style="overflow-x:auto">
+            <table id="tbl-sbu-config" style="border-collapse:collapse;font-size:13px">
+              <thead id="tbl-sbu-config-head" style="position:sticky;top:0;z-index:10;background:var(--gray-bg)"></thead>
+              <tbody id="tbl-sbu-config-body">
+                <tr><td colspan="4" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -1087,6 +1110,7 @@ window.showPanel = function(name,el){
       renderSbu();
     });
   }
+  if(name==='sbu-config'){ loadSbuConfig(); }
   if(name==='resources'){ loadResources(); }
   if(name==='bom-ewv'){ loadBomEwvData(); }
   if(name==='ewv'){
@@ -3594,6 +3618,119 @@ window.saveResources = async function(){
   status.textContent = '✓ Opgeslagen';
   setTimeout(()=>status.textContent='', 3000);
   showSaving('Resources opgeslagen');
+};
+
+// ============================================================
+// SBU CONFIGURATOR MODULE
+// ============================================================
+let sbuConfigData = {}; // { sbuId: { blok: '1', merken: { merkId: true/false } } }
+
+async function loadSbuConfig(){
+  // Laad alle benodigde data parallel
+  const [bomSnap, merkenSnap, configSnap] = await Promise.all([
+    getDocs(collection(db,'bom_sbu')),
+    getDocs(collection(db,'merken')),
+    getDocs(collection(db,'sbu_config')),
+  ]);
+
+  // Zorg dat bomData beschikbaar is
+  if(!bomData.length){
+    bomData = bomSnap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+  }
+
+  // Zorg dat merken beschikbaar zijn
+  if(!merken.length){
+    merken = merkenSnap.docs.map(d=>({id:d.id,...d.data()}));
+  }
+
+  // Laad opgeslagen configuratie
+  sbuConfigData = {};
+  configSnap.docs.forEach(d=>{ sbuConfigData[d.id] = d.data(); });
+
+  renderSbuConfig();
+}
+
+function renderSbuConfig(){
+  const thead = document.getElementById('tbl-sbu-config-head');
+  const tbody = document.getElementById('tbl-sbu-config-body');
+  if(!thead||!tbody) return;
+
+  const merkLijst = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||''));
+
+  // Header: SBU | Blok | merk1 | merk2 | ...
+  thead.innerHTML = `<tr>
+    <th style="min-width:120px;padding:8px 12px">SBU</th>
+    <th style="min-width:220px;padding:8px 12px">Naam</th>
+    <th style="min-width:80px;padding:8px 12px;text-align:center">Blok</th>
+    ${merkLijst.map(m=>`<th style="min-width:120px;padding:8px 12px;text-align:center">${m.naam||m.id}</th>`).join('')}
+  </tr>`;
+
+  tbody.innerHTML = bomData.map(b=>{
+    const cfg = sbuConfigData[b.sbuId] || {};
+    const blok = cfg.blok || '';
+    return `<tr>
+      <td style="padding:8px 12px;font-weight:500;font-size:13px">${b.sbuId}</td>
+      <td style="padding:8px 12px;font-size:12px;color:var(--gray-text)">${b.naam}</td>
+      <td style="padding:6px 12px;text-align:center">
+        <input type="number" value="${blok}" min="1" placeholder="—"
+          data-sbu="${b.sbuId}" data-field="blok"
+          onchange="sbuConfigWijzig('${b.sbuId}','blok',this.value)"
+          style="width:56px;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;text-align:center;outline:none" />
+      </td>
+      ${merkLijst.map(m=>{
+        const actief = cfg.merken && m.id in cfg.merken ? cfg.merken[m.id] : true; // standaard ja
+        return `<td style="padding:6px 12px;text-align:center">
+          <button onclick="sbuConfigToggle('${b.sbuId}','${m.id}')"
+            data-sbu="${b.sbuId}" data-merk="${m.id}"
+            style="width:52px;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:0.5px solid ${actief?'rgba(59,109,17,.3)':'rgba(163,45,45,.3)'};background:${actief?'var(--green-light)':'var(--red-light)'};color:${actief?'var(--green)':'var(--red)'}">
+            ${actief?'Ja':'Nee'}
+          </button>
+        </td>`;
+      }).join('')}
+    </tr>`;
+  }).join('') ||
+  `<tr><td colspan="${3+merkLijst.length}" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen SBU data — upload eerst BoM SBU</td></tr>`;
+}
+
+window.sbuConfigToggle = function(sbuId, merkId){
+  if(!sbuConfigData[sbuId]) sbuConfigData[sbuId] = { blok:'', merken:{} };
+  if(!sbuConfigData[sbuId].merken) sbuConfigData[sbuId].merken = {};
+  const huidig = sbuId in sbuConfigData && merkId in sbuConfigData[sbuId].merken
+    ? sbuConfigData[sbuId].merken[merkId] : true;
+  sbuConfigData[sbuId].merken[merkId] = !huidig;
+  // Update knop direct zonder full re-render
+  const btn = document.querySelector(`button[data-sbu="${sbuId}"][data-merk="${merkId}"]`);
+  if(btn){
+    const actief = sbuConfigData[sbuId].merken[merkId];
+    btn.textContent = actief ? 'Ja' : 'Nee';
+    btn.style.background = actief ? 'var(--green-light)' : 'var(--red-light)';
+    btn.style.color = actief ? 'var(--green)' : 'var(--red)';
+    btn.style.borderColor = actief ? 'rgba(59,109,17,.3)' : 'rgba(163,45,45,.3)';
+  }
+};
+
+window.sbuConfigWijzig = function(sbuId, field, value){
+  if(!sbuConfigData[sbuId]) sbuConfigData[sbuId] = { blok:'', merken:{} };
+  sbuConfigData[sbuId][field] = value;
+};
+
+window.saveSbuConfig = async function(){
+  const status = document.getElementById('sbu-config-status');
+  status.textContent = 'Opslaan…';
+  // Batch schrijf alle config records
+  const BATCH_SIZE = 500;
+  const entries = Object.entries(sbuConfigData);
+  for(let i=0; i<entries.length; i+=BATCH_SIZE){
+    const batch = writeBatch(db);
+    entries.slice(i,i+BATCH_SIZE).forEach(([sbuId, data])=>{
+      batch.set(doc(db,'sbu_config',sbuId), data);
+    });
+    await batch.commit();
+  }
+  status.textContent = '✓ Opgeslagen';
+  setTimeout(()=>status.textContent='', 3000);
+  showSaving('SBU configuratie opgeslagen');
 };
 
 function initStickyScroll(){
