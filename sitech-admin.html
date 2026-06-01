@@ -441,11 +441,7 @@ tr.row-selected td{background:var(--blue-light)}
                 <th style="min-width:280px">Naam</th>
                 <th style="min-width:220px">Oude naam (kolom C)</th>
                 <th style="min-width:80px;text-align:center">Artikelen</th>
-                <th style="min-width:80px;text-align:center">Welding (u)</th>
-                <th style="min-width:80px;text-align:center">Mounting (u)</th>
-                <th style="min-width:90px;text-align:center">Calibration (u)</th>
                 <th style="min-width:120px;text-align:right;color:var(--blue)">Totaal Std.</th>
-                <th style="min-width:120px;text-align:right;color:var(--green)">Totaal Unit</th>
                 <th style="min-width:120px"></th>
               </tr>
             </thead>
@@ -2870,11 +2866,7 @@ function renderBomEwvTabel(){
       <td style="font-size:13px">${b.naam}</td>
       <td style="font-size:12px;color:var(--gray-text)">${b.oudNaam||'—'}</td>
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${(b.artikelen||[]).length}</td>
-      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.welding||'—'}</td>
-      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.mounting||'—'}</td>
-      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.calibration||'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--blue)">${totStandard>0?'\u20ac\u00a0'+totStandard.toFixed(2):'—'}</td>
-      <td style="text-align:right;font-size:12px;color:var(--gray-text)">n.v.t.</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-sm" onclick="openBomEwvDetailById('${b.id}')">Stuklijst</button>
         <button class="btn btn-sm" style="margin-left:4px" onclick="openBomEwvBewerken('${b.id}')">Bewerken</button>
@@ -2882,7 +2874,7 @@ function renderBomEwvTabel(){
       </td>
     </tr>`;
   }).join('') ||
-  '<tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM EWV data — upload een Excel of voeg handmatig toe</td></tr>';
+  '<tr><td colspan="6" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM EWV data — upload een Excel of voeg handmatig toe</td></tr>';
 }
 
 window.openBomEwvDetail = function(){
