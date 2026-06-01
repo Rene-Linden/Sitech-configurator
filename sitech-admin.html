@@ -40,6 +40,7 @@ input,select,textarea{font-family:var(--font)}
 .main{flex:1;overflow-y:auto;overflow-x:hidden;min-width:0;padding:1.5rem}
 .panel{display:none}.panel.active{display:block}
 #panel-artikelen.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
+#panel-sbu.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 .panel-title{font-size:19px;font-weight:500;margin-bottom:4px}
 .panel-sub{font-size:13px;color:var(--gray-text);margin-bottom:1.5rem}
 .card{background:var(--white);border-radius:10px;border:0.5px solid var(--gray-border);margin-bottom:1rem;overflow:hidden}
@@ -131,6 +132,7 @@ tr.row-selected td{background:var(--blue-light)}
     <div class="sidebar">
       <a class="nav-item active" onclick="showPanel('artikel-templates',this)">Artikel Templates</a>
       <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
+      <a class="nav-item" onclick="showPanel('sbu',this)">SBU</a>
       <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
       <a class="nav-item" onclick="showPanel('gebruikers',this)">Gebruikers</a>
       <a class="nav-item" onclick="showPanel('sitech',this)">Sitech medewerkers</a>
@@ -303,6 +305,54 @@ tr.row-selected td{background:var(--blue-light)}
           <table id="tbl-artikelen" style="min-width:4000px;table-layout:auto;border-collapse:collapse">
             <thead id="tbl-artikelen-head" style="position:sticky;top:0;z-index:20"></thead>
             <tbody id="tbl-artikelen-body"><tr><td colspan="30" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SBU PANEL -->
+      <div class="panel" id="panel-sbu" style="flex-direction:column;height:100%;overflow:hidden">
+
+        <!-- Vaste bovenkant -->
+        <div style="padding:1.5rem 1.5rem 0;flex-shrink:0">
+          <div class="panel-title">SBU</div>
+          <div class="panel-sub">Artikelen van templates waarbij SBU is aangevinkt.</div>
+
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <select id="sel-sbu-template" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;min-width:220px"></select>
+            <button class="btn" id="btn-sbu-download" style="border-color:rgba(59,109,17,.3);color:var(--green);background:var(--green-light)">Excel downloaden</button>
+            <span id="sbu-count" style="font-size:13px;color:var(--gray-text)"></span>
+          </div>
+
+          <!-- Selectie toolbar -->
+          <div id="sbu-selectie-bar" style="display:none;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:8px 14px;margin-bottom:8px;align-items:center;gap:10px;font-size:13px;flex-wrap:wrap">
+            <span id="sbu-selectie-count" style="color:var(--blue);font-weight:500"></span>
+            <div style="display:flex;align-items:center;gap:6px;border-right:1px solid rgba(24,95,165,.2);padding-right:10px">
+              <label style="font-size:12px;color:var(--gray-text);white-space:nowrap">Veld aanpassen:</label>
+              <select id="sel-sbu-bulk-kolom" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;min-width:160px">
+                <option value="">— Kies kolom —</option>
+                <option value="manufacturer">Manufacturer</option>
+                <option value="category">Category</option>
+                <option value="model">Model</option>
+                <option value="profitPct">Profit (%)</option>
+                <option value="vendorNo">Vendor No.</option>
+                <option value="reorderingPolicy">Reordering Policy</option>
+                <option value="defaultVendor">Default Vendor</option>
+                <option value="productGroup">Product Group</option>
+                <option value="standardCost">Standard Cost</option>
+                <option value="ledgerTurnover">Ledger Turnover</option>
+              </select>
+              <input type="text" id="inp-sbu-bulk-waarde" placeholder="Nieuwe waarde…" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;width:140px;outline:none" />
+              <button class="btn btn-sm" style="background:var(--blue);color:#fff" onclick="bulkEditSBU()">Toepassen</button>
+            </div>
+            <button class="btn btn-sm" onclick="deselecteerSBU()">Selectie opheffen</button>
+          </div>
+        </div>
+
+        <!-- Tabel -->
+        <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:auto;padding:0 1.5rem 1rem">
+          <table id="tbl-sbu" style="min-width:3600px;table-layout:auto;border-collapse:collapse">
+            <thead id="tbl-sbu-head" style="position:sticky;top:0;z-index:20"></thead>
+            <tbody id="tbl-sbu-body"><tr><td colspan="25" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -619,22 +669,37 @@ let chartInstance = null;
 // ============================================================
 // AUTH
 // ============================================================
+function toonApp(){
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  startListeners();
+}
+
 window.doLogin = function(){
   const u = document.getElementById('adm-user').value.trim();
   const p = document.getElementById('adm-pw').value;
   if(ADMIN_ACCOUNTS[u] === p){
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    startListeners();
+    sessionStorage.setItem('adm_sess', u);
+    toonApp();
   } else { document.getElementById('login-err').style.display = 'block'; }
 };
+
 window.doLogout = function(){
+  sessionStorage.removeItem('adm_sess');
   [unsubMerken,unsubGebruikers,unsubPrijslijsten,unsubAanvragen,unsubSitech].forEach(u=>u&&u());
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('adm-user').value = '';
   document.getElementById('adm-pw').value = '';
 };
+
+// Herstel sessie na refresh
+(function(){
+  const sess = sessionStorage.getItem('adm_sess');
+  if(sess && ADMIN_ACCOUNTS[sess]){
+    toonApp();
+  }
+})();
 
 function startListeners(){
   unsubMerken = onSnapshot(collection(db,'merken'), snap => {
@@ -689,6 +754,13 @@ window.showPanel = function(name,el){
       artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
       renderArtikelen();
       setTimeout(initStickyScroll, 100);
+    });
+  }
+  if(name==='sbu'){
+    vulSbuTemplateSelector();
+    getDocs(collection(db,'artikelen')).then(snap=>{
+      artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderSbu();
     });
   }
   if(name==='artikel-templates'){ renderArtikelTemplates(); }
@@ -2114,14 +2186,183 @@ function initStickyScroll(){
 }
 
 // ============================================================
-// ARTIKEL TEMPLATES MODULE
+// SBU MODULE
 // ============================================================
+let sbuSelectie = new Set();
+let sbuFilterState = {};
+let sbuPaginaData = [];
+let sbuPagina = 1;
+const SBU_PER_PAGINA = 100;
+
+function getSbuTemplates(){ return ARTIKEL_TEMPLATES.filter(t=>t.isSBU); }
+
+function vulSbuTemplateSelector(){
+  const sel = document.getElementById('sel-sbu-template');
+  if(!sel) return;
+  const cur = sel.value;
+  const sbuTemplates = getSbuTemplates();
+  sel.innerHTML = '<option value="">— Alle SBU artikelen —</option>' +
+    sbuTemplates.map(t=>`<option value="${t.id}">${t.naam}</option>`).join('');
+  if(cur && sbuTemplates.find(t=>t.id===cur)) sel.value = cur;
+}
+
+function getSbuArtikelen(){
+  const tid = document.getElementById('sel-sbu-template')?.value||'';
+  const sbuIds = new Set(getSbuTemplates().map(t=>t.id));
+  return artikelen.filter(a=> tid ? a.templateId===tid : sbuIds.has(a.templateId));
+}
+
+function renderSbu(){
+  const thead = document.getElementById('tbl-sbu-head');
+  const tbody = document.getElementById('tbl-sbu-body');
+  if(!thead||!tbody) return;
+
+  const all = getSbuArtikelen();
+  const totaalPaginas = Math.max(1, Math.ceil(all.length/SBU_PER_PAGINA));
+  if(sbuPagina>totaalPaginas) sbuPagina=1;
+  sbuPaginaData = all.slice((sbuPagina-1)*SBU_PER_PAGINA, sbuPagina*SBU_PER_PAGINA);
+
+  const countTxt = all.length + ' artikel' + (all.length!==1?'en':'') +
+    (totaalPaginas>1 ? ` &nbsp;|&nbsp; Pagina ${sbuPagina} van ${totaalPaginas} &nbsp;
+      <button class="btn btn-sm" onclick="sbuPagina=Math.max(1,sbuPagina-1);renderSbu()" ${sbuPagina<=1?'disabled':''}>‹</button>
+      <button class="btn btn-sm" onclick="sbuPagina=Math.min(${totaalPaginas},sbuPagina+1);renderSbu()" ${sbuPagina>=totaalPaginas?'disabled':''}>›</button>` : '');
+  document.getElementById('sbu-count').innerHTML = countTxt;
+
+  const alleGeselecteerd = sbuPaginaData.length>0 && sbuPaginaData.every(a=>sbuSelectie.has(a.id));
+
+  thead.innerHTML=`<tr style="position:sticky;top:0;background:var(--gray-bg);z-index:10">
+    <th style="width:36px;text-align:center"><input type="checkbox" id="chk-sbu-all" ${alleGeselecteerd?'checked':''} /></th>
+    <th style="min-width:140px">Product ID</th>
+    <th style="min-width:260px">Name</th>
+    <th style="min-width:180px">Default Vendor</th>
+    <th style="min-width:140px">Product ID Vendor</th>
+    <th style="min-width:160px">Product Group</th>
+    <th style="min-width:130px">FS Product Type</th>
+    <th style="min-width:100px;text-align:right">Standard Cost</th>
+    <th style="min-width:80px;text-align:center">Serial Nr.</th>
+    <th style="min-width:120px">Ledger Turnover</th>
+    <th style="min-width:150px">Product Posting Grp</th>
+    <th style="min-width:130px">Manufacturer</th>
+    <th style="min-width:130px">Category</th>
+    <th style="min-width:130px">Model</th>
+    <th style="min-width:170px;background:var(--amber-light);color:var(--amber);border-left:2px solid rgba(133,79,11,.2)">Price/Profit</th>
+    <th style="min-width:110px;text-align:right">Unit Price</th>
+    <th style="min-width:90px">Profit (%)</th>
+    <th style="min-width:120px">Vendor No.</th>
+    <th style="min-width:150px">Reordering Policy</th>
+    <th style="min-width:130px;background:var(--amber-light);color:var(--amber)">Template</th>
+  </tr>`;
+
+  document.getElementById('chk-sbu-all').addEventListener('change', function(){
+    if(this.checked) sbuPaginaData.forEach(a=>sbuSelectie.add(a.id));
+    else sbuPaginaData.forEach(a=>sbuSelectie.delete(a.id));
+    updateSbuSelectieBalk(); renderSbu();
+  });
+
+  tbody.innerHTML = sbuPaginaData.map(a=>{
+    const t = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId)||{};
+    const pp=(t.priceProfit||'').toLowerCase();
+    const heeftFormule=pp.includes('kosten')||pp.includes('prijs');
+    const cost=parseFloat(a.standardCost||0);
+    const pct=parseFloat(a.profitPct||'');
+    const unitPrice=(heeftFormule&&cost&&!isNaN(pct)&&pct!==0) ? '€\u00a0'+(cost*(1+pct/100)).toFixed(2) : '—';
+    const sel = sbuSelectie.has(a.id);
+    return `<tr class="${sel?'row-selected':''}">
+      <td style="text-align:center;width:36px"><input type="checkbox" class="chk-sbu" data-id="${a.id}" ${sel?'checked':''} /></td>
+      <td><strong style="font-size:13px">${a.productId||'—'}</strong></td>
+      <td style="font-size:13px">${a.name||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.defaultVendor||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.productIdVendor||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.productGroup||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.fsProductType||'—'}</td>
+      <td style="text-align:right;font-size:12px;color:var(--blue);font-weight:500">${a.standardCost?'€\u00a0'+parseFloat(a.standardCost).toFixed(2):'—'}</td>
+      <td style="font-size:12px;text-align:center">${a.serialNumber||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.ledgerTurnover||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.productPostingGroup||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.manufacturer||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.category||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.model||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04);border-left:2px solid rgba(133,79,11,.2)">${t.priceProfit||'—'}</td>
+      <td style="font-size:12px;text-align:right;font-weight:500;color:var(--blue)">${unitPrice}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.profitPct?a.profitPct+'%':'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.vendorNo||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.reorderingPolicy||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.naam||a.templateId||'—'}</td>
+    </tr>`;
+  }).join('') ||
+  '<tr><td colspan="20" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen SBU artikelen gevonden</td></tr>';
+
+  document.getElementById('tbl-sbu-body').querySelectorAll('.chk-sbu').forEach(chk=>{
+    chk.addEventListener('change', function(){
+      if(this.checked) sbuSelectie.add(this.dataset.id);
+      else sbuSelectie.delete(this.dataset.id);
+      this.closest('tr').className = this.checked?'row-selected':'';
+      const alleChk=document.getElementById('chk-sbu-all');
+      if(alleChk) alleChk.checked=sbuPaginaData.every(a=>sbuSelectie.has(a.id));
+      updateSbuSelectieBalk();
+    });
+  });
+}
+
+function updateSbuSelectieBalk(){
+  const bar=document.getElementById('sbu-selectie-bar');
+  const cnt=sbuSelectie.size;
+  if(cnt>0){ bar.style.display='flex'; document.getElementById('sbu-selectie-count').textContent=`${cnt} artikel${cnt!==1?'en':''} geselecteerd`; }
+  else bar.style.display='none';
+}
+
+window.deselecteerSBU=function(){ sbuSelectie.clear(); updateSbuSelectieBalk(); renderSbu(); };
+
+window.bulkEditSBU=async function(){
+  const ids=[...sbuSelectie];
+  const kolom=document.getElementById('sel-sbu-bulk-kolom').value;
+  const waarde=document.getElementById('inp-sbu-bulk-waarde').value.trim();
+  if(!ids.length){alert('Selecteer eerst artikelen');return;}
+  if(!kolom){alert('Kies een kolom');return;}
+  const kolomNaam=document.getElementById('sel-sbu-bulk-kolom').options[document.getElementById('sel-sbu-bulk-kolom').selectedIndex].text;
+  if(!confirm(`"${kolomNaam}" instellen op "${waarde||'(leeg)'}" voor ${ids.length} artikel${ids.length!==1?'en':''}?`))return;
+  for(let i=0;i<ids.length;i+=500){
+    const batch=writeBatch(db);
+    ids.slice(i,i+500).forEach(id=>{
+      batch.update(doc(db,'artikelen',id),{[kolom]:waarde});
+      const a=artikelen.find(x=>x.id===id); if(a) a[kolom]=waarde;
+    });
+    await batch.commit();
+  }
+  document.getElementById('inp-sbu-bulk-waarde').value='';
+  document.getElementById('sel-sbu-bulk-kolom').value='';
+  renderSbu();
+};
+
+// Excel download SBU
+document.getElementById('btn-sbu-download').addEventListener('click',()=>{
+  if(typeof XLSX==='undefined'){alert('Excel-library nog niet geladen');return;}
+  const all=getSbuArtikelen();
+  const header=['Product ID','Name','Default Vendor','Product ID Vendor','Product Group',
+    'FS Product Type','Standard Cost','Serial Nr.','Ledger Turnover','Product Posting Grp',
+    'Manufacturer','Category','Model','Price/Profit','Unit Price','Profit (%)','Vendor No.','Reordering Policy','Template'];
+  const rows=[header,...all.map(a=>{
+    const t=ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId)||{};
+    const pp=(t.priceProfit||'').toLowerCase();
+    const cost=parseFloat(a.standardCost||0);
+    const pct=parseFloat(a.profitPct||'');
+    const up=(pp.includes('kosten')||pp.includes('prijs'))&&cost&&!isNaN(pct)&&pct!==0 ? parseFloat((cost*(1+pct/100)).toFixed(2)) : '';
+    return [a.productId||'',a.name||'',a.defaultVendor||'',a.productIdVendor||'',
+      a.productGroup||'',a.fsProductType||'',a.standardCost?parseFloat(a.standardCost):'',
+      a.serialNumber||'',a.ledgerTurnover||'',a.productPostingGroup||'',
+      a.manufacturer||'',a.category||'',a.model||'',t.priceProfit||'',up,a.profitPct||'',
+      a.vendorNo||'',a.reorderingPolicy||'',t.naam||a.templateId||''];
+  })];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'SBU Artikelen');
+  XLSX.writeFile(wb,`sbu-artikelen-${new Date().toISOString().slice(0,10)}.xlsx`);
+});
 let artikelTemplatesData = {};
 let atGeselecteerd = null;
 let unsubArtikelTemplates;
 
-function startArtikelTemplatesListener(){
-  unsubArtikelTemplates = onSnapshot(collection(db,'artikel_templates'), snap=>{
+function startArtikelTemplatesListener(){  unsubArtikelTemplates = onSnapshot(collection(db,'artikel_templates'), snap=>{
     if(snap.empty){
       seedArtikelTemplates();
     } else {
@@ -2325,9 +2566,13 @@ window.deleteArtikelTemplate = async function(id){
   vulTemplateSelector();
   renderArtikelen();
 };
+// SBU template selector event listener
+document.getElementById('sel-sbu-template').addEventListener('change', ()=>{ sbuPagina=1; renderSbu(); });
+
 window.addEventListener('load', ()=>{
   setTimeout(()=>{
     vulTemplateSelector();
+    vulSbuTemplateSelector();
     initStickyScroll();
   }, 500);
 });
