@@ -319,6 +319,7 @@ tr.row-selected td{background:var(--blue-light)}
 
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
             <select id="sel-sbu-template" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;min-width:220px"></select>
+            <button class="btn btn-blue" id="btn-sbu-nieuw">+ Nieuw artikel</button>
             <button class="btn btn-green" id="btn-sbu-upload">Excel uploaden</button>
             <button class="btn" id="btn-sbu-download" style="border-color:rgba(59,109,17,.3);color:var(--green);background:var(--green-light)">Excel downloaden</button>
             <input type="file" id="sbu-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
@@ -2311,6 +2312,7 @@ function renderSbu(){
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.naam||a.templateId||'—'}</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-sm" onclick="editArtikel('${a.id}')">Bewerken</button>
+        <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteSbuArtikel('${a.id}')">Verwijderen</button>
       </td>
     </tr>`;
   }).join('') ||
@@ -2590,6 +2592,30 @@ window.deleteArtikelTemplate = async function(id){
   vulTemplateSelector();
   renderArtikelen();
 };
+window.deleteSbuArtikel = async function(id){
+  if(!confirm('Artikel verwijderen?')) return;
+  await deleteDoc(doc(db,'artikelen',id));
+  artikelen = artikelen.filter(x=>x.id!==id);
+  sbuSelectie.delete(id);
+  updateSbuSelectieBalk();
+  renderSbu();
+  showSaving('Artikel verwijderd');
+};
+
+// SBU nieuw artikel
+document.getElementById('btn-sbu-nieuw').addEventListener('click', ()=>{
+  const tid = document.getElementById('sel-sbu-template').value;
+  if(!tid){ alert('Selecteer eerst een SBU template'); return; }
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===tid);
+  document.getElementById('artikel-edit-id').value = '';
+  document.getElementById('artikel-template-badge').textContent = `Template: ${t?.naam||tid}`;
+  document.getElementById('modal-artikel-title').textContent = 'Nieuw artikel';
+  // Zet tijdelijk sel-template-filter zodat saveArtikel het juiste template pakt
+  document.getElementById('sel-template-filter').value = tid;
+  vulArtikelForm(t, {});
+  openModal('modal-artikel');
+});
+
 // SBU template selector event listener
 document.getElementById('sel-sbu-template').addEventListener('change', ()=>{ sbuPagina=1; renderSbu(); });
 
