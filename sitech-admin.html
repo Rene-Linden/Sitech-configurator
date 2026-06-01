@@ -696,13 +696,13 @@ window.doLogout = function(){
   document.getElementById('adm-pw').value = '';
 };
 
-// Herstel sessie na refresh
-(function(){
+// Herstel sessie na refresh — wacht op DOM
+document.addEventListener('DOMContentLoaded', ()=>{
   const sess = sessionStorage.getItem('adm_sess');
   if(sess && ADMIN_ACCOUNTS[sess]){
     toonApp();
   }
-})();
+});
 
 function startListeners(){
   unsubMerken = onSnapshot(collection(db,'merken'), snap => {
