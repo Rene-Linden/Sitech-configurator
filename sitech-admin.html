@@ -42,6 +42,7 @@ input,select,textarea{font-family:var(--font)}
 #panel-artikelen.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 #panel-sbu.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 #panel-ewv.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
+#panel-bom-ewv.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 #panel-bom-sbu.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 .panel-title{font-size:19px;font-weight:500;margin-bottom:4px}
 .panel-sub{font-size:13px;color:var(--gray-text);margin-bottom:1.5rem}
@@ -136,6 +137,7 @@ tr.row-selected td{background:var(--blue-light)}
       <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
       <a class="nav-item" onclick="showPanel('bom-sbu',this)">BoM SBU</a>
       <a class="nav-item" onclick="showPanel('sbu',this)">SBU</a>
+      <a class="nav-item" onclick="showPanel('bom-ewv',this)">BoM EWV</a>
       <a class="nav-item" onclick="showPanel('ewv',this)">EWV</a>
       <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
       <a class="nav-item" onclick="showPanel('gebruikers',this)">Gebruikers</a>
@@ -404,7 +406,43 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
       </div>
 
-      <!-- ARTIKEL TEMPLATES PANEL -->
+      <!-- BOM EWV PANEL -->
+      <div class="panel" id="panel-bom-ewv" style="flex-direction:column;height:100%;overflow:hidden">
+        <div style="padding:1.5rem 1.5rem 0;flex-shrink:0">
+          <div class="panel-title">BoM EWV</div>
+          <div class="panel-sub">Stuklijsten per EWV artikel. Één rij per EWV met alle subbundel-artikelen en resources.</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <select id="sel-bom-ewv-zoek" style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;min-width:240px">
+              <option value="">— Selecteer EWV voor detail —</option>
+            </select>
+            <button class="btn btn-blue" onclick="openBomEwvDetail()">Bekijk stuklijst</button>
+            <button class="btn btn-green" id="btn-bom-ewv-upload">Excel uploaden</button>
+            <button class="btn btn-blue" onclick="openNieuwBomEwv()">+ Nieuwe BoM</button>
+            <input type="file" id="bom-ewv-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
+            <span id="bom-ewv-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
+          </div>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:auto;padding:0 1.5rem 1rem">
+          <table id="tbl-bom-ewv" style="min-width:900px;table-layout:auto;border-collapse:collapse">
+            <thead style="position:sticky;top:0;z-index:20;background:var(--gray-bg)">
+              <tr>
+                <th style="min-width:120px">EWV ID</th>
+                <th style="min-width:280px">Naam</th>
+                <th style="min-width:80px;text-align:center">Artikelen</th>
+                <th style="min-width:80px;text-align:center">Welding (u)</th>
+                <th style="min-width:80px;text-align:center">Mounting (u)</th>
+                <th style="min-width:90px;text-align:center">Calibration (u)</th>
+                <th style="min-width:120px"></th>
+              </tr>
+            </thead>
+            <tbody id="tbl-bom-ewv-body">
+              <tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- EWV PANEL -->
       <div class="panel" id="panel-ewv" style="flex-direction:column;height:100%;overflow:hidden">
         <div style="padding:1.5rem 1.5rem 0;flex-shrink:0">
           <div class="panel-title">EWV</div>
@@ -567,6 +605,80 @@ tr.row-selected td{background:var(--blue-light)}
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-at')">Annuleren</button>
       <button class="btn btn-blue" onclick="saveArtikelTemplate()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL BOM EWV DETAIL -->
+<div class="modal-bg" id="modal-bom-ewv-detail">
+  <div class="modal" style="max-width:860px">
+    <div class="modal-header">
+      <h3 id="modal-bom-ewv-detail-title">Stuklijst EWV</h3>
+      <button class="modal-close" onclick="closeModal('modal-bom-ewv-detail')">×</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div id="bom-ewv-detail-info" style="padding:12px 18px;font-size:13px;color:var(--gray-text);border-bottom:0.5px solid var(--gray-border)"></div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;min-width:600px;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:var(--gray-bg)">
+              <th style="padding:8px 12px;min-width:140px">Artikel ID</th>
+              <th style="padding:8px 12px;min-width:260px">Naam</th>
+              <th style="padding:8px 12px;min-width:80px;text-align:right">Aantal</th>
+              <th style="padding:8px 12px;min-width:70px;text-align:center">Eenheid</th>
+              <th style="padding:8px 12px;min-width:80px"></th>
+            </tr>
+          </thead>
+          <tbody id="tbl-bom-ewv-detail-body"></tbody>
+        </table>
+      </div>
+      <div style="padding:12px 18px;border-top:0.5px solid var(--gray-border);background:var(--gray-bg)">
+        <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Artikel toevoegen</div>
+        <div style="display:grid;grid-template-columns:140px 1fr 80px 90px auto;gap:8px;align-items:end">
+          <div><label style="font-size:11px;color:var(--gray-text);display:block;margin-bottom:3px">Artikel ID</label>
+            <input type="text" id="bom-ewv-add-id" placeholder="ST-00001" style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" /></div>
+          <div><label style="font-size:11px;color:var(--gray-text);display:block;margin-bottom:3px">Naam</label>
+            <input type="text" id="bom-ewv-add-naam" placeholder="Artikelnaam" style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none" /></div>
+          <div><label style="font-size:11px;color:var(--gray-text);display:block;margin-bottom:3px">Aantal</label>
+            <input type="text" id="bom-ewv-add-aantal" placeholder="1" style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none;text-align:right" /></div>
+          <div><label style="font-size:11px;color:var(--gray-text);display:block;margin-bottom:3px">Eenheid</label>
+            <select id="bom-ewv-add-eenheid" style="width:100%;padding:6px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px">
+              <option value="Stuks">Stuks</option><option value="Hour">Hour</option>
+            </select></div>
+          <button class="btn btn-blue" onclick="bomEwvArtikelToevoegen()" style="white-space:nowrap;padding:7px 12px">+ Toevoegen</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-bom-ewv-detail')">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL BOM EWV BEWERKEN -->
+<div class="modal-bg" id="modal-bom-ewv-edit">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 id="modal-bom-ewv-edit-title">BoM EWV bewerken</h3>
+      <button class="modal-close" onclick="closeModal('modal-bom-ewv-edit')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="bom-ewv-edit-id" />
+      <div class="form-row cols2">
+        <div class="fg"><label>EWV ID *</label><input type="text" id="bom-ewv-edit-sbu-id" placeholder="bijv. EWV-0001" /></div>
+        <div class="fg"><label>Naam *</label><input type="text" id="bom-ewv-edit-naam" placeholder="Omschrijving" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Welding (uren)</label><input type="text" id="bom-ewv-edit-welding" placeholder="bijv. 4" /></div>
+        <div class="fg"><label>Mounting (uren)</label><input type="text" id="bom-ewv-edit-mounting" placeholder="bijv. 10" /></div>
+      </div>
+      <div class="form-row">
+        <div class="fg"><label>Calibration (uren)</label><input type="text" id="bom-ewv-edit-calibration" placeholder="bijv. 6" /></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-bom-ewv-edit')">Annuleren</button>
+      <button class="btn btn-blue" onclick="saveBomEwv()">Opslaan</button>
     </div>
   </div>
 </div>
@@ -931,6 +1043,7 @@ window.showPanel = function(name,el){
       renderSbu();
     });
   }
+  if(name==='bom-ewv'){ loadBomEwvData(); }
   if(name==='ewv'){
     vulEwvTemplateSelector();
     getDocs(collection(db,'artikelen')).then(snap=>{
@@ -2612,6 +2725,240 @@ document.getElementById('bom-upload-input').addEventListener('change', async (ev
   reader.readAsArrayBuffer(file);
   event.target.value='';
 });
+// ============================================================
+// BOM EWV MODULE
+// ============================================================
+let bomEwvData = [];
+let bomEwvDetailId = null;
+
+async function loadBomEwvData(){
+  const snap = await getDocs(collection(db,'bom_ewv'));
+  bomEwvData = snap.docs.map(d=>({id:d.id,...d.data()}))
+    .sort((a,b)=>(a.sbuId||'').localeCompare(b.sbuId||''));
+  renderBomEwvTabel();
+  vulBomEwvZoekSelector();
+}
+
+function vulBomEwvZoekSelector(){
+  const sel = document.getElementById('sel-bom-ewv-zoek');
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Selecteer EWV voor detail —</option>' +
+    bomEwvData.map(b=>`<option value="${b.id}">${b.sbuId} — ${b.naam}</option>`).join('');
+  if(cur && bomEwvData.find(b=>b.id===cur)) sel.value = cur;
+}
+
+function renderBomEwvTabel(){
+  const tbody = document.getElementById('tbl-bom-ewv-body');
+  if(!tbody) return;
+  tbody.innerHTML = bomEwvData.map(b=>`<tr>
+    <td><strong style="font-size:13px">${b.sbuId}</strong></td>
+    <td style="font-size:13px">${b.naam}</td>
+    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${(b.artikelen||[]).length}</td>
+    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.welding||'—'}</td>
+    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.mounting||'—'}</td>
+    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.calibration||'—'}</td>
+    <td style="text-align:right;white-space:nowrap">
+      <button class="btn btn-sm" onclick="openBomEwvDetailById('${b.id}')">Stuklijst</button>
+      <button class="btn btn-sm" style="margin-left:4px" onclick="openBomEwvBewerken('${b.id}')">Bewerken</button>
+      <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteBomEwv('${b.id}')">Verwijderen</button>
+    </td>
+  </tr>`).join('') ||
+  '<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM EWV data — upload een Excel of voeg handmatig toe</td></tr>';
+}
+
+window.openBomEwvDetail = function(){
+  const id = document.getElementById('sel-bom-ewv-zoek').value;
+  if(!id){ alert('Selecteer eerst een EWV'); return; }
+  openBomEwvDetailById(id);
+};
+
+window.openBomEwvDetailById = function(id){
+  const b = bomEwvData.find(x=>x.id===id);
+  if(!b) return;
+  bomEwvDetailId = id;
+  document.getElementById('modal-bom-ewv-detail-title').textContent = `${b.sbuId} — ${b.naam}`;
+  document.getElementById('bom-ewv-detail-info').innerHTML =
+    `<strong>${b.sbuId}</strong> &nbsp;·&nbsp; ${b.naam} &nbsp;·&nbsp; `+
+    `Welding: <strong>${b.welding||'—'}</strong> u &nbsp; `+
+    `Mounting: <strong>${b.mounting||'—'}</strong> u &nbsp; `+
+    `Calibration: <strong>${b.calibration||'—'}</strong> u`;
+  renderBomEwvDetailTabel(b);
+  openModal('modal-bom-ewv-detail');
+};
+
+function renderBomEwvDetailTabel(b){
+  const tbody = document.getElementById('tbl-bom-ewv-detail-body');
+  const arts = b.artikelen||[];
+  tbody.innerHTML = arts.map((a,i)=>`<tr>
+    <td><input type="text" value="${a.artikelId||''}" onchange="bomEwvRijUpdate(${i},'artikelId',this.value)"
+      style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none" /></td>
+    <td><input type="text" value="${a.naam||''}" onchange="bomEwvRijUpdate(${i},'naam',this.value)"
+      style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none" /></td>
+    <td><input type="text" value="${a.aantal||''}" onchange="bomEwvRijUpdate(${i},'aantal',this.value)"
+      style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none;text-align:right" /></td>
+    <td style="text-align:center;font-size:12px;color:var(--gray-text)">${a.eenheid||'Stuks'}</td>
+    <td style="text-align:right">
+      <button class="btn btn-sm btn-red" onclick="bomEwvRijVerwijder(${i})">×</button>
+    </td>
+  </tr>`).join('') ||
+  '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:1rem;font-size:13px">Geen artikelen</td></tr>';
+}
+
+window.bomEwvRijUpdate = function(idx, field, value){
+  const b = bomEwvData.find(x=>x.id===bomEwvDetailId);
+  if(!b||!b.artikelen[idx]) return;
+  b.artikelen[idx][field] = value;
+  setDoc(doc(db,'bom_ewv',bomEwvDetailId), b);
+};
+
+window.bomEwvRijVerwijder = function(idx){
+  const b = bomEwvData.find(x=>x.id===bomEwvDetailId);
+  if(!b) return;
+  b.artikelen.splice(idx,1);
+  setDoc(doc(db,'bom_ewv',bomEwvDetailId), b);
+  renderBomEwvDetailTabel(b);
+  renderBomEwvTabel();
+};
+
+window.bomEwvArtikelToevoegen = function(){
+  const b = bomEwvData.find(x=>x.id===bomEwvDetailId);
+  if(!b) return;
+  const artikelId = document.getElementById('bom-ewv-add-id').value.trim();
+  const naam      = document.getElementById('bom-ewv-add-naam').value.trim();
+  const aantal    = document.getElementById('bom-ewv-add-aantal').value.trim();
+  const eenheid   = document.getElementById('bom-ewv-add-eenheid').value;
+  if(!artikelId){ alert('Artikel ID is verplicht'); return; }
+  if(!b.artikelen) b.artikelen=[];
+  b.artikelen.push({artikelId,naam,aantal,eenheid});
+  setDoc(doc(db,'bom_ewv',bomEwvDetailId),b);
+  document.getElementById('bom-ewv-add-id').value='';
+  document.getElementById('bom-ewv-add-naam').value='';
+  document.getElementById('bom-ewv-add-aantal').value='';
+  renderBomEwvDetailTabel(b);
+  renderBomEwvTabel();
+};
+
+window.openNieuwBomEwv = function(){
+  document.getElementById('bom-ewv-edit-id').value='';
+  document.getElementById('bom-ewv-edit-sbu-id').value='';
+  document.getElementById('bom-ewv-edit-naam').value='';
+  document.getElementById('bom-ewv-edit-welding').value='';
+  document.getElementById('bom-ewv-edit-mounting').value='';
+  document.getElementById('bom-ewv-edit-calibration').value='';
+  document.getElementById('modal-bom-ewv-edit-title').textContent='Nieuwe BoM EWV aanmaken';
+  openModal('modal-bom-ewv-edit');
+};
+
+window.openBomEwvBewerken = function(id){
+  const b = bomEwvData.find(x=>x.id===id);
+  if(!b) return;
+  document.getElementById('bom-ewv-edit-id').value          = id;
+  document.getElementById('bom-ewv-edit-sbu-id').value      = b.sbuId;
+  document.getElementById('bom-ewv-edit-naam').value        = b.naam;
+  document.getElementById('bom-ewv-edit-welding').value     = b.welding||'';
+  document.getElementById('bom-ewv-edit-mounting').value    = b.mounting||'';
+  document.getElementById('bom-ewv-edit-calibration').value = b.calibration||'';
+  document.getElementById('modal-bom-ewv-edit-title').textContent=`BoM EWV bewerken — ${b.sbuId}`;
+  openModal('modal-bom-ewv-edit');
+};
+
+window.saveBomEwv = async function(){
+  const editId      = document.getElementById('bom-ewv-edit-id').value;
+  const sbuId       = document.getElementById('bom-ewv-edit-sbu-id').value.trim().toUpperCase();
+  const naam        = document.getElementById('bom-ewv-edit-naam').value.trim();
+  const welding     = document.getElementById('bom-ewv-edit-welding').value.trim();
+  const mounting    = document.getElementById('bom-ewv-edit-mounting').value.trim();
+  const calibration = document.getElementById('bom-ewv-edit-calibration').value.trim();
+  if(!sbuId||!naam){ alert('ID en naam zijn verplicht'); return; }
+  const id = editId||'bomewv'+Date.now();
+  const bestaand = bomEwvData.find(x=>x.id===id);
+  const data = {sbuId,naam,welding,mounting,calibration,artikelen:bestaand?.artikelen||[]};
+  await setDoc(doc(db,'bom_ewv',id),data);
+  const idx = bomEwvData.findIndex(x=>x.id===id);
+  if(idx>-1) Object.assign(bomEwvData[idx],data);
+  else bomEwvData.push({id,...data});
+  bomEwvData.sort((a,b)=>(a.sbuId||'').localeCompare(b.sbuId||''));
+  closeModal('modal-bom-ewv-edit');
+  renderBomEwvTabel();
+  vulBomEwvZoekSelector();
+  showSaving('BoM EWV opgeslagen');
+};
+
+window.deleteBomEwv = async function(id){
+  const b = bomEwvData.find(x=>x.id===id);
+  if(!confirm(`BoM EWV "${b?.sbuId} — ${b?.naam}" verwijderen?`)) return;
+  await deleteDoc(doc(db,'bom_ewv',id));
+  bomEwvData = bomEwvData.filter(x=>x.id!==id);
+  renderBomEwvTabel();
+  vulBomEwvZoekSelector();
+  showSaving('BoM EWV verwijderd');
+};
+
+// BoM EWV Excel upload
+document.getElementById('btn-bom-ewv-upload').addEventListener('click',()=>document.getElementById('bom-ewv-upload-input').click());
+
+document.getElementById('bom-ewv-upload-input').addEventListener('change',async(event)=>{
+  const status=document.getElementById('bom-ewv-upload-status');
+  const file=event.target.files[0];
+  if(!file)return;
+  if(typeof XLSX==='undefined'){alert('Excel-library nog niet geladen');return;}
+  status.textContent='Bestand lezen…';
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      const start=rows[0]&&String(rows[0][0]).toLowerCase().includes('product')?1:0;
+      const data=rows.slice(start).filter(r=>String(r[0]||'').trim());
+      const ewvMap={};
+      data.forEach(r=>{
+        const ewvId =String(r[0]||'').trim();
+        const naam  =String(r[1]||'').trim();
+        const subId =String(r[4]||'').trim();
+        const subNaam=String(r[5]||'').trim();
+        const aantal=String(r[6]||'').trim();
+        const eenheid=String(r[7]||'').trim();
+        if(!ewvId)return;
+        if(!ewvMap[ewvId]) ewvMap[ewvId]={sbuId:ewvId,naam,artikelen:[],welding:'',mounting:'',calibration:''};
+        const b=ewvMap[ewvId];
+        if(naam&&!b.naam) b.naam=naam;
+        if(subId==='Welding') b.welding=aantal;
+        else if(subId==='Mounting') b.mounting=aantal;
+        else if(subId==='Calibration') b.calibration=aantal;
+        else if(subId) b.artikelen.push({artikelId:subId,naam:subNaam,aantal,eenheid});
+      });
+      const bestaandeIds=new Set(bomEwvData.map(b=>b.sbuId));
+      const records=Object.values(ewvMap);
+      const nieuw=records.filter(b=>!bestaandeIds.has(b.sbuId));
+      const bestaand=records.filter(b=>bestaandeIds.has(b.sbuId));
+      let overschrijven=false;
+      if(bestaand.length>0){
+        overschrijven=confirm(bestaand.length+' EWV BoM records bestaan al.\n\nOK = overschrijven\nAnnuleren = alleen nieuwe toevoegen ('+nieuw.length+')');
+      }
+      const teVerwerken=overschrijven?records:nieuw;
+      if(!teVerwerken.length){status.textContent='Geen nieuwe records';setTimeout(()=>status.textContent='',3000);return;}
+      status.textContent=teVerwerken.length+' records opslaan…';
+      for(let i=0;i<teVerwerken.length;i+=500){
+        const batch=writeBatch(db);
+        teVerwerken.slice(i,i+500).forEach(b=>{
+          let docId;
+          if(overschrijven){const ex=bomEwvData.find(x=>x.sbuId===b.sbuId);docId=ex?ex.id:'bomewv'+Date.now()+Math.random();}
+          else docId='bomewv'+Date.now()+Math.random();
+          batch.set(doc(db,'bom_ewv',docId),b);
+        });
+        await batch.commit();
+      }
+      await loadBomEwvData();
+      status.textContent='✓ '+teVerwerken.length+' EWV BoM records geïmporteerd';
+      setTimeout(()=>status.textContent='',4000);
+    }catch(err){status.textContent='';alert('Fout: '+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value='';
+});
+
 // ============================================================
 // EWV MODULE
 // ============================================================
