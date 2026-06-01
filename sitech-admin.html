@@ -145,6 +145,7 @@ tr.row-selected td{background:var(--blue-light)}
         <a class="nav-item" onclick="showPanel('aanvragen',this)">Aanvragen</a>
       </div>
       <div style="border-top:0.5px solid var(--gray-border);padding-top:8px">
+        <a class="nav-item" onclick="showPanel('resources',this)">Resources</a>
         <a class="nav-item" onclick="showPanel('gebruikers',this)">Gebruikers</a>
         <a class="nav-item" onclick="showPanel('sitech',this)">Sitech medewerkers</a>
       </div>
@@ -158,6 +159,31 @@ tr.row-selected td{background:var(--blue-light)}
         <div class="card">
           <table><thead><tr><th>Merknaam</th><th>Prijslijst</th><th>Gebruikers</th><th></th></tr></thead>
           <tbody id="tbl-merken"><tr><td colspan="4" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden...</td></tr></tbody></table>
+        </div>
+      </div>
+
+      <!-- RESOURCES PANEL -->
+      <div class="panel" id="panel-resources">
+        <div class="panel-title">Resources</div>
+        <div class="panel-sub">Beheer de kosten- en verkoopprijzen voor resources (uren). Deze tarieven worden gebruikt in de BoM berekeningen.</div>
+
+        <div class="card" style="max-width:480px">
+          <div class="card-body">
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <thead>
+                <tr style="background:var(--gray-bg)">
+                  <th style="padding:10px 14px;min-width:160px">Resource</th>
+                  <th style="padding:10px 14px;min-width:140px;text-align:right">Kostprijs (€)</th>
+                  <th style="padding:10px 14px;min-width:140px;text-align:right">Verkoopprijs (€)</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-resources-body"></tbody>
+            </table>
+            <div style="margin-top:14px;text-align:right">
+              <button class="btn btn-blue" onclick="saveResources()">Opslaan</button>
+              <span id="resources-status" style="font-size:13px;color:var(--gray-text);margin-left:10px"></span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1061,6 +1087,7 @@ window.showPanel = function(name,el){
       renderSbu();
     });
   }
+  if(name==='resources'){ loadResources(); }
   if(name==='bom-ewv'){ loadBomEwvData(); }
   if(name==='ewv'){
     vulEwvTemplateSelector();
@@ -3379,6 +3406,70 @@ document.getElementById('btn-ewv-download').addEventListener('click',()=>{
 
 // EWV template selector
 document.getElementById('sel-ewv-template').addEventListener('change',()=>{ewvPagina=1;renderEwv();});
+
+// ============================================================
+// RESOURCES MODULE
+// ============================================================
+const RESOURCE_DEFAULTS = [
+  { id:'welding',     naam:'Welding',     kostprijs:45, verkoopprijs:95 },
+  { id:'mounting',    naam:'Mounting',    kostprijs:45, verkoopprijs:95 },
+  { id:'calibration', naam:'Calibration', kostprijs:45, verkoopprijs:95 },
+];
+
+let resourcesData = JSON.parse(JSON.stringify(RESOURCE_DEFAULTS));
+
+async function loadResources(){
+  try {
+    const snap = await getDocs(collection(db,'resources'));
+    if(!snap.empty){
+      snap.docs.forEach(d=>{
+        const idx = resourcesData.findIndex(r=>r.id===d.id);
+        if(idx>-1) Object.assign(resourcesData[idx], d.data());
+      });
+    }
+  } catch(e){ /* gebruik defaults */ }
+  renderResources();
+}
+
+function renderResources(){
+  const tbody = document.getElementById('tbl-resources-body');
+  if(!tbody) return;
+  tbody.innerHTML = resourcesData.map(r=>`<tr>
+    <td style="padding:10px 14px;font-weight:500">${r.naam}</td>
+    <td style="padding:6px 14px;text-align:right">
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px">
+        <span style="color:var(--gray-text);font-size:13px">€</span>
+        <input type="number" id="res-kost-${r.id}" value="${r.kostprijs}"
+          step="0.01" min="0"
+          style="width:90px;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;text-align:right;outline:none" />
+      </div>
+    </td>
+    <td style="padding:6px 14px;text-align:right">
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px">
+        <span style="color:var(--gray-text);font-size:13px">€</span>
+        <input type="number" id="res-verk-${r.id}" value="${r.verkoopprijs}"
+          step="0.01" min="0"
+          style="width:90px;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;text-align:right;outline:none" />
+      </div>
+    </td>
+  </tr>`).join('');
+}
+
+window.saveResources = async function(){
+  const status = document.getElementById('resources-status');
+  const batch = writeBatch(db);
+  resourcesData.forEach(r=>{
+    const kost = parseFloat(document.getElementById(`res-kost-${r.id}`)?.value||r.kostprijs);
+    const verk = parseFloat(document.getElementById(`res-verk-${r.id}`)?.value||r.verkoopprijs);
+    r.kostprijs    = isNaN(kost) ? r.kostprijs : kost;
+    r.verkoopprijs = isNaN(verk) ? r.verkoopprijs : verk;
+    batch.set(doc(db,'resources',r.id), { naam:r.naam, kostprijs:r.kostprijs, verkoopprijs:r.verkoopprijs });
+  });
+  await batch.commit();
+  status.textContent = '✓ Opgeslagen';
+  setTimeout(()=>status.textContent='', 3000);
+  showSaving('Resources opgeslagen');
+};
 
 function initStickyScroll(){
   const wrap  = document.getElementById('artikel-tabel-wrap');
