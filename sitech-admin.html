@@ -44,6 +44,7 @@ input,select,textarea{font-family:var(--font)}
 #panel-ewv.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 #panel-bom-ewv.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 #panel-bom-sbu.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
+#panel-assemblage.active{display:flex;flex-direction:column;height:100%;overflow:hidden;margin:-1.5rem;padding:0}
 .panel-title{font-size:19px;font-weight:500;margin-bottom:4px}
 .panel-sub{font-size:13px;color:var(--gray-text);margin-bottom:1.5rem}
 .card{background:var(--white);border-radius:10px;border:0.5px solid var(--gray-border);margin-bottom:1rem;overflow:hidden}
@@ -137,6 +138,7 @@ tr.row-selected td{background:var(--blue-light)}
         <a class="nav-item active" onclick="showPanel('artikel-templates',this)">Artikel Templates</a>
         <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
         <a class="nav-item" onclick="showPanel('bom-sbu',this)">BoM SBU</a>
+        <a class="nav-item" onclick="showPanel('assemblage',this)">Assemblage op voorraad</a>
         <a class="nav-item" onclick="showPanel('sbu',this)">SBU</a>
         <a class="nav-item" onclick="showPanel('bom-ewv',this)">BoM EWV</a>
         <a class="nav-item" onclick="showPanel('ewv',this)">EWV</a>
@@ -347,6 +349,52 @@ tr.row-selected td{background:var(--blue-light)}
           <table id="tbl-artikelen" style="min-width:4000px;table-layout:auto;border-collapse:collapse">
             <thead id="tbl-artikelen-head" style="position:sticky;top:0;z-index:20"></thead>
             <tbody id="tbl-artikelen-body"><tr><td colspan="30" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ASSEMBLAGE OP VOORRAAD PANEL -->
+      <div class="panel" id="panel-assemblage" style="flex-direction:column;height:100%;overflow:hidden">
+        <div style="padding:1.5rem 1.5rem 0;flex-shrink:0">
+          <div class="panel-title">Assemblage op voorraad</div>
+          <div class="panel-sub">Artikelen van template type ASSEMBL-ARTIKEL.</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <button class="btn btn-blue" id="btn-add-assembl">+ Artikel toevoegen</button>
+            <button class="btn btn-green" id="btn-assembl-upload">Excel uploaden</button>
+            <button class="btn" id="btn-assembl-download" style="border-color:rgba(59,109,17,.3);color:var(--green);background:var(--green-light)">Excel downloaden</button>
+            <input type="file" id="assembl-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
+            <span id="assembl-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
+          </div>
+          <!-- Selectie toolbar -->
+          <div id="assembl-selectie-bar" style="display:none;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:8px 14px;margin-bottom:8px;align-items:center;gap:10px;font-size:13px;flex-wrap:wrap">
+            <span id="assembl-selectie-count" style="color:var(--blue);font-weight:500"></span>
+            <div style="display:flex;align-items:center;gap:6px;border-right:1px solid rgba(24,95,165,.2);padding-right:10px">
+              <label style="font-size:12px;color:var(--gray-text);white-space:nowrap">Veld aanpassen:</label>
+              <select id="sel-assembl-bulk-kolom" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;min-width:160px">
+                <option value="">— Kies kolom —</option>
+                <option value="manufacturer">Manufacturer</option>
+                <option value="category">Category</option>
+                <option value="model">Model</option>
+                <option value="profitPct">Profit (%)</option>
+                <option value="vendorNo">Vendor No.</option>
+                <option value="defaultVendor">Default Vendor</option>
+                <option value="productGroup">Product Group</option>
+                <option value="standardCost">Standard Cost</option>
+              </select>
+              <input type="text" id="inp-assembl-bulk-waarde" placeholder="Nieuwe waarde…" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;width:140px;outline:none" />
+              <button class="btn btn-sm" style="background:var(--blue);color:#fff" onclick="bulkEditAssembl()">Toepassen</button>
+            </div>
+            <button class="btn btn-sm" onclick="deselecteerAssembl()">Selectie opheffen</button>
+          </div>
+          <!-- Teller -->
+          <div style="min-height:28px;margin-bottom:6px">
+            <span id="assembl-count" style="font-size:12px;color:var(--gray-text)"></span>
+          </div>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:auto;padding:0 1.5rem 1rem">
+          <table id="tbl-assembl" style="min-width:3600px;table-layout:auto;border-collapse:collapse">
+            <thead id="tbl-assembl-head" style="position:sticky;top:0;z-index:20"></thead>
+            <tbody id="tbl-assembl-body"><tr><td colspan="20" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1193,6 +1241,13 @@ window.showPanel = function(name,el){
     renderPrijslijst();
   }
   if(name==='aanvragen'){ renderFilterMerkAanvragen(); renderAanvragen(); }
+  if(name==='assemblage'){
+    getDocs(collection(db,'artikelen')).then(snap=>{
+      artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderAssemblage();
+      setTimeout(initStickyScroll,100);
+    });
+  }
   if(name==='artikelen'){
     vulTemplateSelector();
     toonTemplateInfo();
@@ -4047,6 +4102,232 @@ window.saveSbuConfig = async function(){
   setTimeout(()=>status.textContent='', 3000);
   showSaving('SBU configuratie opgeslagen');
 };
+
+// ============================================================
+// ASSEMBLAGE OP VOORRAAD MODULE
+// ============================================================
+const ASSEMBL_TEMPLATE_ID = 'ASSEMBL-ARTIKEL';
+let assemblSelectie = new Set();
+let assemblPaginaData = [];
+let assemblPagina = 1;
+const ASSEMBL_PER_PAGINA = 100;
+window.assemblPaginaVorige = function(){ if(assemblPagina>1){ assemblPagina--; renderAssemblage(); } };
+window.assemblPaginaVolgende = function(tot){ if(assemblPagina<tot){ assemblPagina++; renderAssemblage(); } };
+
+function getAssemblArtikelen(){
+  return artikelen.filter(a=>a.templateId===ASSEMBL_TEMPLATE_ID);
+}
+
+function renderAssemblage(){
+  const thead = document.getElementById('tbl-assembl-head');
+  const tbody = document.getElementById('tbl-assembl-body');
+  if(!thead||!tbody) return;
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===ASSEMBL_TEMPLATE_ID)||{};
+  const all = getAssemblArtikelen();
+  const totaalPaginas = Math.max(1,Math.ceil(all.length/ASSEMBL_PER_PAGINA));
+  if(assemblPagina>totaalPaginas) assemblPagina=1;
+  assemblPaginaData = all.slice((assemblPagina-1)*ASSEMBL_PER_PAGINA, assemblPagina*ASSEMBL_PER_PAGINA);
+  const paginaTxt = totaalPaginas>1
+    ? ` &nbsp;|&nbsp; Pagina ${assemblPagina} van ${totaalPaginas} &nbsp;
+        <button class="btn btn-sm" onclick="assemblPaginaVorige()" ${assemblPagina<=1?'disabled':''}>‹</button>
+        <button class="btn btn-sm" onclick="assemblPaginaVolgende(${totaalPaginas})" ${assemblPagina>=totaalPaginas?'disabled':''}>›</button>` : '';
+  document.getElementById('assembl-count').innerHTML = `${all.length} artikel${all.length!==1?'en':''}` + paginaTxt;
+
+  const alleGeselecteerd = assemblPaginaData.length>0 && assemblPaginaData.every(a=>assemblSelectie.has(a.id));
+  thead.innerHTML=`<tr style="position:sticky;top:0;background:var(--gray-bg);z-index:10">
+    <th style="width:36px;text-align:center"><input type="checkbox" id="chk-assembl-all" ${alleGeselecteerd?'checked':''} /></th>
+    <th style="min-width:140px">Product ID</th>
+    <th style="min-width:260px">Name</th>
+    <th style="min-width:180px">Default Vendor</th>
+    <th style="min-width:140px">Product ID Vendor</th>
+    <th style="min-width:160px">Product Group</th>
+    <th style="min-width:130px">FS Product Type</th>
+    <th style="min-width:100px;text-align:right">Standard Cost</th>
+    <th style="min-width:80px;text-align:center">Serial Nr.</th>
+    <th style="min-width:120px">Ledger Turnover</th>
+    <th style="min-width:150px">Product Posting Grp</th>
+    <th style="min-width:130px">Manufacturer</th>
+    <th style="min-width:130px">Category</th>
+    <th style="min-width:130px">Model</th>
+    <th style="min-width:170px;background:var(--amber-light);color:var(--amber);border-left:2px solid rgba(133,79,11,.2)">Price/Profit</th>
+    <th style="min-width:110px;text-align:right">Unit Price</th>
+    <th style="min-width:90px">Profit (%)</th>
+    <th style="min-width:130px;background:var(--amber-light);color:var(--amber)">Template</th>
+    <th style="min-width:120px"></th>
+  </tr>`;
+  document.getElementById('chk-assembl-all').addEventListener('change', function(){
+    if(this.checked) all.forEach(a=>assemblSelectie.add(a.id));
+    else all.forEach(a=>assemblSelectie.delete(a.id));
+    updateAssemblSelectieBalk(); renderAssemblage();
+  });
+
+  tbody.innerHTML = assemblPaginaData.map(a=>{
+    const pp=(t.priceProfit||'').toLowerCase();
+    const cost=parseFloat(a.standardCost||0);
+    const pct=parseFloat(a.profitPct||'');
+    const unitPrice=(pp.includes('kosten')||pp.includes('prijs'))&&cost&&!isNaN(pct)&&pct!==0?'€\u00a0'+(cost*(1+pct/100)).toFixed(2):'—';
+    const sel=assemblSelectie.has(a.id);
+    return `<tr class="${sel?'row-selected':''}">
+      <td style="text-align:center;width:36px"><input type="checkbox" class="chk-assembl" data-id="${a.id}" ${sel?'checked':''} /></td>
+      <td><strong style="font-size:13px">${a.productId||'—'}</strong></td>
+      <td style="font-size:13px">${a.name||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.defaultVendor||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.productIdVendor||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.productGroup||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.fsProductType||'—'}</td>
+      <td style="text-align:right;font-size:12px;color:var(--blue);font-weight:500">${a.standardCost?'€\u00a0'+parseFloat(a.standardCost).toFixed(2):'—'}</td>
+      <td style="font-size:12px;text-align:center">${a.serialNumber||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.ledgerTurnover||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.productPostingGroup||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.manufacturer||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.category||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.model||'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04);border-left:2px solid rgba(133,79,11,.2)">${t.priceProfit||'—'}</td>
+      <td style="font-size:12px;text-align:right;font-weight:500;color:var(--blue)">${unitPrice}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.profitPct?a.profitPct+'%':'—'}</td>
+      <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.naam||ASSEMBL_TEMPLATE_ID}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-sm" onclick="editArtikel('${a.id}')">Bewerken</button>
+        <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteAssemblArtikel('${a.id}')">Verwijderen</button>
+      </td>
+    </tr>`;
+  }).join('') ||
+  '<tr><td colspan="19" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen ASSEMBL-ARTIKEL artikelen gevonden</td></tr>';
+
+  document.getElementById('tbl-assembl-body').querySelectorAll('.chk-assembl').forEach(chk=>{
+    chk.addEventListener('change', function(){
+      if(this.checked) assemblSelectie.add(this.dataset.id);
+      else assemblSelectie.delete(this.dataset.id);
+      this.closest('tr').className=this.checked?'row-selected':'';
+      const alleChk=document.getElementById('chk-assembl-all');
+      if(alleChk) alleChk.checked=all.every(a=>assemblSelectie.has(a.id));
+      updateAssemblSelectieBalk();
+    });
+  });
+}
+
+function updateAssemblSelectieBalk(){
+  const bar=document.getElementById('assembl-selectie-bar');
+  const cnt=assemblSelectie.size;
+  if(cnt>0){bar.style.display='flex';document.getElementById('assembl-selectie-count').textContent=`${cnt} artikel${cnt!==1?'en':''} geselecteerd`;}
+  else bar.style.display='none';
+}
+window.deselecteerAssembl=function(){assemblSelectie.clear();updateAssemblSelectieBalk();renderAssemblage();};
+
+window.deleteAssemblArtikel=async function(id){
+  if(!confirm('Artikel verwijderen?'))return;
+  await deleteDoc(doc(db,'artikelen',id));
+  artikelen=artikelen.filter(x=>x.id!==id);
+  assemblSelectie.delete(id);
+  updateAssemblSelectieBalk(); renderAssemblage();
+  showSaving('Artikel verwijderd');
+};
+
+window.bulkEditAssembl=async function(){
+  const ids=[...assemblSelectie];
+  const kolom=document.getElementById('sel-assembl-bulk-kolom').value;
+  const waarde=document.getElementById('inp-assembl-bulk-waarde').value.trim();
+  if(!ids.length){alert('Selecteer eerst artikelen');return;}
+  if(!kolom){alert('Kies een kolom');return;}
+  for(let i=0;i<ids.length;i+=500){
+    const batch=writeBatch(db);
+    ids.slice(i,i+500).forEach(id=>{
+      batch.update(doc(db,'artikelen',id),{[kolom]:waarde});
+      const a=artikelen.find(x=>x.id===id);if(a)a[kolom]=waarde;
+    });
+    await batch.commit();
+  }
+  document.getElementById('inp-assembl-bulk-waarde').value='';
+  document.getElementById('sel-assembl-bulk-kolom').value='';
+  renderAssemblage();
+  showSaving('Artikelen bijgewerkt');
+};
+
+// Upload voor assemblage
+document.getElementById('btn-add-assembl').addEventListener('click',()=>{
+  const t=ARTIKEL_TEMPLATES.find(x=>x.id===ASSEMBL_TEMPLATE_ID);
+  document.getElementById('artikel-edit-id').value='';
+  document.getElementById('artikel-template-badge').textContent=`Template: ${t?.naam||ASSEMBL_TEMPLATE_ID}`;
+  document.getElementById('modal-artikel-title').textContent='Nieuw artikel';
+  document.getElementById('sel-template-filter').value=ASSEMBL_TEMPLATE_ID;
+  vulArtikelForm(t,{});
+  openModal('modal-artikel');
+});
+
+document.getElementById('btn-assembl-upload').addEventListener('click',()=>document.getElementById('assembl-upload-input').click());
+
+document.getElementById('assembl-upload-input').addEventListener('change',async(event)=>{
+  const status=document.getElementById('assembl-upload-status');
+  const file=event.target.files[0];
+  if(!file)return;
+  if(typeof XLSX==='undefined'){alert('Excel-library nog niet geladen');return;}
+  status.textContent='Bestand lezen…';
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      const startRow=rows[0]&&String(rows[0][0]).trim().toLowerCase()==='product id'?1:0;
+      const dataRows=rows.slice(startRow).filter(r=>String(r[0]||'').trim());
+      if(!dataRows.length){status.textContent='Geen data';return;}
+      const bestaandeIds=new Set(artikelen.filter(a=>a.templateId===ASSEMBL_TEMPLATE_ID).map(a=>a.productId));
+      const bestaand=dataRows.filter(r=>bestaandeIds.has(String(r[0]||'').trim()));
+      const nieuw=dataRows.filter(r=>!bestaandeIds.has(String(r[0]||'').trim()));
+      let overschrijven=false;
+      if(bestaand.length>0) overschrijven=confirm(bestaand.length+' artikelen bestaan al.\nOK = overschrijven\nAnnuleren = alleen nieuwe toevoegen ('+nieuw.length+')');
+      const teVerwerken=overschrijven?dataRows:nieuw;
+      if(!teVerwerken.length){status.textContent='Geen nieuwe artikelen';setTimeout(()=>status.textContent='',3000);return;}
+      let total=0;
+      for(let i=0;i<teVerwerken.length;i+=500){
+        const batch=writeBatch(db);
+        teVerwerken.slice(i,i+500).forEach((r,idx)=>{
+          const productId=String(r[0]||'').trim(); if(!productId)return;
+          let docId='art'+(Date.now()+i+idx);
+          if(overschrijven){const ex=artikelen.find(a=>a.templateId===ASSEMBL_TEMPLATE_ID&&a.productId===productId);if(ex)docId=ex.id;}
+          batch.set(doc(collection(db,'artikelen'),docId),{templateId:ASSEMBL_TEMPLATE_ID,productId,
+            name:String(r[1]||'').trim(),defaultVendor:String(r[2]||'').trim(),productIdVendor:String(r[3]||'').trim(),
+            productGroup:String(r[4]||'').trim(),fsProductType:String(r[5]||'').trim(),standardCost:String(r[6]||'').trim(),
+            serialNumber:String(r[7]||'').trim(),agreementProduct:String(r[8]||'').trim(),mainProduct:String(r[9]||'').trim(),
+            ledgerTurnover:String(r[10]||'').trim(),productPostingGroup:String(r[11]||'').trim()},{merge:overschrijven});
+          total++;
+        });
+        await batch.commit();
+        status.textContent=Math.min(i+500,teVerwerken.length)+' / '+teVerwerken.length+' verwerkt…';
+      }
+      status.textContent='✓ '+total+' artikel'+(total!==1?'en':'')+' '+(overschrijven?'bijgewerkt':'toegevoegd');
+      setTimeout(()=>status.textContent='',4000);
+      const snap=await getDocs(collection(db,'artikelen'));
+      artikelen=snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderAssemblage();
+    }catch(err){status.textContent='';alert('Fout: '+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value='';
+});
+
+document.getElementById('btn-assembl-download').addEventListener('click',()=>{
+  if(typeof XLSX==='undefined'){alert('Excel-library nog niet geladen');return;}
+  const t=ARTIKEL_TEMPLATES.find(x=>x.id===ASSEMBL_TEMPLATE_ID)||{};
+  const all=getAssemblArtikelen();
+  const header=['Product ID','Name','Default Vendor','Product ID Vendor','Product Group','FS Product Type',
+    'Standard Cost','Serial Number','Agreement Product','Main Product','Ledger Turnover','Product Posting Group',
+    'Manufacturer','Category','Model','Price/Profit','Unit Price','Profit (%)'];
+  const rows=[header,...all.map(a=>{
+    const pp=(t.priceProfit||'').toLowerCase();
+    const cost=parseFloat(a.standardCost||0);
+    const pct=parseFloat(a.profitPct||'');
+    const up=(pp.includes('kosten')||pp.includes('prijs'))&&cost&&!isNaN(pct)&&pct!==0?parseFloat((cost*(1+pct/100)).toFixed(2)):'';
+    return [a.productId||'',a.name||'',a.defaultVendor||'',a.productIdVendor||'',a.productGroup||'',a.fsProductType||'',
+      a.standardCost?parseFloat(a.standardCost):'',a.serialNumber||'',a.agreementProduct||'',a.mainProduct||'',
+      a.ledgerTurnover||'',a.productPostingGroup||'',a.manufacturer||'',a.category||'',a.model||'',
+      t.priceProfit||'',up,a.profitPct||''];
+  })];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Assemblage op voorraad');
+  XLSX.writeFile(wb,`assemblage-op-voorraad-${new Date().toISOString().slice(0,10)}.xlsx`);
+});
 
 function initStickyScroll(){
   const wrap  = document.getElementById('artikel-tabel-wrap');
