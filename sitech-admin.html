@@ -3925,10 +3925,11 @@ let sbuConfigData = {}; // { sbuId: { blok: '1', merken: { merkId: true/false } 
 
 async function loadSbuConfig(){
   // Laad alle benodigde data parallel
-  const [bomSnap, merkenSnap, configSnap] = await Promise.all([
+  const [bomSnap, merkenSnap, configSnap, bcSnap] = await Promise.all([
     getDocs(collection(db,'bom_sbu')),
     getDocs(collection(db,'merken')),
     getDocs(collection(db,'sbu_config')),
+    getDocs(collection(db,'basis_config')),
   ]);
 
   // Zorg dat bomData beschikbaar is
@@ -3946,6 +3947,9 @@ async function loadSbuConfig(){
   sbuConfigData = {};
   configSnap.docs.forEach(d=>{ sbuConfigData[d.id] = d.data(); });
 
+  // Laad bcData voor de "In Basis Config" kolom
+  bcSnap.docs.forEach(d=>{ bcData[d.id] = d.data().rijen||[]; });
+
   renderSbuConfig();
 }
 
@@ -3956,17 +3960,29 @@ function renderSbuConfig(){
 
   const merkLijst = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||''));
 
-  // Header: SBU | Blok | merk1 | merk2 | ...
+  // Bouw set van alle SBU-nummers die in bcData voorkomen (sbu1..sbu4 van alle rijen)
+  const inBasisConfig = new Set();
+  Object.values(bcData).forEach(rijen=>{
+    (rijen||[]).forEach(r=>{
+      [r.sbu1,r.sbu2,r.sbu3,r.sbu4,r.artikelnr].forEach(s=>{ if(s) inBasisConfig.add(s); });
+    });
+  });
+
   thead.innerHTML = `<tr>
     <th style="min-width:120px;padding:8px 12px">SBU</th>
     <th style="min-width:220px;padding:8px 12px">Naam</th>
     <th style="min-width:80px;padding:8px 12px;text-align:center">Blok</th>
+    <th style="min-width:110px;padding:8px 12px;text-align:center">Basis Config</th>
     ${merkLijst.map(m=>`<th style="min-width:120px;padding:8px 12px;text-align:center">${m.naam||m.id}</th>`).join('')}
   </tr>`;
 
   tbody.innerHTML = bomData.map(b=>{
     const cfg = sbuConfigData[b.sbuId] || {};
     const blok = cfg.blok || '';
+    const inBC = inBasisConfig.has(b.sbuId);
+    const bcBadge = inBC
+      ? `<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;background:var(--green-light);color:var(--green);border:0.5px solid rgba(59,109,17,.3)">✓ Ja</span>`
+      : `<span style="padding:2px 8px;border-radius:20px;font-size:11px;color:var(--gray-text);border:0.5px solid var(--gray-border)">Nee</span>`;
     return `<tr>
       <td style="padding:8px 12px;font-weight:500;font-size:13px">${b.sbuId}</td>
       <td style="padding:8px 12px;font-size:12px;color:var(--gray-text)">${b.naam}</td>
@@ -3976,8 +3992,9 @@ function renderSbuConfig(){
           onchange="sbuConfigWijzig('${b.sbuId}','blok',this.value)"
           style="width:56px;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;text-align:center;outline:none" />
       </td>
+      <td style="padding:8px 12px;text-align:center">${bcBadge}</td>
       ${merkLijst.map(m=>{
-        const actief = cfg.merken && m.id in cfg.merken ? cfg.merken[m.id] : true; // standaard ja
+        const actief = cfg.merken && m.id in cfg.merken ? cfg.merken[m.id] : true;
         return `<td style="padding:6px 12px;text-align:center">
           <button onclick="sbuConfigToggle('${b.sbuId}','${m.id}')"
             data-sbu="${b.sbuId}" data-merk="${m.id}"
@@ -3988,7 +4005,7 @@ function renderSbuConfig(){
       }).join('')}
     </tr>`;
   }).join('') ||
-  `<tr><td colspan="${3+merkLijst.length}" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen SBU data — upload eerst BoM SBU</td></tr>`;
+  `<tr><td colspan="${4+merkLijst.length}" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen SBU data — upload eerst BoM SBU</td></tr>`;
 }
 
 window.sbuConfigToggle = function(sbuId, merkId){
