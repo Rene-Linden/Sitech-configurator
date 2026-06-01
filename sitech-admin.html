@@ -3748,6 +3748,19 @@ async function loadBasisConfig(){
   bcData = {};
   bcSnap.docs.forEach(d=>{ bcData[d.id] = d.data().rijen||[]; });
 
+  // Seed Volvo voorbeeld-configuratie als die nog leeg is
+  const volvoMerk = merken.find(m=>(m.naam||'').toLowerCase().includes('volvo'));
+  if(volvoMerk && (!bcData[volvoMerk.id] || bcData[volvoMerk.id].length===0)){
+    const volvoRijen = [
+      { type:'Volvo EC140E - EC550E', omschrijving:'Trimble Earthworks voorbereiding - Vaste ontvangers',   artikelnr:'SBU-0086', criterium:'Vast', kleur:'yellow', sbu1:'SBU-0034', sbu2:'SBU-0040', sbu3:'SBU-0046', sbu4:'SBU-0026' },
+      { type:'Volvo EC140E - EC550E', omschrijving:'Trimble Earthworks voorbereiding - Losse ontvangers',   artikelnr:'SBU-0087', criterium:'Los',  kleur:'blue',   sbu1:'SBU-0034', sbu2:'SBU-0040', sbu3:'SBU-0114', sbu4:'SBU-0026' },
+      { type:'Volvo EC160E',          omschrijving:'Trimble Earthworks voorbereiding - vaste ontvangers',   artikelnr:'SBU-0172', criterium:'Vast', kleur:'yellow', sbu1:'SBU-0034', sbu2:'SBU-0404', sbu3:'SBU-0046', sbu4:'SBU-0026' },
+      { type:'Volvo EC160E',          omschrijving:'Trimble Earthworks voorbereiding - losse ontvangers',   artikelnr:'SBU-0173', criterium:'Los',  kleur:'blue',   sbu1:'SBU-0034', sbu2:'SBU-0040', sbu3:'SBU-0114', sbu4:'SBU-0026' },
+    ];
+    bcData[volvoMerk.id] = volvoRijen;
+    await setDoc(doc(db,'basis_config',volvoMerk.id), { rijen: volvoRijen });
+  }
+
   const gesorteerd = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||''));
   if(!bcHuidigMerk) bcHuidigMerk = gesorteerd[0]?.id||null;
   renderBcTabs();
