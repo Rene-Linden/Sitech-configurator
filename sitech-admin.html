@@ -276,6 +276,10 @@ tr.row-selected td{background:var(--blue-light)}
             </table>
           </div>
         </div>
+        <!-- Sticky scrollbar altijd onderaan scherm zichtbaar -->
+        <div id="artikel-sticky-scroll" style="position:sticky;bottom:0;overflow-x:auto;overflow-y:hidden;background:var(--white);border-top:0.5px solid var(--gray-border);z-index:30;padding:2px 0">
+          <div id="artikel-sticky-inner" style="height:1px;min-width:4000px"></div>
+        </div>
       </div>
 
       <!-- ARTIKEL TEMPLATES PANEL -->
@@ -656,10 +660,10 @@ window.showPanel = function(name,el){
   if(name==='artikelen'){
     vulTemplateSelector();
     toonTemplateInfo();
-    // Laad alle artikelen vers
     getDocs(collection(db,'artikelen')).then(snap=>{
       artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
       renderArtikelen();
+      setTimeout(initStickyScroll, 100);
     });
   }
   if(name==='artikel-templates'){ renderArtikelTemplates(); }
@@ -2014,6 +2018,18 @@ document.getElementById('btn-artikel-download').addEventListener('click', ()=>{
 });
 
 // ============================================================
+// STICKY SCROLLBAR
+// ============================================================
+function initStickyScroll(){
+  const wrap  = document.getElementById('artikel-tabel-wrap');
+  const stick = document.getElementById('artikel-sticky-scroll');
+  if(!wrap||!stick) return;
+  let busy=false;
+  wrap.addEventListener('scroll', ()=>{ if(busy)return; busy=true; stick.scrollLeft=wrap.scrollLeft; busy=false; });
+  stick.addEventListener('scroll', ()=>{ if(busy)return; busy=true; wrap.scrollLeft=stick.scrollLeft; busy=false; });
+}
+
+// ============================================================
 // ARTIKEL TEMPLATES MODULE
 // ============================================================
 let artikelTemplatesData = {};
@@ -2225,7 +2241,12 @@ window.deleteArtikelTemplate = async function(id){
   vulTemplateSelector();
   renderArtikelen();
 };
-window.addEventListener('load', ()=>{ setTimeout(vulTemplateSelector, 500); });
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{
+    vulTemplateSelector();
+    initStickyScroll();
+  }, 500);
+});
 
 </script>
 
