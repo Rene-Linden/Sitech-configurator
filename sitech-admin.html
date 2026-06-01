@@ -306,7 +306,11 @@ tr.row-selected td{background:var(--blue-light)}
 
             <button class="btn btn-sm btn-red" onclick="verwijderGeselecteerd()">Verwijderen</button>
             <button class="btn btn-sm" onclick="deselecteerAlles()">Selectie opheffen</button>
-            <span id="filter-artikel-count" style="margin-left:auto;font-size:12px;color:var(--gray-text)"></span>
+          </div>
+
+          <!-- Teller + paginering: altijd zichtbaar -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;min-height:28px">
+            <span id="filter-artikel-count" style="font-size:12px;color:var(--gray-text)"></span>
           </div>
         </div>
 
