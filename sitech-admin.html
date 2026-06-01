@@ -2555,9 +2555,33 @@ let bomData = []; // array van {id, sbuId, naam, artikelen:[{artikelId,naam,aant
 let bomDetailId = null; // huidige open BoM in detail modal
 
 async function loadBomData(){
-  const snap = await getDocs(collection(db,'bom_sbu'));
-  bomData = snap.docs.map(d=>({id:d.id,...d.data()}))
+  // Zorg dat artikelen en resources geladen zijn voordat we prijzen berekenen
+  const [bomSnap, artSnap, resSnap] = await Promise.all([
+    getDocs(collection(db,'bom_sbu')),
+    getDocs(collection(db,'artikelen')),
+    getDocs(collection(db,'resources')),
+  ]);
+
+  bomData = bomSnap.docs.map(d=>({id:d.id,...d.data()}))
     .sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+
+  // Update artikelen array
+  artikelen = artSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+  // Update resourcesData
+  resSnap.docs.forEach(d=>{
+    const idx = resourcesData.findIndex(r=>r.id===d.id);
+    if(idx>-1) Object.assign(resourcesData[idx], d.data());
+  });
+
+  // Sync ARTIKEL_TEMPLATES vanuit Firestore indien beschikbaar
+  const atSnap = await getDocs(collection(db,'artikel_templates'));
+  atSnap.docs.forEach(d=>{
+    const idx = ARTIKEL_TEMPLATES.findIndex(x=>x.id===d.id);
+    if(idx>-1) Object.assign(ARTIKEL_TEMPLATES[idx], d.data());
+    else ARTIKEL_TEMPLATES.push({id:d.id,...d.data()});
+  });
+
   renderBomTabel();
   vulBomZoekSelector();
 }
@@ -2895,9 +2919,27 @@ let bomEwvData = [];
 let bomEwvDetailId = null;
 
 async function loadBomEwvData(){
-  const snap = await getDocs(collection(db,'bom_ewv'));
-  bomEwvData = snap.docs.map(d=>({id:d.id,...d.data()}))
+  const [ewvSnap, bomSnap, artSnap, resSnap] = await Promise.all([
+    getDocs(collection(db,'bom_ewv')),
+    getDocs(collection(db,'bom_sbu')),
+    getDocs(collection(db,'artikelen')),
+    getDocs(collection(db,'resources')),
+  ]);
+
+  bomEwvData = ewvSnap.docs.map(d=>({id:d.id,...d.data()}))
     .sort((a,b)=>(a.sbuId||'').localeCompare(b.sbuId||''));
+
+  // Zorg dat bomData beschikbaar is voor EWV-berekeningen
+  bomData = bomSnap.docs.map(d=>({id:d.id,...d.data()}))
+    .sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+
+  artikelen = artSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+  resSnap.docs.forEach(d=>{
+    const idx = resourcesData.findIndex(r=>r.id===d.id);
+    if(idx>-1) Object.assign(resourcesData[idx], d.data());
+  });
+
   renderBomEwvTabel();
   vulBomEwvZoekSelector();
 }
