@@ -132,18 +132,22 @@ tr.row-selected td{background:var(--blue-light)}
     </div>
   </div>
   <div class="layout">
-    <div class="sidebar">
-      <a class="nav-item active" onclick="showPanel('artikel-templates',this)">Artikel Templates</a>
-      <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
-      <a class="nav-item" onclick="showPanel('bom-sbu',this)">BoM SBU</a>
-      <a class="nav-item" onclick="showPanel('sbu',this)">SBU</a>
-      <a class="nav-item" onclick="showPanel('bom-ewv',this)">BoM EWV</a>
-      <a class="nav-item" onclick="showPanel('ewv',this)">EWV</a>
-      <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
-      <a class="nav-item" onclick="showPanel('gebruikers',this)">Gebruikers</a>
-      <a class="nav-item" onclick="showPanel('sitech',this)">Sitech medewerkers</a>
-      <a class="nav-item" onclick="showPanel('prijslijsten',this)">Prijslijsten</a>
-      <a class="nav-item" onclick="showPanel('aanvragen',this)">Aanvragen</a>
+    <div class="sidebar" style="display:flex;flex-direction:column">
+      <div style="flex:1">
+        <a class="nav-item active" onclick="showPanel('artikel-templates',this)">Artikel Templates</a>
+        <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
+        <a class="nav-item" onclick="showPanel('bom-sbu',this)">BoM SBU</a>
+        <a class="nav-item" onclick="showPanel('sbu',this)">SBU</a>
+        <a class="nav-item" onclick="showPanel('bom-ewv',this)">BoM EWV</a>
+        <a class="nav-item" onclick="showPanel('ewv',this)">EWV</a>
+        <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
+        <a class="nav-item" onclick="showPanel('prijslijsten',this)">Prijslijsten</a>
+        <a class="nav-item" onclick="showPanel('aanvragen',this)">Aanvragen</a>
+      </div>
+      <div style="border-top:0.5px solid var(--gray-border);padding-top:8px">
+        <a class="nav-item" onclick="showPanel('gebruikers',this)">Gebruikers</a>
+        <a class="nav-item" onclick="showPanel('sitech',this)">Sitech medewerkers</a>
+      </div>
     </div>
     <div class="main">
 
