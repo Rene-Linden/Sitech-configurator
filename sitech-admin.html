@@ -3882,21 +3882,65 @@ window.blokOmhoog = async function(idx){
   const { gesorteerd } = getGesorteerdeBloknummers();
   if(idx<=0) return;
   [gesorteerd[idx-1], gesorteerd[idx]] = [gesorteerd[idx], gesorteerd[idx-1]];
-  blokVolgorde = gesorteerd;
-  await slaBlokVolgordeOp();
-  renderBlokken();
-  showSaving('Volgorde opgeslagen');
+  await herNummerBlokken(gesorteerd);
 };
 
 window.blokOmlaag = async function(idx){
   const { gesorteerd } = getGesorteerdeBloknummers();
   if(idx>=gesorteerd.length-1) return;
   [gesorteerd[idx], gesorteerd[idx+1]] = [gesorteerd[idx+1], gesorteerd[idx]];
-  blokVolgorde = gesorteerd;
-  await slaBlokVolgordeOp();
-  renderBlokken();
-  showSaving('Volgorde opgeslagen');
+  await herNummerBlokken(gesorteerd);
 };
+
+async function herNummerBlokken(nieuweVolgorde){
+  // Maak mapping: oud bloknr -> nieuw bloknr (1,2,3,...)
+  const mapping = {}; // { '3': '1', '1': '2', '5': '3', ... }
+  nieuweVolgorde.forEach((oudNr, idx)=>{
+    mapping[oudNr] = String(idx+1);
+  });
+
+  const statusEl = document.getElementById('blokken-status');
+  statusEl.textContent = 'Hernummeren…';
+
+  // Batch update alle SBU config records met nieuw bloknummer
+  const teUpdaten = Object.entries(sbuConfigData).filter(([,cfg])=>cfg.blok && mapping[cfg.blok]);
+  if(teUpdaten.length){
+    const BATCH = 500;
+    for(let i=0;i<teUpdaten.length;i+=BATCH){
+      const batch = writeBatch(db);
+      teUpdaten.slice(i,i+BATCH).forEach(([sbuId,cfg])=>{
+        cfg.blok = mapping[cfg.blok];
+        batch.set(doc(db,'sbu_config',sbuId), cfg);
+      });
+      await batch.commit();
+    }
+  }
+
+  // Update blokNamen: verwijder oude nummers, sla op met nieuwe
+  const nieuweBlokNamen = {};
+  const batch2 = writeBatch(db);
+  // Verwijder alle bestaande namen
+  Object.keys(blokNamen).forEach(nr=>{
+    batch2.delete(doc(db,'blok_namen',nr));
+  });
+  // Sla op met nieuwe nummers
+  Object.entries(mapping).forEach(([oudNr, nieuwNr])=>{
+    const naam = blokNamen[oudNr]||'';
+    nieuweBlokNamen[nieuwNr] = naam;
+    batch2.set(doc(db,'blok_namen',nieuwNr), { naam });
+  });
+  await batch2.commit();
+  blokNamen = nieuweBlokNamen;
+
+  // Sla nieuwe volgorde op (nu gewoon [1,2,3,...])
+  blokVolgorde = nieuweVolgorde.map((_,idx)=>String(idx+1));
+  await slaBlokVolgordeOp();
+
+  statusEl.textContent = '✓ Volgorde en nummers bijgewerkt';
+  setTimeout(()=>statusEl.textContent='',3000);
+  renderBlokken();
+  showSaving('Blokken hernummerd');
+}
 
 window.blokNieuw = function(){
   // Bepaal eerst vrij bloknummer
