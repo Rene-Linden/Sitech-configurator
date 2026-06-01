@@ -546,15 +546,13 @@ tr.row-selected td{background:var(--blue-light)}
                 <tr>
                   <th style="padding:8px 12px;min-width:160px">Machine type</th>
                   <th style="padding:8px 12px;min-width:260px">Omschrijving</th>
-                  <th style="padding:8px 12px;min-width:110px">Artikelnr.</th>
-                  <th style="padding:8px 12px;min-width:100px;text-align:right">Inkoop</th>
-                  <th style="padding:8px 12px;min-width:110px;text-align:right">Verkoopadvies</th>
                   <th style="padding:8px 12px;min-width:60px;text-align:center">Kleur</th>
                   <th style="padding:8px 12px;min-width:90px;text-align:center">Criterium</th>
                   <th style="padding:8px 12px;min-width:90px">SBU 1</th>
                   <th style="padding:8px 12px;min-width:90px">SBU 2</th>
                   <th style="padding:8px 12px;min-width:90px">SBU 3</th>
                   <th style="padding:8px 12px;min-width:90px">SBU 4</th>
+                  <th style="padding:8px 12px;min-width:120px;text-align:right;color:var(--blue)">Verkoopprijs</th>
                   <th style="padding:8px 12px;min-width:100px"></th>
                 </tr>
               </thead>
@@ -3798,8 +3796,7 @@ function renderBcTabel(){
     return;
   }
   tbody.innerHTML = rijen.map((r,ri)=>{
-    const inkoop  = berekenBcInkoop(r);
-    const verkoop = berekenBcVerkoop(r);
+    const verkoop = berekenBcVerkoopSBUs(r);
     const kleurDot = r.kleur==='yellow'
       ? `<span style="display:inline-block;width:16px;height:16px;background:#FDE68A;border:1px solid #D97706;border-radius:3px;vertical-align:middle"></span>`
       : r.kleur==='blue'
@@ -3811,15 +3808,13 @@ function renderBcTabel(){
     return `<tr>
       <td style="padding:8px 12px;font-size:13px">${r.type||'—'}</td>
       <td style="padding:8px 12px;font-size:13px">${r.omschrijving||'—'}</td>
-      <td style="padding:8px 12px;font-family:monospace;font-size:12px;color:var(--blue)">${r.artikelnr||'—'}</td>
-      <td style="padding:8px 12px;text-align:right;font-size:12px">${inkoop!==null?'€ '+inkoop.toFixed(2):'—'}</td>
-      <td style="padding:8px 12px;text-align:right;font-size:12px;color:var(--blue);font-weight:500">${verkoop!==null?'€ '+verkoop.toFixed(2):'—'}</td>
       <td style="padding:8px 12px;text-align:center">${kleurDot}</td>
       <td style="padding:8px 12px;text-align:center">${critBadge}</td>
       <td style="padding:8px 12px;font-size:12px;color:var(--blue)">${r.sbu1||'—'}</td>
       <td style="padding:8px 12px;font-size:12px;color:var(--blue)">${r.sbu2||'—'}</td>
       <td style="padding:8px 12px;font-size:12px;color:var(--blue)">${r.sbu3||'—'}</td>
       <td style="padding:8px 12px;font-size:12px;color:var(--blue)">${r.sbu4||'—'}</td>
+      <td style="padding:8px 12px;text-align:right;font-size:13px;font-weight:600;color:var(--blue)">${verkoop!==null?'€ '+verkoop.toFixed(2):'—'}</td>
       <td style="padding:8px 12px;text-align:right;white-space:nowrap">
         <button class="btn btn-sm" onclick="bcRijBewerken(${ri})">Bewerken</button>
         <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="bcRijVerwijderen(${ri})">Verwijderen</button>
@@ -3828,10 +3823,24 @@ function renderBcTabel(){
   }).join('');
 }
 
+// Verkoopprijs = som van unit-prijzen van SBU 1, 2, 3 en 4
+function berekenBcVerkoopSBUs(r){
+  const sbus = [r.sbu1, r.sbu2, r.sbu3, r.sbu4].filter(Boolean);
+  if(!sbus.length) return null;
+  let totaal = 0;
+  let heeftData = false;
+  sbus.forEach(sbuId=>{
+    const bom = bomData.find(b=>b.sbuId===sbuId);
+    if(!bom) return;
+    const tot = berekenBomTotalen(bom);
+    if(tot){ totaal += tot.unitTotaal; heeftData = true; }
+  });
+  return heeftData ? totaal : null;
+}
+
 function berekenBcInkoop(r){
   if(!r.artikelnr) return null;
-  const tot = getSbuTotaalStd(r.artikelnr);
-  return tot;
+  return getSbuTotaalStd(r.artikelnr);
 }
 
 function berekenBcVerkoop(r){
