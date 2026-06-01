@@ -633,16 +633,15 @@ tr.row-selected td{background:var(--blue-light)}
     <div class="modal-body" style="padding:0">
       <div id="bom-ewv-detail-info" style="padding:12px 18px;font-size:13px;color:var(--gray-text);border-bottom:0.5px solid var(--gray-border)"></div>
       <div style="overflow-x:auto">
-        <table style="width:100%;min-width:800px;border-collapse:collapse;font-size:13px">
+        <table style="width:100%;min-width:700px;border-collapse:collapse;font-size:13px">
           <thead>
             <tr style="background:var(--gray-bg)">
-              <th style="padding:8px 12px;min-width:130px">Artikel ID</th>
+              <th style="padding:8px 12px;min-width:130px">SBU / Artikel ID</th>
               <th style="padding:8px 12px;min-width:220px">Naam</th>
               <th style="padding:8px 12px;min-width:70px;text-align:right">Aantal</th>
               <th style="padding:8px 12px;min-width:65px;text-align:center">Eenheid</th>
-              <th style="padding:8px 12px;min-width:100px;text-align:right">Std. Cost</th>
-              <th style="padding:8px 12px;min-width:110px;text-align:right;color:var(--blue)">Totaal Std.</th>
-              <th style="padding:8px 12px;min-width:110px;text-align:right;color:var(--green)">Totaal Unit</th>
+              <th style="padding:8px 12px;min-width:130px;text-align:right">Std. Cost (som SBU)</th>
+              <th style="padding:8px 12px;min-width:130px;text-align:right;color:var(--blue)">Totaal Std.</th>
               <th style="padding:8px 12px;min-width:60px"></th>
             </tr>
           </thead>
@@ -2855,15 +2854,16 @@ function renderBomEwvTabel(){
   const tbody = document.getElementById('tbl-bom-ewv-body');
   if(!tbody) return;
   tbody.innerHTML = bomEwvData.map(b=>{
-    let totStandard=0, totUnit=0;
+    // EWV totalen: gebruik afgerond SBU totaal per artikel-id
+    let totStandard=0;
     (b.artikelen||[]).forEach(a=>{
-      const art = getArtikelByProductId(a.artikelId);
-      if(!art) return;
-      const stdCost = parseFloat(art.standardCost||0);
-      const unitPrice = berekenUnitPrice(art);
-      const aantal = parseFloat(a.aantal||0);
+      const sbuStd = getSbuTotaalAfgerond(a.artikelId);
+      const stdCost = sbuStd!==null ? sbuStd : (() => {
+        const art = getArtikelByProductId(a.artikelId);
+        return art ? parseFloat(art.standardCost||0) : 0;
+      })();
+      const aantal = parseFloat(a.aantal||1);
       if(stdCost && aantal) totStandard += stdCost*aantal;
-      if(unitPrice && aantal) totUnit += unitPrice*aantal;
     });
     return `<tr>
       <td><strong style="font-size:13px">${b.sbuId}</strong></td>
@@ -2874,7 +2874,7 @@ function renderBomEwvTabel(){
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.mounting||'—'}</td>
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.calibration||'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--blue)">${totStandard>0?'\u20ac\u00a0'+totStandard.toFixed(2):'—'}</td>
-      <td style="text-align:right;font-size:12px;font-weight:500;color:var(--green)">${totUnit>0?'\u20ac\u00a0'+totUnit.toFixed(2):'—'}</td>
+      <td style="text-align:right;font-size:12px;color:var(--gray-text)">n.v.t.</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-sm" onclick="openBomEwvDetailById('${b.id}')">Stuklijst</button>
         <button class="btn btn-sm" style="margin-left:4px" onclick="openBomEwvBewerken('${b.id}')">Bewerken</button>
@@ -2906,19 +2906,44 @@ window.openBomEwvDetailById = function(id){
   openModal('modal-bom-ewv-detail');
 };
 
+// Hulpfunctie: som Totaal Std. voor een SBU uit bomData
+function getSbuTotaalStd(sbuId){
+  const bom = bomData.find(b=>b.sbuId===sbuId);
+  if(!bom) return null;
+  let totaal = 0;
+  let gevonden = false;
+  (bom.artikelen||[]).forEach(a=>{
+    const art = getArtikelByProductId(a.artikelId);
+    if(!art) return;
+    const stdCost = parseFloat(art.standardCost||0);
+    const aantal  = parseFloat(a.aantal||0);
+    if(stdCost && aantal){ totaal += stdCost*aantal; gevonden=true; }
+  });
+  return gevonden ? totaal : null;
+}
+
+// Hulpfunctie: afgerond Totaal Std. voor SBU (Math.ceil)
+function getSbuTotaalAfgerond(sbuId){
+  const tot = getSbuTotaalStd(sbuId);
+  return tot!==null ? Math.ceil(tot) : null;
+}
+
 function renderBomEwvDetailTabel(b){
   const tbody = document.getElementById('tbl-bom-ewv-detail-body');
   const arts = b.artikelen||[];
-  let totStandard=0, totUnit=0;
+  let totStandard = 0;
   const rijen = arts.map((a,i)=>{
-    const art = getArtikelByProductId(a.artikelId);
-    const stdCost = art ? parseFloat(art.standardCost||0) : null;
-    const unitPrice = art ? berekenUnitPrice(art) : null;
-    const aantal = parseFloat(a.aantal||0);
-    const totStd  = stdCost!==null && aantal ? stdCost*aantal : null;
-    const totUnit2= unitPrice!==null && aantal ? unitPrice*aantal : null;
-    if(totStd) totStandard+=totStd;
-    if(totUnit2) totUnit+=totUnit2;
+    // Std. Cost per rij = som Totaal Std. van SBU stuklijst (afgerond)
+    const sbuStd = getSbuTotaalAfgerond(a.artikelId);
+    // Als niet gevonden als SBU, probeer dan als gewoon artikel
+    const artStd = sbuStd===null ? (() => {
+      const art = getArtikelByProductId(a.artikelId);
+      return art ? parseFloat(art.standardCost||0) : null;
+    })() : null;
+    const stdCost = sbuStd!==null ? sbuStd : artStd;
+    const aantal  = parseFloat(a.aantal||1);
+    const totStd  = stdCost!==null ? stdCost*aantal : null;
+    if(totStd) totStandard += totStd;
     return `<tr>
       <td><input type="text" value="${a.artikelId||''}" onchange="bomEwvRijUpdate(${i},'artikelId',this.value)"
         style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none" /></td>
@@ -2929,21 +2954,19 @@ function renderBomEwvDetailTabel(b){
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${a.eenheid||'Stuks'}</td>
       <td style="text-align:right;font-size:12px;color:var(--gray-text)">${stdCost!==null?'€\u00a0'+stdCost.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--blue)">${totStd!==null?'€\u00a0'+totStd.toFixed(2):'—'}</td>
-      <td style="text-align:right;font-size:12px;font-weight:500;color:var(--green)">${totUnit2!==null?'€\u00a0'+totUnit2.toFixed(2):'—'}</td>
       <td style="text-align:right">
         <button class="btn btn-sm btn-red" onclick="bomEwvRijVerwijder(${i})">×</button>
       </td>
     </tr>`;
   });
-  const totaalRij = (totStandard>0||totUnit>0) ? `
+  const totaalRij = totStandard>0 ? `
     <tr style="background:var(--gray-bg);font-weight:500">
       <td colspan="5" style="padding:8px 12px;font-size:12px;color:var(--gray-text)">Totaal</td>
-      <td style="text-align:right;font-size:12px;color:var(--blue);padding:8px 12px">${totStandard>0?'€\u00a0'+totStandard.toFixed(2):'—'}</td>
-      <td style="text-align:right;font-size:12px;color:var(--green);padding:8px 12px">${totUnit>0?'€\u00a0'+totUnit.toFixed(2):'—'}</td>
+      <td style="text-align:right;font-size:12px;color:var(--blue);padding:8px 12px">€\u00a0${totStandard.toFixed(2)}</td>
       <td></td>
     </tr>` : '';
   tbody.innerHTML = rijen.join('') + totaalRij ||
-    '<tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:1rem;font-size:13px">Geen artikelen</td></tr>';
+    '<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:1rem;font-size:13px">Geen artikelen</td></tr>';
 }
 
 window.bomEwvRijUpdate = function(idx, field, value){
