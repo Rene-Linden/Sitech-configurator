@@ -128,17 +128,17 @@ tr.row-selected td{background:var(--blue-light)}
   </div>
   <div class="layout">
     <div class="sidebar">
-      <a class="nav-item active" onclick="showPanel('merken',this)">Merken</a>
+      <a class="nav-item active" onclick="showPanel('artikel-templates',this)">Artikel Templates</a>
+      <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
+      <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
       <a class="nav-item" onclick="showPanel('gebruikers',this)">Gebruikers</a>
       <a class="nav-item" onclick="showPanel('sitech',this)">Sitech medewerkers</a>
       <a class="nav-item" onclick="showPanel('prijslijsten',this)">Prijslijsten</a>
       <a class="nav-item" onclick="showPanel('aanvragen',this)">Aanvragen</a>
-      <a class="nav-item" onclick="showPanel('artikel-templates',this)">Artikel Templates</a>
-      <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
     </div>
     <div class="main">
 
-      <div class="panel active" id="panel-merken">
+      <div class="panel" id="panel-merken">
         <div class="panel-title">Merken</div>
         <div class="panel-sub">Beheer de merken waarvoor aanvragen worden gedaan.</div>
         <div style="margin-bottom:12px"><button class="btn btn-blue" onclick="openAddMerk()">+ Nieuw merk</button></div>
@@ -284,7 +284,7 @@ tr.row-selected td{background:var(--blue-light)}
       </div>
 
       <!-- ARTIKEL TEMPLATES PANEL -->
-      <div class="panel" id="panel-artikel-templates">
+      <div class="panel active" id="panel-artikel-templates">
         <div class="panel-title">Artikel Templates</div>
         <div class="panel-sub">Klik op een rij om deze te selecteren. Beheer de vaste velden per template-type.</div>
 
@@ -319,6 +319,9 @@ tr.row-selected td{background:var(--blue-light)}
                   <th style="min-width:120px">Item Tracking</th>
                   <th style="min-width:100px">Ser. Nos.</th>
                   <th style="min-width:100px">Incl. BoM</th>
+                  <th style="min-width:80px;text-align:center;border-left:2px solid var(--gray-border)">Artikel</th>
+                  <th style="min-width:70px;text-align:center">SBU</th>
+                  <th style="min-width:70px;text-align:center">EWV</th>
                 </tr>
               </thead>
               <tbody id="tbl-at-body">
@@ -378,6 +381,20 @@ tr.row-selected td{background:var(--blue-light)}
       <div class="form-row cols2">
         <div class="fg"><label>Ser. Nos.</label><input type="text" id="at-serNos" /></div>
         <div class="fg"><label>Include Service BoM</label><input type="text" id="at-includeServiceBom" /></div>
+      </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--gray-border)">
+        <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin-bottom:10px">Kenmerken</div>
+        <div style="display:flex;gap:24px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="at-isArtikel" style="width:16px;height:16px" /> Artikel
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="at-isSBU" style="width:16px;height:16px" /> SBU
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="at-isEWV" style="width:16px;height:16px" /> EWV
+          </label>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1658,9 +1675,6 @@ function renderArtikelen(){
     <th style="min-width:90px;text-align:center">Serial Nr. ${makeColFilter('serial','Serial Number','select',serials)}</th>
     <th style="min-width:140px">Ledger Turnover ${makeColFilter('ledger','Ledger Turnover','select',ledgers)}</th>
     <th style="min-width:160px">Product Posting Grp ${makeColFilter('posting','Posting Group','select',postings)}</th>
-    <th style="min-width:80px;text-align:center;border-left:2px solid var(--gray-border)">Artikel</th>
-    <th style="min-width:70px;text-align:center">SBU</th>
-    <th style="min-width:70px;text-align:center">EWV</th>
     <th style="min-width:130px;background:var(--amber-light);color:var(--amber);border-left:2px solid rgba(133,79,11,.2)">Type</th>
     <th style="min-width:70px;background:var(--amber-light);color:var(--amber)">UoM</th>
     <th style="min-width:140px;background:var(--amber-light);color:var(--amber)">Costing Method</th>
@@ -1697,15 +1711,6 @@ function renderArtikelen(){
       <td style="font-size:12px;text-align:center">${a.serialNumber||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.ledgerTurnover||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.productPostingGroup||'—'}</td>
-      <td style="text-align:center;border-left:2px solid var(--gray-border)">
-        <input type="checkbox" class="chk-artikel-flag" data-id="${a.id}" data-field="isArtikel" ${a.isArtikel?'checked':''} onclick="toggleArtikelFlag(event)" />
-      </td>
-      <td style="text-align:center">
-        <input type="checkbox" class="chk-artikel-flag" data-id="${a.id}" data-field="isSBU" ${a.isSBU?'checked':''} onclick="toggleArtikelFlag(event)" />
-      </td>
-      <td style="text-align:center">
-        <input type="checkbox" class="chk-artikel-flag" data-id="${a.id}" data-field="isEWV" ${a.isEWV?'checked':''} onclick="toggleArtikelFlag(event)" />
-      </td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04);border-left:2px solid rgba(133,79,11,.2)">${t.type||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.uom||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.costingMeth||'—'}</td>
@@ -2080,6 +2085,15 @@ function renderArtikelTemplates(){
       <td style="font-size:12px">${t.itemTracking||'—'}</td>
       <td style="font-size:12px">${t.serNos||'—'}</td>
       <td style="font-size:12px">${t.includeServiceBom||'—'}</td>
+      <td style="text-align:center;border-left:2px solid var(--gray-border)" onclick="event.stopPropagation()">
+        <input type="checkbox" data-id="${t.id}" data-field="isArtikel" ${t.isArtikel?'checked':''} onchange="toggleTemplateFlag(event)" />
+      </td>
+      <td style="text-align:center" onclick="event.stopPropagation()">
+        <input type="checkbox" data-id="${t.id}" data-field="isSBU" ${t.isSBU?'checked':''} onchange="toggleTemplateFlag(event)" />
+      </td>
+      <td style="text-align:center" onclick="event.stopPropagation()">
+        <input type="checkbox" data-id="${t.id}" data-field="isEWV" ${t.isEWV?'checked':''} onchange="toggleTemplateFlag(event)" />
+      </td>
     </tr>`).join('') ||
     '<tr><td colspan="15" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen templates</td></tr>';
 }
@@ -2122,6 +2136,9 @@ function vulAtModal(t, isNieuw){
   document.getElementById('at-itemTracking').value     = t.itemTracking||'';
   document.getElementById('at-serNos').value           = t.serNos||'';
   document.getElementById('at-includeServiceBom').value= t.includeServiceBom||'';
+  document.getElementById('at-isArtikel').checked      = !!t.isArtikel;
+  document.getElementById('at-isSBU').checked          = !!t.isSBU;
+  document.getElementById('at-isEWV').checked          = !!t.isEWV;
   document.getElementById('at-nieuw-info').style.display  = isNieuw ? 'block' : 'none';
   document.getElementById('at-bewerk-info').style.display = isNieuw ? 'none'  : 'block';
 }
@@ -2166,6 +2183,9 @@ window.saveArtikelTemplate = async function(){
     itemTracking:     document.getElementById('at-itemTracking').value.trim(),
     serNos:           document.getElementById('at-serNos').value.trim(),
     includeServiceBom:document.getElementById('at-includeServiceBom').value.trim(),
+    isArtikel:        document.getElementById('at-isArtikel').checked,
+    isSBU:            document.getElementById('at-isSBU').checked,
+    isEWV:            document.getElementById('at-isEWV').checked,
   };
   if(isNieuw){
     ARTIKEL_TEMPLATES.push(updated);
@@ -2182,9 +2202,25 @@ window.saveArtikelTemplate = async function(){
   renderArtikelen();
 };
 
+window.toggleTemplateFlag = async function(event){
+  const chk   = event.target;
+  const id    = chk.dataset.id;
+  const field = chk.dataset.field;
+  const val   = chk.checked;
+  // Update in-memory
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===id);
+  if(t) t[field] = val;
+  // Sla op in Firestore
+  try {
+    await updateDoc(doc(db,'artikel_templates',id), { [field]: val });
+  } catch(e) {
+    console.error(e);
+    chk.checked = !val;
+    alert('Opslaan mislukt: '+e.message);
+  }
+};
 window.deleteArtikelTemplate = async function(id){
   const t = ARTIKEL_TEMPLATES.find(x=>x.id===id);
-  const aantalArtikelen = artikelen.filter(a=>a.templateId===id).length;
   if(aantalArtikelen>0){
     if(!confirm(`Template "${t?.naam||id}" heeft nog ${aantalArtikelen} artikel${aantalArtikelen!==1?'en':''}. Verwijder je ook die artikelen?\n\nKlik OK om alles te verwijderen, Annuleren om te stoppen.`)) return;
     // Verwijder ook de artikelen
