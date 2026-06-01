@@ -909,6 +909,32 @@ tr.row-selected td{background:var(--blue-light)}
     </div>
     <div class="modal-body" style="padding:0">
       <div id="bom-detail-info" style="padding:12px 18px;font-size:13px;color:var(--gray-text);border-bottom:0.5px solid var(--gray-border)"></div>
+
+      <!-- Resources sectie -->
+      <div style="padding:12px 18px;border-bottom:0.5px solid var(--gray-border);background:#fffbf5">
+        <div style="font-size:12px;font-weight:500;color:var(--amber);margin-bottom:8px">Resources (uren)</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+          <div>
+            <label style="font-size:11px;color:var(--gray-text);display:block;margin-bottom:3px">Welding (u)</label>
+            <input type="number" id="bom-res-welding" min="0" step="0.5" placeholder="0"
+              style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none;text-align:right" />
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--gray-text);display:block;margin-bottom:3px">Mounting (u)</label>
+            <input type="number" id="bom-res-mounting" min="0" step="0.5" placeholder="0"
+              style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none;text-align:right" />
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--gray-text);display:block;margin-bottom:3px">Calibration (u)</label>
+            <input type="number" id="bom-res-calibration" min="0" step="0.5" placeholder="0"
+              style="width:100%;padding:6px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;outline:none;text-align:right" />
+          </div>
+        </div>
+        <div style="margin-top:8px;text-align:right">
+          <button class="btn btn-sm" style="background:var(--amber);color:#fff;border:none" onclick="saveBomResources()">Resources opslaan</button>
+        </div>
+      </div>
+
       <div style="overflow-x:auto">
         <table style="width:100%;min-width:800px;border-collapse:collapse;font-size:13px">
           <thead>
@@ -943,7 +969,8 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-sm" style="background:var(--green-light);color:var(--green);border:0.5px solid rgba(59,109,17,.3)" onclick="maakSbuKopie()">📋 Kopie maken</button>
       <button class="btn" onclick="closeModal('modal-bom-detail')">Sluiten</button>
     </div>
   </div>
@@ -2823,8 +2850,105 @@ window.openBomDetailById = function(id){
     `Welding: <strong>${b.welding||'—'}</strong> u &nbsp; `+
     `Mounting: <strong>${b.mounting||'—'}</strong> u &nbsp; `+
     `Calibration: <strong>${b.calibration||'—'}</strong> u`;
+  // Vul resource velden
+  document.getElementById('bom-res-welding').value     = b.welding||'';
+  document.getElementById('bom-res-mounting').value    = b.mounting||'';
+  document.getElementById('bom-res-calibration').value = b.calibration||'';
   renderBomDetailTabel(b);
   openModal('modal-bom-detail');
+};
+
+window.saveBomResources = async function(){
+  const b = bomData.find(x=>x.id===bomDetailId);
+  if(!b) return;
+  b.welding     = document.getElementById('bom-res-welding').value.trim();
+  b.mounting    = document.getElementById('bom-res-mounting').value.trim();
+  b.calibration = document.getElementById('bom-res-calibration').value.trim();
+  await setDoc(doc(db,'bom_sbu',bomDetailId), b);
+  // Update info tekst
+  document.getElementById('bom-detail-info').innerHTML =
+    `<strong>${b.sbuId}</strong> &nbsp;·&nbsp; ${b.naam} &nbsp;·&nbsp; `+
+    `Welding: <strong>${b.welding||'—'}</strong> u &nbsp; `+
+    `Mounting: <strong>${b.mounting||'—'}</strong> u &nbsp; `+
+    `Calibration: <strong>${b.calibration||'—'}</strong> u`;
+  renderBomDetailTabel(b);
+  renderBomTabel();
+  showSaving('Resources opgeslagen');
+};
+
+window.maakSbuKopie = async function(){
+  const origB = bomData.find(x=>x.id===bomDetailId);
+  if(!origB) return;
+  if(!confirm(`Kopie maken van "${origB.sbuId} — ${origB.naam}"?\n\nEr wordt een nieuw SBU-nummer aangemaakt. Je kunt daarna artikelen en uren aanpassen.`)) return;
+
+  // Bepaal eerste vrije SBU-nummer
+  const bestaandeNrs = bomData.map(b=>b.sbuId).filter(s=>/^SBU-\d+$/.test(s))
+    .map(s=>parseInt(s.replace('SBU-',''))).sort((a,b)=>a-b);
+  let volgend = 1;
+  for(const n of bestaandeNrs){ if(n===volgend) volgend++; else break; }
+  const nieuwSbuId = `SBU-${String(volgend).padStart(4,'0')}`;
+
+  // Maak deep-copy van de stuklijst
+  const nieuwBom = {
+    sbuId: nieuwSbuId,
+    naam: origB.naam + ' (kopie)',
+    welding:     origB.welding||'',
+    mounting:    origB.mounting||'',
+    calibration: origB.calibration||'',
+    artikelen:   JSON.parse(JSON.stringify(origB.artikelen||[])),
+  };
+
+  // Sla op in Firestore
+  const nieuwDocId = 'bom'+Date.now();
+  await setDoc(doc(db,'bom_sbu',nieuwDocId), nieuwBom);
+  bomData.push({id:nieuwDocId,...nieuwBom});
+  bomData.sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+
+  // --- Blok-logica ---
+  // Zoek blok van originele SBU in sbuConfigData
+  const origCfg = sbuConfigData[origB.sbuId];
+  const origBlok = origCfg ? parseInt(origCfg.blok||0) : 0;
+
+  if(origBlok>0){
+    const nieuwBlok = origBlok + 1;
+
+    // Schuif alle SBU's met blok >= nieuwBlok één op
+    const toUpdate = Object.entries(sbuConfigData)
+      .filter(([,cfg])=>parseInt(cfg.blok||0)>=nieuwBlok);
+    const batchConfig = writeBatch(db);
+    toUpdate.forEach(([sbuId,cfg])=>{
+      const huidigBlok = parseInt(cfg.blok||0);
+      const nieuweCfg = {...cfg, blok: String(huidigBlok+1)};
+      sbuConfigData[sbuId] = nieuweCfg;
+      batchConfig.set(doc(db,'sbu_config',sbuId), nieuweCfg);
+    });
+    // Sla nieuwe SBU config op met nieuwBlok
+    sbuConfigData[nieuwSbuId] = { blok: String(nieuwBlok), merken:{} };
+    batchConfig.set(doc(db,'sbu_config',nieuwSbuId), sbuConfigData[nieuwSbuId]);
+    await batchConfig.commit();
+
+    // Schuif blokken in Prijslijsten op (alle blokken met nummer >= nieuwBlok)
+    const plSnap = await getDocs(collection(db,'prijslijsten'));
+    const plBatch = writeBatch(db);
+    plSnap.docs.forEach(plDoc=>{
+      const blokken = plDoc.data().blocks||[];
+      let gewijzigd = false;
+      blokken.forEach(blok=>{
+        const blokNr = parseInt(blok.number||blok.bloknummer||0);
+        if(blokNr>=nieuwBlok){ blok.number=(blokNr+1); gewijzigd=true; }
+      });
+      if(gewijzigd) plBatch.set(doc(db,'prijslijsten',plDoc.id), {blocks:blokken});
+    });
+    await plBatch.commit();
+  }
+
+  closeModal('modal-bom-detail');
+  renderBomTabel();
+  vulBomZoekSelector();
+  showSaving(`Kopie aangemaakt als ${nieuwSbuId}`);
+
+  // Open de nieuwe SBU direct voor bewerken
+  setTimeout(()=>openBomDetailById(nieuwDocId), 300);
 };
 
 // Hulpfunctie: haal artikel op uit artikelen array op basis van productId
