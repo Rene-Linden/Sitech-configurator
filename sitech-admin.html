@@ -1726,6 +1726,7 @@ function renderArtikelen(){
     <th style="min-width:90px;background:var(--amber-light);color:var(--amber)">VAT</th>
     <th style="min-width:120px;background:var(--amber-light);color:var(--amber)">Inven. Posting</th>
     <th style="min-width:180px;background:var(--amber-light);color:var(--amber)">Price/Profit</th>
+    <th style="min-width:120px;text-align:right">Unit Price</th>
     <th style="min-width:100px">Profit (%)</th>
     <th style="min-width:180px;background:var(--amber-light);color:var(--amber)">Subscriptie</th>
     <th style="min-width:130px;background:var(--amber-light);color:var(--amber)">Replen. System</th>
@@ -1768,6 +1769,15 @@ function renderArtikelen(){
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.vatPosting||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.invenPosting||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.priceProfit||'—'}</td>
+      <td style="font-size:12px;text-align:right;font-weight:500;color:var(--blue)">${(()=>{
+        const pp = (t.priceProfit||'').toLowerCase();
+        const heeftFormule = pp.includes('kosten') || pp.includes('prijs');
+        const cost = parseFloat(a.standardCost||0);
+        const pct  = parseFloat(a.profitPct||'');
+        if(!heeftFormule || !cost || isNaN(pct) || pct===0) return '—';
+        const unitPrice = cost * (1 + pct/100);
+        return '\u20ac\u00a0'+unitPrice.toFixed(2);
+      })()}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.profitPct?a.profitPct+'%':'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.subscriptie||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.replen||'—'}</td>
@@ -2059,10 +2069,17 @@ document.getElementById('btn-artikel-download').addEventListener('click', ()=>{
     'Field Service Product Type','Standard Cost','Serial Number Product','Agreement Product',
     'Main Product','Ledger Turnover','Product Posting Group',
     'Artikel','SBU','EWV',
-    'Type','UoM','Costing Method','Gen. Posting Group','VAT','Inven. Posting',
-    'Price/Profit','Subscriptie','Replen. System','Assembly Policy','Item Tracking','Ser. Nos.','Template ID'];
+    'Type','UoM','Manufacturer','Category','Model','Costing Method','Gen. Posting Group','VAT','Inven. Posting',
+    'Price/Profit','Unit Price','Profit (%)','Subscriptie','Replen. System','Vendor No.','Assembly Policy','Reordering Policy','Item Tracking','Ser. Nos.','Template ID'];
   const rows = [header, ...teExporteren.map(a=>{
     const tmpl = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId)||{};
+    // Unit Price berekening
+    const pp = (tmpl.priceProfit||'').toLowerCase();
+    const heeftFormule = pp.includes('kosten') || pp.includes('prijs');
+    const cost = parseFloat(a.standardCost||0);
+    const pct  = parseFloat(a.profitPct||'');
+    const unitPrice = (heeftFormule && cost && !isNaN(pct) && pct!==0)
+      ? parseFloat((cost*(1+pct/100)).toFixed(2)) : '';
     return [
       a.productId||'', a.name||'', a.defaultVendor||'', a.productIdVendor||'',
       a.productGroup||'', a.fsProductType||'',
@@ -2070,10 +2087,11 @@ document.getElementById('btn-artikel-download').addEventListener('click', ()=>{
       a.serialNumber||'', a.agreementProduct||'', a.mainProduct||'',
       a.ledgerTurnover||'', a.productPostingGroup||'',
       a.isArtikel?'Ja':'Nee', a.isSBU?'Ja':'Nee', a.isEWV?'Ja':'Nee',
-      tmpl.type||'', tmpl.uom||'', tmpl.costingMeth||'', tmpl.genPosting||'',
-      tmpl.vatPosting||'', tmpl.invenPosting||'', tmpl.priceProfit||'',
-      tmpl.subscriptie||'', tmpl.replen||'', tmpl.assemblyPolicy||'',
-      tmpl.itemTracking||'', tmpl.serNos||'', a.templateId||''
+      tmpl.type||'', tmpl.uom||'', a.manufacturer||'', a.category||'', a.model||'',
+      tmpl.costingMeth||'', tmpl.genPosting||'', tmpl.vatPosting||'', tmpl.invenPosting||'',
+      tmpl.priceProfit||'', unitPrice, a.profitPct||'',
+      tmpl.subscriptie||'', tmpl.replen||'', a.vendorNo||'', tmpl.assemblyPolicy||'',
+      a.reorderingPolicy||'', tmpl.itemTracking||'', tmpl.serNos||'', a.templateId||''
     ];
   })];
   const ws = XLSX.utils.aoa_to_sheet(rows);
