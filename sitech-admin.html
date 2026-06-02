@@ -4574,6 +4574,8 @@ document.getElementById('trimble-upload-input').addEventListener('change', async
       const artSnap = await getDocs(collection(db,'artikelen'));
       const alleArtikelen = artSnap.docs.map(d=>({id:d.id,...d.data()}));
 
+      // Verzamel niet-gevonden voor diagnose
+      const nietGevondenLijst = [];
       let bijgewerkt = 0;
       let nietGevonden = 0;
 
@@ -4588,9 +4590,17 @@ document.getElementById('trimble-upload-input').addEventListener('change', async
 
         if(!artikelnr) continue;
 
-        // Zoek artikel op Product ID
-        const art = alleArtikelen.find(a=>a.productId===artikelnr);
-        if(!art){ nietGevonden++; continue; }
+        // Zoek artikel op productId ÓÓÓK op productIdVendor
+        const art = alleArtikelen.find(a=>
+          (a.productId||'').trim()===artikelnr ||
+          (a.productIdVendor||'').trim()===artikelnr
+        );
+        if(!art){
+          nietGevonden++;
+          if(nietGevondenLijst.length<5) nietGevondenLijst.push(artikelnr);
+          if(nietGevonden<=3) console.log('Niet gevonden:', artikelnr, '| DB productId voorbeeld:', alleArtikelen[0]?.productId, '| productIdVendor:', alleArtikelen[0]?.productIdVendor);
+          continue;
+        }
 
         // Bereken profit percentage: (listPrice - inkoop) / listPrice * 100
         let profitPct = '';
@@ -4627,7 +4637,10 @@ document.getElementById('trimble-upload-input').addEventListener('change', async
         timestamp: Date.now()
       });
 
-      status.textContent = `✓ ${bijgewerkt} artikelen bijgewerkt, ${nietGevonden} niet gevonden`;
+      const nietGevondenTxt = nietGevondenLijst.length
+        ? ` (bijv. ${nietGevondenLijst.join(', ')}${nietGevonden>5?'…':''})`
+        : '';
+      status.textContent = `✓ ${bijgewerkt} artikelen bijgewerkt, ${nietGevonden} niet gevonden${nietGevondenTxt}`;
       setTimeout(()=>status.textContent='', 6000);
       loadTrimbleArchief();
 
