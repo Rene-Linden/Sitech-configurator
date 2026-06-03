@@ -4596,16 +4596,31 @@ document.getElementById('trimble-upload-input').addEventListener('change', async
         if(base && base!==pid) mapProductIdBase.set(base, a);
       });
 
+      // Dedupleer: zelfde artikelnummer kan meerdere keren voorkomen
+      // Neem per artikelnummer de laagste inkoopprijs (meest gunstig)
+      const trimbleMap = new Map(); // artikelnr -> {listPrice, inkoop}
       for(const r of dataRows){
         const artikelnrRaw = r[11];
-        // Forceer naar string, trim whitespace en non-breaking spaces
         const artikelnr = String(artikelnrRaw===null||artikelnrRaw===undefined?'':artikelnrRaw)
           .replace(/\u00a0/g,' ').trim();
         if(!artikelnr) continue;
-
         const listPrice = parseFloat(r[12]||0);
         const inkoop    = parseFloat(r[21]||0);
         if(!listPrice) continue;
+        // Bewaar alleen als nog niet aanwezig, of als inkoopprijs lager is
+        if(!trimbleMap.has(artikelnr)){
+          trimbleMap.set(artikelnr, {listPrice, inkoop});
+        } else {
+          const bestaand = trimbleMap.get(artikelnr);
+          if(inkoop > 0 && inkoop < bestaand.inkoop){
+            trimbleMap.set(artikelnr, {listPrice, inkoop});
+          }
+        }
+      }
+
+      status.textContent = `${trimbleMap.size} unieke artikelen matchen…`;
+
+      for(const [artikelnr, {listPrice, inkoop}] of trimbleMap){
 
         // Zoek artikel: eerst productId, dan productIdVendor (Trimble nr), dan base
         const art = mapProductId.get(artikelnr)
@@ -4630,7 +4645,7 @@ document.getElementById('trimble-upload-input').addEventListener('change', async
 
         updates.push(update);
         bijgewerkt++;
-      }
+      } // einde trimbleMap loop
 
       // Schrijf in batches
       for(let i=0;i<updates.length;i+=BATCH_SIZE){
