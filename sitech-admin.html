@@ -2491,15 +2491,17 @@ document.getElementById('artikel-upload-input').addEventListener('change', async
           if(!productId) return;
           let docId = 'art'+(Date.now()+i+idx);
           if(overschrijven){ const ex=artikelen.find(a=>a.templateId===tid&&a.productId===productId); if(ex) docId=ex.id; }
-          const data = {
-            templateId:tid, productId,
-            name:String(r[1]||'').trim(), defaultVendor:String(r[2]||'').trim(),
-            productIdVendor:String(r[3]||'').trim(), productGroup:String(r[4]||'').trim(),
-            fsProductType:String(r[5]||'').trim(), standardCost:String(r[6]||'').trim(),
-            serialNumber:String(r[7]||'').trim(), agreementProduct:String(r[8]||'').trim(),
-            mainProduct:String(r[9]||'').trim(), ledgerTurnover:String(r[10]||'').trim(),
-            productPostingGroup:String(r[11]||'').trim(),
-          };
+          const velden = [
+            ['name',r[1]],['defaultVendor',r[2]],['productIdVendor',r[3]],
+            ['productGroup',r[4]],['fsProductType',r[5]],['standardCost',r[6]],
+            ['serialNumber',r[7]],['agreementProduct',r[8]],['mainProduct',r[9]],
+            ['ledgerTurnover',r[10]],['productPostingGroup',r[11]],
+          ];
+          const data = { templateId:tid, productId };
+          velden.forEach(([k,v])=>{
+            const s = String(v===null||v===undefined?'':v).trim();
+            if(!overschrijven || s) data[k] = s;
+          });
           batch.set(doc(collection(db,'artikelen'),docId), data, {merge:overschrijven});
           total++;
         });
@@ -4473,11 +4475,13 @@ document.getElementById('assembl-upload-input').addEventListener('change',async(
           const productId=String(r[0]||'').trim(); if(!productId)return;
           let docId='art'+(Date.now()+i+idx);
           if(overschrijven){const ex=artikelen.find(a=>a.templateId===ASSEMBL_TEMPLATE_ID&&a.productId===productId);if(ex)docId=ex.id;}
-          batch.set(doc(collection(db,'artikelen'),docId),{templateId:ASSEMBL_TEMPLATE_ID,productId,
-            name:String(r[1]||'').trim(),defaultVendor:String(r[2]||'').trim(),productIdVendor:String(r[3]||'').trim(),
-            productGroup:String(r[4]||'').trim(),fsProductType:String(r[5]||'').trim(),standardCost:String(r[6]||'').trim(),
-            serialNumber:String(r[7]||'').trim(),agreementProduct:String(r[8]||'').trim(),mainProduct:String(r[9]||'').trim(),
-            ledgerTurnover:String(r[10]||'').trim(),productPostingGroup:String(r[11]||'').trim()},{merge:overschrijven});
+          const assVelden=[['name',r[1]],['defaultVendor',r[2]],['productIdVendor',r[3]],
+            ['productGroup',r[4]],['fsProductType',r[5]],['standardCost',r[6]],
+            ['serialNumber',r[7]],['agreementProduct',r[8]],['mainProduct',r[9]],
+            ['ledgerTurnover',r[10]],['productPostingGroup',r[11]]];
+          const assData={templateId:ASSEMBL_TEMPLATE_ID,productId};
+          assVelden.forEach(([k,v])=>{ const s=String(v===null||v===undefined?'':v).trim(); if(!overschrijven||s) assData[k]=s; });
+          batch.set(doc(collection(db,'artikelen'),docId),assData,{merge:overschrijven});
           total++;
         });
         await batch.commit();
@@ -5163,15 +5167,17 @@ document.getElementById('sbu-upload-input').addEventListener('change', async (ev
           if(!productId) return;
           let docId = 'art'+(Date.now()+i+idx);
           if(overschrijven){ const ex=artikelen.find(a=>a.templateId===tid&&a.productId===productId); if(ex) docId=ex.id; }
-          const data = {
-            templateId:tid, productId,
-            name:String(r[1]||'').trim(), defaultVendor:String(r[2]||'').trim(),
-            productIdVendor:String(r[3]||'').trim(), productGroup:String(r[4]||'').trim(),
-            fsProductType:String(r[5]||'').trim(), standardCost:String(r[6]||'').trim(),
-            serialNumber:String(r[7]||'').trim(), agreementProduct:String(r[8]||'').trim(),
-            mainProduct:String(r[9]||'').trim(), ledgerTurnover:String(r[10]||'').trim(),
-            productPostingGroup:String(r[11]||'').trim(),
-          };
+          const velden = [
+            ['name',r[1]],['defaultVendor',r[2]],['productIdVendor',r[3]],
+            ['productGroup',r[4]],['fsProductType',r[5]],['standardCost',r[6]],
+            ['serialNumber',r[7]],['agreementProduct',r[8]],['mainProduct',r[9]],
+            ['ledgerTurnover',r[10]],['productPostingGroup',r[11]],
+          ];
+          const data = { templateId:tid, productId };
+          velden.forEach(([k,v])=>{
+            const s = String(v===null||v===undefined?'':v).trim();
+            if(!overschrijven || s) data[k] = s;
+          });
           batch.set(doc(collection(db,'artikelen'),docId), data, {merge:overschrijven});
           total++;
         });
