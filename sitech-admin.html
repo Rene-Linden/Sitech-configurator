@@ -4583,37 +4583,50 @@ document.getElementById('trimble-upload-input').addEventListener('change', async
       const BATCH_SIZE = 500;
       const updates = []; // [{id, productId, profitPct, standardCost, profitPct}]
 
-      for(const r of dataRows){
-        const artikelnr  = String(r[11]||'').trim();   // kolom L (index 11)
-        const listPrice  = parseFloat(r[12]||0);        // kolom M (index 12) = unit price
-        const inkoop     = parseFloat(r[21]||0);        // kolom V (index 21) = standard cost
+      // Bouw snelle lookup maps
+      const mapProductId     = new Map();
+      const mapProductIdVend = new Map();
+      const mapProductIdBase = new Map();
+      alleArtikelen.forEach(a=>{
+        const pid  = (a.productId||'').trim();
+        const pvid = (a.productIdVendor||'').trim();
+        const base = pid.replace(/-99S-STK$/,'').replace(/-99S$/,'');
+        if(pid)  mapProductId.set(pid, a);
+        if(pvid) mapProductIdVend.set(pvid, a);   // KEY = vendor nr (Trimble formaat)
+        if(base && base!==pid) mapProductIdBase.set(base, a);
+      });
 
+      for(const r of dataRows){
+        const artikelnrRaw = r[11];
+        // Forceer naar string, trim whitespace en non-breaking spaces
+        const artikelnr = String(artikelnrRaw===null||artikelnrRaw===undefined?'':artikelnrRaw)
+          .replace(/\u00a0/g,' ').trim();
         if(!artikelnr) continue;
 
-        // Zoek artikel op productId ÓÓÓK op productIdVendor
-        const art = alleArtikelen.find(a=>
-          (a.productId||'').trim()===artikelnr ||
-          (a.productIdVendor||'').trim()===artikelnr
-        );
+        const listPrice = parseFloat(r[12]||0);
+        const inkoop    = parseFloat(r[21]||0);
+        if(!listPrice) continue;
+
+        // Zoek artikel: eerst productId, dan productIdVendor (Trimble nr), dan base
+        const art = mapProductId.get(artikelnr)
+                 || mapProductIdVend.get(artikelnr)
+                 || mapProductIdBase.get(artikelnr);
+
         if(!art){
           nietGevonden++;
           if(nietGevondenLijst.length<5) nietGevondenLijst.push(artikelnr);
-          if(nietGevonden<=3) console.log('Niet gevonden:', artikelnr, '| DB productId voorbeeld:', alleArtikelen[0]?.productId, '| productIdVendor:', alleArtikelen[0]?.productIdVendor);
           continue;
         }
 
-        // Bereken profit percentage: (listPrice - inkoop) / listPrice * 100
         let profitPct = '';
         if(listPrice>0 && inkoop>0 && inkoop<listPrice){
           profitPct = ((listPrice - inkoop) / listPrice * 100).toFixed(2);
         }
 
         const update = { id: art.id };
-        if(listPrice>0) update.profitPct = profitPct; // unit price wordt via profitPct berekend
         if(inkoop>0)    update.standardCost = String(inkoop);
-        if(listPrice>0) update.listPrice = String(listPrice); // bewaar ook list price
-        // Profit % = korting = (list - inkoop) / list * 100
-        if(profitPct) update.profitPct = profitPct;
+        if(listPrice>0) update.listPrice    = String(listPrice);
+        if(profitPct)   update.profitPct    = profitPct;
 
         updates.push(update);
         bijgewerkt++;
