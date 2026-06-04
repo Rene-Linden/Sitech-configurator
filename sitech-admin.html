@@ -455,8 +455,10 @@ tr.row-selected td{background:var(--blue-light)}
               </select>
               <button class="btn btn-blue" onclick="openBomDetail()">Bekijk stuklijst</button>
               <button class="btn btn-green" id="btn-bom-upload">Excel uploaden</button>
+              <button class="btn btn-green" id="btn-bom-upload2" title="Upload tweede lijst — bestaande artikelen worden NIET overschreven">Excel uploaden (2e lijst)</button>
               <button class="btn btn-blue" onclick="openNieuwBom()">+ Nieuwe BoM</button>
               <input type="file" id="bom-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
+              <input type="file" id="bom-upload-input2" accept=".xlsx,.xls,.csv" style="display:none" />
               <span id="bom-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
             </div>
           </div>
@@ -469,6 +471,7 @@ tr.row-selected td{background:var(--blue-light)}
               <tr>
                 <th style="min-width:120px">SBU</th>
                 <th style="min-width:280px">Naam</th>
+                <th style="min-width:100px;text-align:center">ST-00236</th>
                 <th style="min-width:80px;text-align:center">Artikelen</th>
                 <th style="min-width:80px;text-align:center">Welding (u)</th>
                 <th style="min-width:80px;text-align:center">Mounting (u)</th>
@@ -2696,9 +2699,15 @@ function renderBomTabel(){
       ? `<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;background:var(--green-light);color:var(--green);border:0.5px solid rgba(59,109,17,.3)">✓ Ja</span>`
       : `<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;background:var(--red-light);color:var(--red);border:0.5px solid rgba(163,45,45,.3)">✗ Nee</span>`;
 
+      const heeftST00236 = (b.artikelen||[]).some(a=>a.artikelId==='ST-00236');
+      const st236badge = heeftST00236
+        ? `<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;background:var(--green-light);color:var(--green);border:0.5px solid rgba(59,109,17,.3)">✓ Ja</span>`
+        : `<span style="padding:2px 8px;border-radius:20px;font-size:11px;color:var(--gray-text);border:0.5px solid var(--gray-border)">Nee</span>`;
+
     return `<tr>
       <td><strong style="font-size:13px">${b.sbuId}</strong></td>
       <td style="font-size:13px">${b.naam}</td>
+      <td style="text-align:center">${st236badge}</td>
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${arts.length}</td>
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.welding||'—'}</td>
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.mounting||'—'}</td>
@@ -2714,7 +2723,7 @@ function renderBomTabel(){
       </td>
     </tr>`;
   }).join('') ||
-  '<tr><td colspan="11" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM data — upload een Excel of voeg handmatig toe</td></tr>';
+  '<tr><td colspan="12" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM data — upload een Excel of voeg handmatig toe</td></tr>';
 }
 
 window.openBomDetail = function(){
@@ -3030,7 +3039,77 @@ window.deleteBom = async function(id){
 };
 
 // Excel upload BoM
-document.getElementById('btn-bom-upload').addEventListener('click',()=>document.getElementById('bom-upload-input').click());
+document.getElementById('btn-bom-upload2').addEventListener('click',()=>document.getElementById('bom-upload-input2').click());
+
+document.getElementById('bom-upload-input2').addEventListener('change', async(event)=>{
+  const status = document.getElementById('bom-upload-status');
+  const file   = event.target.files[0];
+  if(!file) return;
+  if(typeof XLSX==='undefined'){ alert('Excel-library nog niet geladen'); return; }
+  status.textContent = 'Bestand lezen…';
+  const reader = new FileReader();
+  reader.onload = async e=>{
+    try{
+      const wb   = XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      // Header overslaan
+      const start = rows[0] && String(rows[0][0]).toLowerCase().includes('product') ? 1 : 0;
+      const data  = rows.slice(start).filter(r=>String(r[0]||'').trim().startsWith('SBU'));
+
+      // Groepeer per SBU — kolom A=sbuId, B=naam, D=subId, F=aantal, G=eenheid
+      const sbuMap = {};
+      data.forEach(r=>{
+        const sbuId  = String(r[0]||'').trim();
+        const naam   = String(r[1]||'').trim();
+        const subId  = String(r[3]||'').trim();
+        const aantal = String(r[5]||'').trim();
+        const eenheid= String(r[6]||'').trim();
+        if(!sbuId) return;
+        if(!sbuMap[sbuId]) sbuMap[sbuId] = { sbuId, naam, artikelen:[], welding:'', mounting:'', calibration:'' };
+        if(naam && !sbuMap[sbuId].naam) sbuMap[sbuId].naam = naam;
+        if(subId==='Welding')     sbuMap[sbuId].welding = aantal;
+        else if(subId==='Mounting')    sbuMap[sbuId].mounting = aantal;
+        else if(subId==='Calibration') sbuMap[sbuId].calibration = aantal;
+        else if(subId) sbuMap[sbuId].artikelen.push({ artikelId:subId, naam:'', aantal, eenheid });
+      });
+
+      const bestaandeIds = new Set(bomData.map(b=>b.sbuId));
+      const nieuw = Object.values(sbuMap).filter(b=>!bestaandeIds.has(b.sbuId));
+      const bestaand = Object.values(sbuMap).filter(b=>bestaandeIds.has(b.sbuId));
+
+      status.textContent = `${Object.keys(sbuMap).length} SBU's gevonden — ${nieuw.length} nieuw, ${bestaand.length} al aanwezig (worden NIET overschreven)`;
+
+      if(!nieuw.length){
+        setTimeout(()=>status.textContent='',5000);
+        event.target.value=''; return;
+      }
+
+      if(!confirm(`${nieuw.length} nieuwe SBU's toevoegen?\n${bestaand.length} bestaande worden NIET overschreven.`)){
+        status.textContent=''; event.target.value=''; return;
+      }
+
+      for(let i=0;i<nieuw.length;i+=500){
+        const batch = writeBatch(db);
+        nieuw.slice(i,i+500).forEach(b=>{
+          const docId = 'bom'+Date.now()+Math.random();
+          batch.set(doc(db,'bom_sbu',docId), b);
+        });
+        await batch.commit();
+        status.textContent = `${Math.min(i+500,nieuw.length)} / ${nieuw.length} toegevoegd…`;
+      }
+
+      await loadBomData();
+      status.textContent = `✓ ${nieuw.length} nieuwe SBU's toegevoegd, ${bestaand.length} overgeslagen`;
+      setTimeout(()=>status.textContent='',5000);
+    } catch(err){
+      status.textContent='';
+      alert('Fout: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value='';
+});
 
 document.getElementById('bom-upload-input').addEventListener('change', async (event)=>{
   const status = document.getElementById('bom-upload-status');
