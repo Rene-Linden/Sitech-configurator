@@ -2543,9 +2543,14 @@ document.getElementById('artikel-upload-input').addEventListener('change', async
 });
 
 // Excel download voor artikelen
-document.getElementById('btn-artikel-download').addEventListener('click', ()=>{
+document.getElementById('btn-artikel-download').addEventListener('click', async()=>{
   const tid = document.getElementById('sel-template-filter').value;
   if(typeof XLSX === 'undefined'){ alert('Excel-library nog niet geladen'); return; }
+  // Zorg dat artikelen geladen zijn
+  if(!artikelen.length){
+    const snap = await getDocs(collection(db,'artikelen'));
+    artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
+  }
   const teExporteren = tid ? artikelen.filter(a=>a.templateId===tid) : artikelen;
   const header = ['Product ID','Name','Default Vendor','Product ID Vendor','Product Group',
     'Field Service Product Type','Standard Cost','Serial Number Product','Agreement Product',
