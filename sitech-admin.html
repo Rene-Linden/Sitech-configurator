@@ -1048,7 +1048,9 @@ tr.row-selected td{background:var(--blue-light)}
               <th style="padding:8px 12px;min-width:65px;text-align:center">Eenheid</th>
               <th style="padding:8px 12px;min-width:100px;text-align:right">Std. Cost</th>
               <th style="padding:8px 12px;min-width:110px;text-align:right;color:var(--blue)">Totaal Std.</th>
+              <th style="padding:8px 12px;min-width:100px;text-align:right;color:var(--green)">Unit Price</th>
               <th style="padding:8px 12px;min-width:110px;text-align:right;color:var(--green)">Totaal Unit</th>
+              <th style="padding:8px 12px;min-width:110px;text-align:right;color:var(--green)">Afgerond ↑</th>
               <th style="padding:8px 12px;min-width:60px"></th>
             </tr>
           </thead>
@@ -2677,13 +2679,13 @@ function renderBomTabel(){
     const totStandard = tot ? tot.stdTotaal : 0;
     const totUnit     = tot ? tot.unitTotaal : 0;
 
-    // Check of alle artikelen een prijs hebben
+    // Check of alle artikelen een afgeronde unit price hebben
     const arts = b.artikelen||[];
     let alleHebbePrijs = arts.length > 0;
     arts.forEach(a=>{
       const art = getArtikelByProductId(a.artikelId);
-      const stdCost = art ? parseFloat(art.standardCost||0) : 0;
-      if(!stdCost || stdCost===0) alleHebbePrijs = false;
+      const unitPrice = art ? berekenUnitPrice(art) : null;
+      if(!unitPrice || unitPrice===0) alleHebbePrijs = false;
     });
     const prijsBadge = arts.length===0
       ? `<span style="padding:2px 8px;border-radius:20px;font-size:11px;color:var(--gray-text);border:0.5px solid var(--gray-border)">—</span>`
@@ -2849,16 +2851,18 @@ function berekenUnitPrice(art){
 function renderBomDetailTabel(b){
   const tbody = document.getElementById('tbl-bom-detail-body');
   const arts = b.artikelen||[];
-  let totStandard = 0, totUnit = 0;
+  let totStandard = 0, totUnit = 0, totAfgerond = 0;
   const rijen = arts.map((a,i)=>{
     const art = getArtikelByProductId(a.artikelId);
-    const stdCost = art ? parseFloat(art.standardCost||0) : null;
+    const stdCost   = art ? parseFloat(art.standardCost||0) : null;
     const unitPrice = art ? berekenUnitPrice(art) : null;
-    const aantal = parseFloat(a.aantal||0);
-    const totStd = stdCost!==null && aantal ? stdCost*aantal : null;
-    const totUnit2 = unitPrice!==null && aantal ? unitPrice*aantal : null;
-    if(totStd) totStandard += totStd;
-    if(totUnit2) totUnit += totUnit2;
+    const aantal    = parseFloat(a.aantal||0);
+    const totStd    = stdCost!==null && aantal ? stdCost*aantal : null;
+    const totUnit2  = unitPrice!==null && aantal ? unitPrice*aantal : null;
+    const afgerond  = totUnit2!==null ? Math.ceil(totUnit2) : null;
+    if(totStd)    totStandard += totStd;
+    if(totUnit2)  totUnit     += totUnit2;
+    if(afgerond)  totAfgerond += afgerond;
     return `<tr id="bom-rij-${i}">
       <td><input type="text" value="${a.artikelId||''}" data-idx="${i}" data-field="artikelId"
         onchange="bomRijUpdate(${i},'artikelId',this.value)"
@@ -2872,13 +2876,16 @@ function renderBomDetailTabel(b){
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${a.eenheid||'Stuks'}</td>
       <td style="text-align:right;font-size:12px;color:var(--gray-text)">${stdCost!==null?'€\u00a0'+stdCost.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--blue)">${totStd!==null?'€\u00a0'+totStd.toFixed(2):'—'}</td>
+      <td style="text-align:right;font-size:12px;color:var(--green)">${unitPrice!==null?'€\u00a0'+unitPrice.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--green)">${totUnit2!==null?'€\u00a0'+totUnit2.toFixed(2):'—'}</td>
+      <td style="text-align:right;font-size:12px;font-weight:600;color:var(--green)">${afgerond!==null?'€\u00a0'+afgerond.toLocaleString('nl-NL'):'—'}</td>
       <td style="text-align:right">
         <button class="btn btn-sm btn-red" onclick="bomRijVerwijder(${i})">×</button>
       </td>
     </tr>`;
   });
-  // Voeg resource uren × tarief toe aan totalen
+
+  // Resources
   const welding     = parseFloat(b.welding||0);
   const mounting    = parseFloat(b.mounting||0);
   const calibration = parseFloat(b.calibration||0);
@@ -2888,51 +2895,45 @@ function renderBomDetailTabel(b){
   const resUnit = welding*getResourceVerkoopprijs('welding')
                 + mounting*getResourceVerkoopprijs('mounting')
                 + calibration*getResourceVerkoopprijs('calibration');
-  const eindStd  = totStandard + resStd;
-  const eindUnit = totUnit + resUnit;
+  const resAfgerond = Math.ceil(resUnit);
+  const eindStd     = totStandard + resStd;
+  const eindUnit    = totUnit + resUnit;
+  const eindAfgerond= totAfgerond + resAfgerond;
 
-  // Resource rijen tonen in de tabel
   const resourceRijen = [];
-  if(welding)     resourceRijen.push(`<tr style="background:rgba(133,79,11,.03)">
-    <td style="padding:6px 12px;font-size:12px;color:var(--amber)">Welding</td>
-    <td style="padding:6px 12px;font-size:12px;color:var(--amber)">${b.welding} uur × €${getResourceKostprijs('welding')} / €${getResourceVerkoopprijs('welding')}</td>
-    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">${welding}</td>
-    <td style="padding:6px 12px;text-align:center;font-size:12px;color:var(--amber)">Hour</td>
-    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${getResourceKostprijs('welding').toFixed(2)}</td>
-    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${(welding*getResourceKostprijs('welding')).toFixed(2)}</td>
-    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${(welding*getResourceVerkoopprijs('welding')).toFixed(2)}</td>
-    <td></td>
-  </tr>`);
-  if(mounting)    resourceRijen.push(`<tr style="background:rgba(133,79,11,.03)">
-    <td style="padding:6px 12px;font-size:12px;color:var(--amber)">Mounting</td>
-    <td style="padding:6px 12px;font-size:12px;color:var(--amber)">${b.mounting} uur × €${getResourceKostprijs('mounting')} / €${getResourceVerkoopprijs('mounting')}</td>
-    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">${mounting}</td>
-    <td style="padding:6px 12px;text-align:center;font-size:12px;color:var(--amber)">Hour</td>
-    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${getResourceKostprijs('mounting').toFixed(2)}</td>
-    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${(mounting*getResourceKostprijs('mounting')).toFixed(2)}</td>
-    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${(mounting*getResourceVerkoopprijs('mounting')).toFixed(2)}</td>
-    <td></td>
-  </tr>`);
-  if(calibration) resourceRijen.push(`<tr style="background:rgba(133,79,11,.03)">
-    <td style="padding:6px 12px;font-size:12px;color:var(--amber)">Calibration</td>
-    <td style="padding:6px 12px;font-size:12px;color:var(--amber)">${b.calibration} uur × €${getResourceKostprijs('calibration')} / €${getResourceVerkoopprijs('calibration')}</td>
-    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">${calibration}</td>
-    <td style="padding:6px 12px;text-align:center;font-size:12px;color:var(--amber)">Hour</td>
-    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${getResourceKostprijs('calibration').toFixed(2)}</td>
-    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${(calibration*getResourceKostprijs('calibration')).toFixed(2)}</td>
-    <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${(calibration*getResourceVerkoopprijs('calibration')).toFixed(2)}</td>
-    <td></td>
-  </tr>`);
+  const resStijl = 'background:rgba(133,79,11,.03)';
+  [[welding,'Welding'],[mounting,'Mounting'],[calibration,'Calibration']].forEach(([uren,naam])=>{
+    if(!uren) return;
+    const kp = getResourceKostprijs(naam.toLowerCase());
+    const vp = getResourceVerkoopprijs(naam.toLowerCase());
+    const totStdRes = uren*kp;
+    const totUnitRes = uren*vp;
+    const afg = Math.ceil(totUnitRes);
+    resourceRijen.push(`<tr style="${resStijl}">
+      <td style="padding:6px 12px;font-size:12px;color:var(--amber)">${naam}</td>
+      <td style="padding:6px 12px;font-size:12px;color:var(--amber)">${uren} uur</td>
+      <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">${uren}</td>
+      <td style="padding:6px 12px;text-align:center;font-size:12px;color:var(--amber)">Hour</td>
+      <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${kp.toFixed(2)}</td>
+      <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${totStdRes.toFixed(2)}</td>
+      <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${vp.toFixed(2)}</td>
+      <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${totUnitRes.toFixed(2)}</td>
+      <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${afg.toLocaleString('nl-NL')}</td>
+      <td></td>
+    </tr>`);
+  });
 
   const totaalRij = (eindStd>0||eindUnit>0) ? `
     <tr style="background:var(--gray-bg);font-weight:600;border-top:1.5px solid var(--gray-border)">
       <td colspan="5" style="padding:8px 12px;font-size:12px;color:var(--gray-text)">Totaal (incl. resources)</td>
       <td style="text-align:right;font-size:13px;color:var(--blue);padding:8px 12px">€\u00a0${eindStd.toFixed(2)}</td>
+      <td></td>
       <td style="text-align:right;font-size:13px;color:var(--green);padding:8px 12px">€\u00a0${eindUnit.toFixed(2)}</td>
+      <td style="text-align:right;font-size:14px;color:var(--green);padding:8px 12px;font-weight:700">€\u00a0${eindAfgerond.toLocaleString('nl-NL')}</td>
       <td></td>
     </tr>` : '';
   tbody.innerHTML = rijen.join('') + resourceRijen.join('') + totaalRij ||
-    '<tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:1rem;font-size:13px">Geen artikelen</td></tr>';
+    '<tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1rem;font-size:13px">Geen artikelen</td></tr>';
 }
 
 window.bomRijUpdate = function(idx, field, value){
