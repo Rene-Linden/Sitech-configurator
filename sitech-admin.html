@@ -473,6 +473,7 @@ tr.row-selected td{background:var(--blue-light)}
                 <th style="min-width:80px;text-align:center">Welding (u)</th>
                 <th style="min-width:80px;text-align:center">Mounting (u)</th>
                 <th style="min-width:90px;text-align:center">Calibration (u)</th>
+                <th style="min-width:110px;text-align:center">Prijzen compleet</th>
                 <th style="min-width:120px;text-align:right;color:var(--blue)">Totaal Std.</th>
                 <th style="min-width:120px;text-align:right;color:var(--green)">Totaal Unit</th>
                 <th style="min-width:120px;text-align:right;color:var(--green)">Afgerond &#x2191;</th>
@@ -2675,13 +2676,29 @@ function renderBomTabel(){
     const tot = berekenBomTotalen(b);
     const totStandard = tot ? tot.stdTotaal : 0;
     const totUnit     = tot ? tot.unitTotaal : 0;
+
+    // Check of alle artikelen een prijs hebben
+    const arts = b.artikelen||[];
+    let alleHebbePrijs = arts.length > 0;
+    arts.forEach(a=>{
+      const art = getArtikelByProductId(a.artikelId);
+      const stdCost = art ? parseFloat(art.standardCost||0) : 0;
+      if(!stdCost || stdCost===0) alleHebbePrijs = false;
+    });
+    const prijsBadge = arts.length===0
+      ? `<span style="padding:2px 8px;border-radius:20px;font-size:11px;color:var(--gray-text);border:0.5px solid var(--gray-border)">—</span>`
+      : alleHebbePrijs
+      ? `<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;background:var(--green-light);color:var(--green);border:0.5px solid rgba(59,109,17,.3)">✓ Ja</span>`
+      : `<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;background:var(--red-light);color:var(--red);border:0.5px solid rgba(163,45,45,.3)">✗ Nee</span>`;
+
     return `<tr>
       <td><strong style="font-size:13px">${b.sbuId}</strong></td>
       <td style="font-size:13px">${b.naam}</td>
-      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${(b.artikelen||[]).length}</td>
+      <td style="text-align:center;font-size:12px;color:var(--gray-text)">${arts.length}</td>
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.welding||'—'}</td>
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.mounting||'—'}</td>
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${b.calibration||'—'}</td>
+      <td style="text-align:center">${prijsBadge}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--blue)">${totStandard>0?'€\u00a0'+totStandard.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--green)">${totUnit>0?'€\u00a0'+totUnit.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:600;color:var(--green)">${totUnit>0?'€\u00a0'+Math.ceil(totUnit).toLocaleString('nl-NL'):'—'}</td>
@@ -2692,7 +2709,7 @@ function renderBomTabel(){
       </td>
     </tr>`;
   }).join('') ||
-  '<tr><td colspan="10" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM data — upload een Excel of voeg handmatig toe</td></tr>';
+  '<tr><td colspan="11" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM data — upload een Excel of voeg handmatig toe</td></tr>';
 }
 
 window.openBomDetail = function(){
