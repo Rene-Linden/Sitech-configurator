@@ -2851,17 +2851,10 @@ function getArtikelByProductId(productId){
 // Hulpfunctie: bereken unit price voor een artikel
 function berekenUnitPrice(art){
   if(!art) return null;
-
-  // Optie 1: directe listPrice op het artikel (gezet door Trimble/Sitech upload)
-  const lp = parseFloat(art.listPrice||0);
-  if(lp>0) return lp;
-
-  // Optie 2: standardCost + profitPct — beide moeten aanwezig en niet-nul zijn
   const cost = parseFloat(art.standardCost||0);
   const pct  = parseFloat(art.profitPct||'');
+  // Alleen berekenen als BEIDE velden aanwezig en groter dan nul
   if(cost>0 && !isNaN(pct) && pct>0) return cost*(1+pct/100);
-
-  // Geen berekening mogelijk
   return null;
 }
 
