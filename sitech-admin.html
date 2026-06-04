@@ -2856,20 +2856,12 @@ function berekenUnitPrice(art){
   const lp = parseFloat(art.listPrice||0);
   if(lp>0) return lp;
 
-  // Optie 2: berekend via priceProfit formule + profitPct
-  const t = ARTIKEL_TEMPLATES.find(x=>x.id===art.templateId)||{};
-  const pp = (t.priceProfit||'').toLowerCase();
-  const heeftFormule = pp.includes('kosten')||pp.includes('prijs');
+  // Optie 2: standardCost + profitPct — beide moeten aanwezig en niet-nul zijn
   const cost = parseFloat(art.standardCost||0);
   const pct  = parseFloat(art.profitPct||'');
-  if(heeftFormule && cost && !isNaN(pct) && pct!==0) return cost*(1+pct/100);
+  if(cost>0 && !isNaN(pct) && pct>0) return cost*(1+pct/100);
 
-  // Optie 3: als er een profitPct is maar geen formule, toch berekenen
-  if(cost>0 && !isNaN(pct) && pct!==0) return cost*(1+pct/100);
-
-  // Optie 4: als er standardCost en profitPct is maar pct=0, geef standardCost terug
-  if(cost>0 && !isNaN(pct)) return cost;
-
+  // Geen berekening mogelijk
   return null;
 }
 
