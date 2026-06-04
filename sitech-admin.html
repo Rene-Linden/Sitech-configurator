@@ -547,6 +547,7 @@ tr.row-selected td{background:var(--blue-light)}
             <button class="btn btn-blue" onclick="openBomEwvDetail()">Bekijk stuklijst</button>
             <button class="btn btn-green" id="btn-bom-ewv-upload">Excel uploaden</button>
             <button class="btn btn-blue" onclick="openNieuwBomEwv()">+ Nieuwe BoM</button>
+            <button class="btn btn-sm btn-red" onclick="cleanupBomEwv()" title="Verwijder records met ongeldige IDs">🗑 Herstel data</button>
             <input type="file" id="bom-ewv-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
             <span id="bom-ewv-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
           </div>
@@ -3365,6 +3366,24 @@ window.deleteBomEwv = async function(id){
   showSaving('BoM EWV verwijderd');
 };
 
+window.cleanupBomEwv = async function(){
+  const snap = await getDocs(collection(db,'bom_ewv'));
+  const corrupt = snap.docs.filter(d=>{
+    const sbuId = d.data().sbuId||'';
+    return !sbuId.match(/^EWV-\d+$/i);
+  });
+  if(!corrupt.length){ alert('Geen corrupte records gevonden.'); return; }
+  if(!confirm(`${corrupt.length} ongeldige BoM EWV records gevonden (onjuiste IDs). Verwijderen?`)) return;
+  const BATCH = 500;
+  for(let i=0;i<corrupt.length;i+=BATCH){
+    const batch = writeBatch(db);
+    corrupt.slice(i,i+BATCH).forEach(d=>batch.delete(doc(db,'bom_ewv',d.id)));
+    await batch.commit();
+  }
+  showSaving(`${corrupt.length} ongeldige records verwijderd`);
+  await loadBomEwvData();
+};
+
 // BoM EWV Excel upload
 document.getElementById('btn-bom-ewv-upload').addEventListener('click',()=>document.getElementById('bom-ewv-upload-input').click());
 
@@ -3380,26 +3399,25 @@ document.getElementById('bom-ewv-upload-input').addEventListener('change',async(
       const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      const start=rows[0]&&String(rows[0][0]).toLowerCase().includes('product')?1:0;
-      const data=rows.slice(start).filter(r=>String(r[0]||'').trim());
+      const start=rows[0]&&(String(rows[0][0]).toLowerCase().includes('do not modify')||String(rows[0][0]).toLowerCase().includes('subproduct'))?1:0;
+      const data=rows.slice(start).filter(r=>String(r[3]||'').trim().startsWith('EWV'));
       const ewvMap={};
       data.forEach(r=>{
-        const ewvId =String(r[0]||'').trim();
-        const naam  =String(r[1]||'').trim();
-        const oudNaam=String(r[2]||'').trim();
-        const subId =String(r[4]||'').trim();
-        const subNaam=String(r[5]||'').trim();
-        const aantal=String(r[6]||'').trim();
-        const eenheid=String(r[7]||'').trim();
-        if(!ewvId)return;
-        if(!ewvMap[ewvId]) ewvMap[ewvId]={sbuId:ewvId,naam,oudNaam,artikelen:[],welding:'',mounting:'',calibration:''};
+        const ewvId  = String(r[3]||'').trim();   // kolom D: EWV ID
+        const oudNaam= String(r[4]||'').trim();   // kolom E: Oude naam
+        const naam   = String(r[5]||'').trim();   // kolom F: Naam
+        const subId  = String(r[7]||'').trim();   // kolom H: Product ID subartikel
+        const aantal = String(r[9]||'').trim();   // kolom J: Aantal
+        const eenheid= String(r[10]||'').trim();  // kolom K: Unit
+        if(!ewvId) return;
+        if(!ewvMap[ewvId]) ewvMap[ewvId]={sbuId:ewvId, naam, oudNaam, artikelen:[], welding:'', mounting:'', calibration:''};
         const b=ewvMap[ewvId];
-        if(naam&&!b.naam) b.naam=naam;
-        if(oudNaam&&!b.oudNaam) b.oudNaam=oudNaam;
+        if(naam && !b.naam) b.naam=naam;
+        if(oudNaam && !b.oudNaam) b.oudNaam=oudNaam;
         if(subId==='Welding') b.welding=aantal;
         else if(subId==='Mounting') b.mounting=aantal;
         else if(subId==='Calibration') b.calibration=aantal;
-        else if(subId) b.artikelen.push({artikelId:subId,naam:subNaam,aantal,eenheid});
+        else if(subId) b.artikelen.push({artikelId:subId, naam:'', aantal, eenheid});
       });
       const bestaandeIds=new Set(bomEwvData.map(b=>b.sbuId));
       const records=Object.values(ewvMap);
