@@ -3272,10 +3272,29 @@ function renderBomDetailTabel(b){
     const art = getArtikelByProductId(a.artikelId);
     // Naam: gebruik a.naam uit stuklijst, of haal op uit artikelenbestand
     const naamDisplay = a.naam || (art ? art.name : '') || '';
-    const stdCost   = art ? parseFloat(art.standardCost||0) : null;
-    const unitPrice = art ? berekenUnitPrice(art) : null;
+    const stdCost   = art ? parseFloat(art.standardCost||0)||null : null;
+    if(stdCost===0) stdCost; // keep null logic
+
+    // Onderdelen in een SBU stuklijst zijn losse artikelen → methode 2
+    // unitPrice = listPrice als aanwezig, anders stdCost × (1 + profitPct/100)
+    const lp      = art ? parseFloat(art.listPrice||0) : 0;
+    const cost    = stdCost || 0;
+    const pct     = art ? parseFloat(art.profitPct||'') : NaN;
+    let unitPrice = null;
+    if(lp>0){
+      unitPrice = lp;
+    } else if(cost>0 && !isNaN(pct) && pct>0){
+      unitPrice = cost*(1+pct/100);
+    }
+
+    // Profit % — alleen tonen als het een echt percentage is (geen bedrag)
+    const profitPctDisplay = art && art.profitPct
+      ? (parseFloat(art.profitPct)>100 ? '—' : parseFloat(art.profitPct).toFixed(2)+'%')
+      : '—';
+
     const aantal    = parseFloat(a.aantal||0);
-    const totStd    = stdCost!==null && aantal ? stdCost*aantal : null;
+    const stdCostVal = stdCost!==null && stdCost>0 ? stdCost : null;
+    const totStd    = stdCostVal!==null && aantal ? stdCostVal*aantal : null;
     const totUnit2  = unitPrice!==null && aantal ? unitPrice*aantal : null;
     const afgerond  = totUnit2!==null ? Math.ceil(totUnit2) : null;
     if(totStd)    totStandard += totStd;
@@ -3295,10 +3314,10 @@ function renderBomDetailTabel(b){
         onchange="bomRijUpdate(${i},'aantal',this.value)"
         style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none;text-align:right" /></td>
       <td style="text-align:center;font-size:12px;color:var(--gray-text)">${a.eenheid||'Stuks'}</td>
-      <td style="text-align:right;font-size:12px;color:var(--gray-text)">${stdCost!==null?'€\u00a0'+stdCost.toFixed(2):'—'}</td>
+      <td style="text-align:right;font-size:12px;color:var(--gray-text)">${stdCostVal!==null?'€\u00a0'+stdCostVal.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--blue)">${totStd!==null?'€\u00a0'+totStd.toFixed(2):'—'}</td>
+      <td style="text-align:right;font-size:12px;color:var(--gray-text)">${profitPctDisplay}</td>
       <td style="text-align:right;font-size:12px;color:var(--green)">${unitPrice!==null?'€\u00a0'+unitPrice.toFixed(2):'—'}</td>
-      <td style="text-align:right;font-size:12px;color:var(--gray-text)">${art&&art.profitPct?art.profitPct+'%':'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--green)">${totUnit2!==null?'€\u00a0'+totUnit2.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:600;color:var(--green)">${afgerond!==null?'€\u00a0'+afgerond.toLocaleString('nl-NL'):'—'}</td>
       <td style="text-align:right;white-space:nowrap">
