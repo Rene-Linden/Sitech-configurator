@@ -3656,6 +3656,11 @@ function renderBomEwvDetailTabel(b){
 
     // Unit Price = afgerond Totaal Unit van de SBU stuklijst (berekenBomTotalen)
     const bom = bomData.find(bm=>bm.sbuId===a.artikelId);
+    // Naam: a.naam → BoM SBU naam → artikel naam
+    const naamDisplay = a.naam || (bom ? bom.naam : '') || (() => {
+      const art = getArtikelByProductId(a.artikelId);
+      return art ? art.name : '';
+    })() || '';
     let unitPrice = null;
     if(bom){
       const tot = berekenBomTotalen(bom);
@@ -3675,7 +3680,7 @@ function renderBomEwvDetailTabel(b){
     return `<tr>
       <td><input type="text" value="${a.artikelId||''}" onchange="bomEwvRijUpdate(${i},'artikelId',this.value)"
         style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none" /></td>
-      <td><input type="text" value="${a.naam||''}" onchange="bomEwvRijUpdate(${i},'naam',this.value)"
+      <td><input type="text" value="${naamDisplay}" onchange="bomEwvRijUpdate(${i},'naam',this.value)"
         style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none" /></td>
       <td><input type="text" value="${a.aantal||''}" onchange="bomEwvRijUpdate(${i},'aantal',this.value)"
         style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none;text-align:right" /></td>
