@@ -204,22 +204,23 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
 
         <div style="overflow-x:auto">
-          <table style="width:100%;min-width:900px;border-collapse:collapse;font-size:13px">
+          <table style="width:100%;min-width:1000px;border-collapse:collapse;font-size:13px">
             <thead>
-              <!-- Groeperings-header -->
+              <!-- Groeperings-header rij -->
               <tr style="background:var(--gray-bg);position:sticky;top:0;z-index:6">
-                <th colspan="2" style="padding:4px 14px;border-bottom:0"></th>
-                <th colspan="3" style="padding:5px 14px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.08em;color:#3a5c1a;background:#e8f5d6;border-left:2px solid #b5d08a;border-top:2px solid #b5d08a;border-right:2px solid #b5d08a">▲ SUGGESTIES OP BASIS VAN CALCULATIES</th>
-                <th colspan="2" style="padding:4px 14px;border-bottom:0"></th>
+                <th colspan="2" style="padding:4px 14px;border-bottom:0;background:var(--gray-bg)"></th>
+                <th colspan="3" style="padding:5px 14px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.06em;color:#185FA5;background:#dbeafe;border-left:2px solid #93c5fd;border-top:2px solid #93c5fd;border-right:2px solid #93c5fd">APP CALCULATIE</th>
+                <th colspan="2" style="padding:5px 14px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.06em;color:#3a5c1a;background:#dcfce7;border-left:2px solid #86efac;border-top:2px solid #86efac;border-right:2px solid #86efac">PRIJSLIJST MEI 2026</th>
               </tr>
+              <!-- Kolom headers -->
               <tr style="background:var(--gray-bg);position:sticky;top:29px;z-index:5">
                 <th style="padding:9px 14px;text-align:left;min-width:120px">SBU</th>
-                <th style="padding:9px 14px;text-align:left;min-width:280px">Naam</th>
-                <th style="padding:9px 14px;text-align:right;color:var(--blue);min-width:130px;border-left:2px solid #b5d08a;background:#f5fbee">Advies verkoopprijs</th>
-                <th style="padding:9px 14px;text-align:right;background:#edf8e0;color:#3a5c1a;min-width:130px">Prijslijst mei '26 <span style="font-size:10px;font-weight:400;color:#5a8c2a">+ winst</span></th>
-                <th style="padding:9px 14px;text-align:right;color:var(--green);min-width:140px;background:#f5fbee;border-right:2px solid #b5d08a">Verkoopprijslijst <span id="sbu-pl-hdr-pct" style="font-weight:400;font-size:11px">(0%)</span></th>
-                <th style="padding:9px 14px;text-align:right;color:var(--gray-text);min-width:130px">Kostprijs (Std.)</th>
-                <th style="padding:9px 14px;text-align:right;min-width:120px">Winst %</th>
+                <th style="padding:9px 14px;text-align:right;color:var(--gray-text);min-width:130px">Kostprijs</th>
+                <th style="padding:9px 14px;text-align:right;color:var(--blue);min-width:130px;background:#eff6ff;border-left:2px solid #93c5fd">Advies verkoopprijs</th>
+                <th style="padding:9px 14px;text-align:right;color:var(--green);min-width:140px;background:#eff6ff">Verkoopprijslijst <span id="sbu-pl-hdr-pct" style="font-weight:400;font-size:11px">(0%)</span></th>
+                <th style="padding:9px 14px;text-align:right;min-width:100px;background:#eff6ff;border-right:2px solid #93c5fd">Winst %</th>
+                <th style="padding:9px 14px;text-align:right;color:#3a5c1a;min-width:130px;background:#f0fdf4;border-left:2px solid #86efac">Prijs mei '26</th>
+                <th style="padding:9px 14px;text-align:right;min-width:100px;background:#f0fdf4;border-right:2px solid #86efac">Winst %</th>
               </tr>
             </thead>
             <tbody id="tbl-sbu-prijslijst"></tbody>
@@ -1919,31 +1920,31 @@ window.renderSbuPrijslijst = function(){
     const verkoopprijs = tot ? Math.ceil(tot.unitTotaal) : null;
     const naKorting    = verkoopprijs!==null ? Math.ceil(verkoopprijs*(1-kortingPct/100)) : null;
     const kostprijs    = tot ? tot.stdTotaal : null;
-    let winstPct = null;
-    if(naKorting!==null && kostprijs!==null && naKorting>0)
-      winstPct = ((naKorting-kostprijs)/naKorting*100);
 
-    // Winst Prijslijst mei '26 t.o.v. kostprijs
+    // Winst advies: (verkoopprijs - kostprijs) / verkoopprijs
+    let winstAdvies = null;
+    if(verkoopprijs!==null && kostprijs!==null && verkoopprijs>0)
+      winstAdvies = ((verkoopprijs - kostprijs) / verkoopprijs * 100);
+
+    // Prijslijst mei 2026
     const salesPrijs = SALES_PRIJSLIJST_MEI_2026[sbuId];
     let winstMei = null;
     if(salesPrijs!==undefined && kostprijs!==null && salesPrijs>0)
       winstMei = ((salesPrijs - kostprijs) / salesPrijs * 100);
 
-    const winstMeiKleur = winstMei===null?'#94a3b8':winstMei>=20?'var(--green)':winstMei>=0?'var(--amber)':'var(--red)';
-    const winstKleur = winstPct===null?'#94a3b8':winstPct>=20?'var(--green)':winstPct>=0?'var(--amber)':'var(--red)';
+    const kleur = v => v===null?'#94a3b8':v>=20?'var(--green)':v>=0?'var(--amber)':'var(--red)';
+
     return `<tr style="border-bottom:0.5px solid #f1f5f9">
       <td style="padding:9px 14px;font-weight:600;font-size:13px">
-        <a onclick="openBomVanuitPrijslijst('${sbuId}')" style="color:var(--blue);cursor:pointer;text-decoration:none;border-bottom:1px dotted var(--blue)" title="Bekijk stuklijst in BoM SBU">${sbuId}</a>
+        <a onclick="openBomVanuitPrijslijst('${sbuId}')" style="color:var(--blue);cursor:pointer;text-decoration:none;border-bottom:1px dotted var(--blue)" title="Bekijk stuklijst">${sbuId}</a>
+        <div style="font-size:11px;font-weight:400;color:var(--gray-text);margin-top:2px">${a.name||''}</div>
       </td>
-      <td style="padding:9px 14px;font-size:12px;color:var(--gray-text)">${a.name||'—'}</td>
-      <td style="padding:9px 14px;text-align:right;font-weight:500;color:var(--blue);background:#f5fbee;border-left:2px solid #b5d08a">${verkoopprijs!==null?'€\u00a0'+verkoopprijs.toLocaleString('nl-NL'):'—'}</td>
-      <td style="padding:9px 14px;text-align:right;background:#edf8e0">
-        <div style="font-weight:600;color:#3a5c1a">${salesPrijs!==undefined?'€\u00a0'+salesPrijs.toLocaleString('nl-NL',{minimumFractionDigits:salesPrijs%1?2:0}):'—'}</div>
-        ${winstMei!==null?`<div style="font-size:10px;color:${winstMeiKleur};margin-top:1px">${winstMei.toFixed(1)}% winst</div>`:''}
-      </td>
-      <td style="padding:9px 14px;text-align:right;font-weight:600;color:var(--green);background:#f5fbee;border-right:2px solid #b5d08a">${naKorting!==null?'€\u00a0'+naKorting.toLocaleString('nl-NL'):'—'}</td>
       <td style="padding:9px 14px;text-align:right;color:var(--gray-text)">${kostprijs!==null?'€\u00a0'+kostprijs.toFixed(2):'—'}</td>
-      <td style="padding:9px 14px;text-align:right;font-weight:600;color:${winstKleur}">${winstPct!==null?winstPct.toFixed(1)+'%':'—'}</td>
+      <td style="padding:9px 14px;text-align:right;font-weight:500;color:var(--blue);background:#f0f7ff;border-left:2px solid #93c5fd">${verkoopprijs!==null?'€\u00a0'+verkoopprijs.toLocaleString('nl-NL'):'—'}</td>
+      <td style="padding:9px 14px;text-align:right;font-weight:600;color:var(--green);background:#f0f7ff">${naKorting!==null?'€\u00a0'+naKorting.toLocaleString('nl-NL'):'—'}</td>
+      <td style="padding:9px 14px;text-align:right;font-weight:600;background:#f0f7ff;border-right:2px solid #93c5fd;color:${kleur(winstAdvies)}">${winstAdvies!==null?winstAdvies.toFixed(1)+'%':'—'}</td>
+      <td style="padding:9px 14px;text-align:right;font-weight:600;color:#3a5c1a;background:#f0fdf4;border-left:2px solid #86efac">${salesPrijs!==undefined?'€\u00a0'+salesPrijs.toLocaleString('nl-NL',{minimumFractionDigits:salesPrijs%1?2:0}):'—'}</td>
+      <td style="padding:9px 14px;text-align:right;font-weight:600;background:#f0fdf4;border-right:2px solid #86efac;color:${kleur(winstMei)}">${winstMei!==null?winstMei.toFixed(1)+'%':'—'}</td>
     </tr>`;
   }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:2rem">Geen SBU data</td></tr>';};
 
