@@ -3276,13 +3276,13 @@ function renderBomTabel(){
     const totStandard = tot ? tot.stdTotaal : 0;
     const totUnit     = tot ? tot.unitTotaal : 0;
 
-    // Check of alle artikelen een afgeronde unit price hebben
+    // Check of alle artikelen een unit price hebben (zelfde logica als stuklijst popup)
     const arts = b.artikelen||[];
     let alleHebbePrijs = arts.length > 0;
     arts.forEach(a=>{
       const art = getArtikelByProductId(a.artikelId);
-      const unitPrice = art ? berekenUnitPrice(art) : null;
-      if(!unitPrice || unitPrice===0) alleHebbePrijs = false;
+      const unitPrice = berekenArtikelUnitPriceVoorBom(art);
+      if(!unitPrice) alleHebbePrijs = false;
     });
     const prijsBadge = arts.length===0
       ? `<span style="padding:2px 8px;border-radius:20px;font-size:11px;color:var(--gray-text);border:0.5px solid var(--gray-border)">—</span>`
@@ -4049,9 +4049,23 @@ function getResourceVerkoopprijs(resourceId){
 
 // Hulpfunctie: bereken totalen voor een BoM record
 // Geeft { stdTotaal, unitTotaal } terug inclusief resources
+function berekenArtikelUnitPriceVoorBom(art){
+  // Zelfde logica als in de stuklijst popup:
+  // 1) listPrice als aanwezig
+  // 2) standardCost × (1 + profitPct/100) als beide aanwezig
+  // 3) null
+  if(!art) return null;
+  const lp   = parseFloat(art.listPrice||0);
+  if(lp>0) return lp;
+  const cost = parseFloat(art.standardCost||0);
+  const pct  = parseFloat(art.profitPct||'');
+  if(cost>0 && !isNaN(pct) && pct>0) return cost*(1+pct/100);
+  return null;
+}
+
 function berekenBomTotalen(bom){
-  // BoM-artikelen (ASSEMBL/SBU/EWV) gebruiken Methode 1: Winst = Prijs − Kosten
-  // unitTotaal = som van unit prices van onderdelen (niet std cost)
+  // BoM-artikelen (ASSEMBL/SBU) gebruiken Methode 1: Winst = Prijs − Kosten
+  // unitTotaal = som van unit prices van onderdelen
   let stdTotaal = 0, unitTotaal = 0;
   let heeftData = false, heeftAlleUnitPrijzen = true;
 
@@ -4059,7 +4073,7 @@ function berekenBomTotalen(bom){
     const art = getArtikelByProductId(a.artikelId);
     if(!art) return;
     const stdCost   = parseFloat(art.standardCost||0);
-    const unitPrice = berekenUnitPrice(art); // null als niet beschikbaar
+    const unitPrice = berekenArtikelUnitPriceVoorBom(art);
     const aantal    = parseFloat(a.aantal||0);
     if(!aantal) return;
     stdTotaal += stdCost * aantal;
@@ -4067,8 +4081,7 @@ function berekenBomTotalen(bom){
       unitTotaal += unitPrice * aantal;
     } else {
       heeftAlleUnitPrijzen = false;
-      // gebruik stdCost als fallback zodat totaal altijd gevuld is
-      unitTotaal += stdCost * aantal;
+      unitTotaal += stdCost * aantal; // fallback
     }
     heeftData = true;
   });
