@@ -1889,6 +1889,7 @@ window.openBomVanuitPrijslijst = async function(sbuId){
 };
 
 window.renderSbuPrijslijst = function(){
+  const tbody = document.getElementById('tbl-sbu-prijslijst');
   const countEl = document.getElementById('sbu-pl-count');
   const hdrPct = document.getElementById('sbu-pl-hdr-pct');
   if(!tbody) return;
