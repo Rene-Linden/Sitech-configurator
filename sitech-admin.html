@@ -144,10 +144,10 @@ tr.row-selected td{background:var(--blue-light)}
       <a class="nav-item" onclick="showPanel('sbu',this)" style="background:var(--blue-light);border-left:3px solid var(--blue)">SBU</a>
       <a class="nav-item" onclick="showPanel('bom-ewv',this)">BoM EWV</a>
       <a class="nav-item" onclick="showPanel('ewv',this)" style="background:var(--blue-light);border-left:3px solid var(--blue)">EWV</a>
-      <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
 
       <!-- CONFIGURATOR -->
       <div style="padding:14px 18px 4px;font-size:10px;font-weight:600;color:var(--gray-text);letter-spacing:.08em;text-transform:uppercase;border-top:0.5px solid var(--gray-border);margin-top:8px">Configurator</div>
+      <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
       <a class="nav-item" onclick="showPanel('basis-config',this)">Basis Configuratie</a>
       <a class="nav-item" onclick="showPanel('sbu-config',this)">SBU Configurator</a>
       <a class="nav-item" onclick="showPanel('blokken',this)">Blokken</a>
@@ -3767,9 +3767,7 @@ function renderEwv(){
   thead.innerHTML=`<tr style="position:sticky;top:0;background:var(--gray-bg);z-index:10">
     <th style="width:36px;text-align:center"><input type="checkbox" id="chk-ewv-all" ${alleGeselecteerd?'checked':''} /></th>
     <th style="min-width:140px">Product ID</th>
-    <th style="min-width:260px">Name</th>
-    <th style="min-width:180px">Default Vendor</th>
-    <th style="min-width:140px">Product ID Vendor</th>
+    <th style="min-width:320px">Omschrijving</th>
     <th style="min-width:160px">Product Group</th>
     <th style="min-width:130px">FS Product Type</th>
     <th style="min-width:100px;text-align:right">Standard Cost</th>
@@ -3797,14 +3795,20 @@ function renderEwv(){
     const pp=(t.priceProfit||'').toLowerCase();
     const cost=parseFloat(a.standardCost||0);
     const pct=parseFloat(a.profitPct||'');
-    const unitPrice=(pp.includes('kosten')||pp.includes('prijs'))&&cost&&!isNaN(pct)&&pct!==0?'€\u00a0'+(cost*(1+pct/100)).toFixed(2):'—';
+    const unitPrice = berekenUnitPrice(a) ? '€\u00a0'+berekenUnitPrice(a).toFixed(2) : '—';
     const sel=ewvSelectie.has(a.id);
+    // Omschrijving: als name begint met "SBU" gebruik dan defaultVendor, anders name
+    const nameVal = a.name||'';
+    const omschrijving = nameVal.trim().toUpperCase().startsWith('SBU') && a.defaultVendor
+      ? a.defaultVendor
+      : nameVal || a.defaultVendor || '—';
+    // Toon ook productIdVendor als subtitle als die afwijkt
+    const vendorSub = a.productIdVendor && a.productIdVendor!==omschrijving
+      ? `<div style="font-size:11px;color:var(--gray-text);margin-top:1px">${a.productIdVendor}</div>` : '';
     return `<tr class="${sel?'row-selected':''}">
       <td style="text-align:center;width:36px"><input type="checkbox" class="chk-ewv" data-id="${a.id}" ${sel?'checked':''} /></td>
       <td><strong style="font-size:13px">${a.productId||'—'}</strong></td>
-      <td style="font-size:13px">${a.name||'—'}</td>
-      <td style="font-size:12px;color:var(--gray-text)">${a.defaultVendor||'—'}</td>
-      <td style="font-size:12px;color:var(--gray-text)">${a.productIdVendor||'—'}</td>
+      <td style="font-size:13px">${omschrijving}${vendorSub}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.productGroup||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.fsProductType||'—'}</td>
       <td style="text-align:right;font-size:12px;color:var(--blue);font-weight:500">${a.standardCost?'€\u00a0'+parseFloat(a.standardCost).toFixed(2):'—'}</td>
@@ -3825,7 +3829,7 @@ function renderEwv(){
         <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteEwvArtikel('${a.id}')">Verwijderen</button>
       </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="21" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen EWV artikelen gevonden</td></tr>';
+  }).join('')||'<tr><td colspan="19" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen EWV artikelen gevonden</td></tr>';
 
   document.getElementById('tbl-ewv-body').querySelectorAll('.chk-ewv').forEach(chk=>{
     chk.addEventListener('change', function(){
