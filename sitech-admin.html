@@ -950,7 +950,7 @@ tr.row-selected td{background:var(--blue-light)}
 </div>
 
 <!-- MODAL ARTIKEL SNEL BEWERKEN (vanuit BoM SBU) -->
-<div class="modal-bg" id="modal-artikel-snel">
+<div class="modal-bg" id="modal-artikel-snel" style="z-index:1100">
   <div class="modal" style="max-width:560px">
     <div class="modal-header">
       <h3 id="modal-artikel-snel-title">Artikel bewerken</h3>
@@ -968,14 +968,14 @@ tr.row-selected td{background:var(--blue-light)}
             style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px" /></div>
       </div>
       <div class="form-row cols2">
-        <div class="fg"><label>List Price (unit price)</label>
-          <input type="number" id="art-snel-listprice" step="0.01" min="0" placeholder="bijv. 73.39"
-            style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px" /></div>
+        <div class="fg"><label>List Price (unit price) <span style="font-size:11px;color:var(--gray-text)">— wordt automatisch berekend</span></label>
+          <input type="number" id="art-snel-listprice" step="0.01" min="0" placeholder="Automatisch berekend"
+            style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px;background:#f9fafb" readonly /></div>
         <div class="fg"><label>Name</label>
           <input type="text" id="art-snel-name" placeholder="Artikelnaam"
             style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px" /></div>
       </div>
-      <div id="art-snel-berekend" style="margin-top:8px;font-size:12px;color:var(--gray-text)"></div>
+      <div id="art-snel-berekend" style="margin-top:8px;padding:8px 12px;border-radius:6px;font-size:12px;background:var(--blue-light);color:var(--blue);display:none"></div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-artikel-snel')">Annuleren</button>
@@ -2780,18 +2780,22 @@ window.openArtikelVanuitBom = function(productId){
 };
 
 function updateArtikelSnelBerekend(){
-  const cost = parseFloat(document.getElementById('art-snel-stdcost')?.value||0);
-  const pct  = parseFloat(document.getElementById('art-snel-profit')?.value||0);
-  const lp   = parseFloat(document.getElementById('art-snel-listprice')?.value||0);
-  const el   = document.getElementById('art-snel-berekend');
-  if(!el) return;
+  const cost  = parseFloat(document.getElementById('art-snel-stdcost')?.value||0);
+  const pct   = parseFloat(document.getElementById('art-snel-profit')?.value||0);
+  const lpEl  = document.getElementById('art-snel-listprice');
+  const msgEl = document.getElementById('art-snel-berekend');
+  if(!lpEl||!msgEl) return;
+
   if(cost>0 && pct>0){
     const calc = cost*(1+pct/100);
-    el.innerHTML = `Berekende unit price: <strong>€ ${calc.toFixed(2)}</strong> (std cost × (1 + profit%/100))`;
-  } else if(lp>0){
-    el.innerHTML = `List price als unit price: <strong>€ ${lp.toFixed(2)}</strong>`;
+    lpEl.value = calc.toFixed(2);
+    lpEl.style.background = '#EFF6FF';
+    msgEl.style.display = 'block';
+    msgEl.innerHTML = `€ ${cost.toFixed(2)} × (1 + ${pct}%) = <strong>€ ${calc.toFixed(2)}</strong>`;
   } else {
-    el.textContent = 'Vul Standard Cost + Profit % in voor automatische berekening.';
+    lpEl.value = '';
+    lpEl.style.background = '#f9fafb';
+    msgEl.style.display = 'none';
   }
 }
 
@@ -2805,7 +2809,7 @@ window.saveArtikelSnel = async function(){
   const artId    = document.getElementById('art-snel-id').value;
   const stdCost  = document.getElementById('art-snel-stdcost').value.trim();
   const profit   = document.getElementById('art-snel-profit').value.trim();
-  const listPrice= document.getElementById('art-snel-listprice').value.trim();
+  const listPrice= document.getElementById('art-snel-listprice').value.trim(); // auto-berekend
   const name     = document.getElementById('art-snel-name').value.trim();
   if(!artId){ alert('Geen artikel geselecteerd'); return; }
 
