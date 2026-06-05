@@ -2016,7 +2016,9 @@ window.berekenOemScenario = function(){
   document.getElementById('oem-res-eff-pct').textContent   = effKorting.toFixed(2)+'%';
   document.getElementById('oem-res-sitech').style.color    = margeKleur;
 };
-async function laadPrijzenOem(){ te_laden.push(loadBomEwvData());
+async function laadPrijzenOem(){
+  const te_laden = [];
+  if(!bomEwvData.length) te_laden.push(loadBomEwvData());
   if(!bomData.length)    te_laden.push(getDocs(collection(db,'bom_sbu')).then(s=>{ bomData=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId)); }));
   if(!artikelen.length)  te_laden.push(getDocs(collection(db,'artikelen')).then(s=>{ artikelen=s.docs.map(d=>({id:d.id,...d.data()})); }));
   if(te_laden.length) await Promise.all(te_laden);
