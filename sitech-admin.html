@@ -1047,16 +1047,16 @@ tr.row-selected td{background:var(--blue-light)}
 </div>
 
 <div class="modal-bg" id="modal-bom-detail">
-  <div class="modal" style="max-width:860px">
-    <div class="modal-header">
+  <div class="modal" style="max-width:1100px;width:95vw;display:flex;flex-direction:column;max-height:90vh">
+    <div class="modal-header" style="flex-shrink:0">
       <h3 id="modal-bom-detail-title">Stuklijst</h3>
       <button class="modal-close" onclick="closeModal('modal-bom-detail')">×</button>
     </div>
-    <div class="modal-body" style="padding:0">
-      <div id="bom-detail-info" style="padding:12px 18px;font-size:13px;color:var(--gray-text);border-bottom:0.5px solid var(--gray-border)"></div>
+    <div class="modal-body" style="padding:0;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">
+      <div id="bom-detail-info" style="padding:12px 18px;font-size:13px;color:var(--gray-text);border-bottom:0.5px solid var(--gray-border);flex-shrink:0"></div>
 
       <!-- Resources sectie -->
-      <div style="padding:12px 18px;border-bottom:0.5px solid var(--gray-border);background:#fffbf5">
+      <div style="padding:12px 18px;border-bottom:0.5px solid var(--gray-border);background:#fffbf5;flex-shrink:0">
         <div style="font-size:12px;font-weight:500;color:var(--amber);margin-bottom:8px">Resources (uren)</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
           <div>
@@ -1080,26 +1080,30 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
       </div>
 
-      <div style="overflow-x:auto">
-        <table style="width:100%;min-width:800px;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr style="background:var(--gray-bg)">
+      <!-- Artikelen tabel — scrollbaar -->
+      <div style="flex:1;min-height:0;overflow:auto">
+        <table style="width:100%;min-width:1000px;border-collapse:collapse;font-size:13px">
+          <thead style="position:sticky;top:0;z-index:5;background:var(--gray-bg)">
+            <tr>
               <th style="padding:8px 12px;min-width:130px">Artikel ID</th>
               <th style="padding:8px 12px;min-width:220px">Naam</th>
               <th style="padding:8px 12px;min-width:70px;text-align:right">Aantal</th>
               <th style="padding:8px 12px;min-width:65px;text-align:center">Eenheid</th>
               <th style="padding:8px 12px;min-width:100px;text-align:right">Std. Cost</th>
               <th style="padding:8px 12px;min-width:110px;text-align:right;color:var(--blue)">Totaal Std.</th>
+              <th style="padding:8px 12px;min-width:80px;text-align:right">Profit %</th>
               <th style="padding:8px 12px;min-width:100px;text-align:right;color:var(--green)">Unit Price</th>
               <th style="padding:8px 12px;min-width:110px;text-align:right;color:var(--green)">Totaal Unit</th>
               <th style="padding:8px 12px;min-width:110px;text-align:right;color:var(--green)">Afgerond ↑</th>
-              <th style="padding:8px 12px;min-width:60px"></th>
+              <th style="padding:8px 12px;min-width:80px"></th>
             </tr>
           </thead>
           <tbody id="tbl-bom-detail-body"></tbody>
         </table>
       </div>
-      <div style="padding:12px 18px;border-top:0.5px solid var(--gray-border);background:var(--gray-bg)">
+
+      <!-- Artikel toevoegen -->
+      <div style="padding:12px 18px;border-top:0.5px solid var(--gray-border);background:var(--gray-bg);flex-shrink:0">
         <div style="font-size:12px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Artikel toevoegen</div>
         <div style="display:grid;grid-template-columns:140px 1fr 80px 90px auto;gap:8px;align-items:end">
           <div><label style="font-size:11px;color:var(--gray-text);display:block;margin-bottom:3px">Artikel ID</label>
@@ -1116,7 +1120,7 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
       </div>
     </div>
-    <div class="modal-footer" style="justify-content:space-between">
+    <div class="modal-footer" style="flex-shrink:0;justify-content:space-between">
       <button class="btn btn-sm" style="background:var(--green-light);color:var(--green);border:0.5px solid rgba(59,109,17,.3)" onclick="maakSbuKopie()">📋 Kopie maken</button>
       <button class="btn" onclick="closeModal('modal-bom-detail')">Sluiten</button>
     </div>
@@ -2998,6 +3002,7 @@ function renderBomDetailTabel(b){
       <td style="text-align:right;font-size:12px;color:var(--gray-text)">${stdCost!==null?'€\u00a0'+stdCost.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--blue)">${totStd!==null?'€\u00a0'+totStd.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;color:var(--green)">${unitPrice!==null?'€\u00a0'+unitPrice.toFixed(2):'—'}</td>
+      <td style="text-align:right;font-size:12px;color:var(--gray-text)">${art&&art.profitPct?art.profitPct+'%':'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--green)">${totUnit2!==null?'€\u00a0'+totUnit2.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:600;color:var(--green)">${afgerond!==null?'€\u00a0'+afgerond.toLocaleString('nl-NL'):'—'}</td>
       <td style="text-align:right;white-space:nowrap">
@@ -3038,6 +3043,7 @@ function renderBomDetailTabel(b){
       <td style="padding:6px 12px;text-align:center;font-size:12px;color:var(--amber)">Hour</td>
       <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${kp.toFixed(2)}</td>
       <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${totStdRes.toFixed(2)}</td>
+      <td style="padding:6px 12px;text-align:center;font-size:12px;color:var(--amber)">—</td>
       <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${vp.toFixed(2)}</td>
       <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${totUnitRes.toFixed(2)}</td>
       <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--amber)">€\u00a0${afg.toLocaleString('nl-NL')}</td>
@@ -3047,7 +3053,7 @@ function renderBomDetailTabel(b){
 
   const totaalRij = (eindStd>0||eindUnit>0) ? `
     <tr style="background:var(--gray-bg);font-weight:600;border-top:1.5px solid var(--gray-border)">
-      <td colspan="5" style="padding:8px 12px;font-size:12px;color:var(--gray-text)">Totaal (incl. resources)</td>
+      <td colspan="6" style="padding:8px 12px;font-size:12px;color:var(--gray-text)">Totaal (incl. resources)</td>
       <td style="text-align:right;font-size:13px;color:var(--blue);padding:8px 12px">€\u00a0${eindStd.toFixed(2)}</td>
       <td></td>
       <td style="text-align:right;font-size:13px;color:var(--green);padding:8px 12px">€\u00a0${eindUnit.toFixed(2)}</td>
