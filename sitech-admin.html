@@ -138,6 +138,7 @@ tr.row-selected td{background:var(--blue-light)}
       <!-- BEHEER -->
       <div style="padding:12px 16px 4px;font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:.1em;text-transform:uppercase">Beheer</div>
       <a class="nav-item" onclick="showPanel('artikel-templates',this)">Artikel Templates</a>
+      <a class="nav-item" onclick="showPanel('kostencalculatie',this)">Kostencalculatie</a>
       <a class="nav-item" onclick="showPanel('trimble-prijslijst',this)">Artikel Prijslijst</a>
       <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
       <a class="nav-item" onclick="showPanel('assemblage',this)">Assemblage op voorraad</a>
@@ -352,6 +353,81 @@ tr.row-selected td{background:var(--blue-light)}
             <thead id="tbl-artikelen-head" style="position:sticky;top:0;z-index:20"></thead>
             <tbody id="tbl-artikelen-body"><tr><td colspan="30" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- KOSTENCALCULATIE PANEL -->
+      <div class="panel" id="panel-kostencalculatie">
+        <div class="panel-title">Kostencalculatie</div>
+        <div class="panel-sub">Legt vast welke calculatiemethode per artikel-template gebruikt wordt. Deze instelling bepaalt hoe unit prices berekend worden in de hele applicatie.</div>
+
+        <div style="display:grid;gap:16px;max-width:800px">
+
+          <!-- Optie 1 -->
+          <div class="card">
+            <div class="card-body">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+                <span style="background:#1e40af;color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">1</span>
+                <div>
+                  <div style="font-size:14px;font-weight:600">Winst = Prijs − Kosten</div>
+                  <div style="font-size:12px;color:var(--gray-text)">Template veld Price/Profit: <code style="background:var(--gray-bg);padding:1px 5px;border-radius:3px">Winst = Prijs-Kosten</code></div>
+                </div>
+              </div>
+              <div style="font-size:13px;color:var(--gray-text);line-height:1.7">
+                <strong>Werking:</strong> De unit price is opgebouwd uit de som van de unit prices van de onderdelen in de stuklijst (BoM). De winst is het verschil tussen de totale verkoopprijs en de totale standaard kostprijs. Het winstpercentage volgt daaruit.<br>
+                <strong style="color:#1e40af">Gebruikt door:</strong> ASSEMBL-ARTIKEL, SUBBUNDELS, HOOFDBUNDELS
+              </div>
+            </div>
+          </div>
+
+          <!-- Optie 2 -->
+          <div class="card">
+            <div class="card-body">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+                <span style="background:var(--green);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">2</span>
+                <div>
+                  <div style="font-size:14px;font-weight:600">Prijs = Kosten + Winst%</div>
+                  <div style="font-size:12px;color:var(--gray-text)">Template veld Price/Profit: <code style="background:var(--gray-bg);padding:1px 5px;border-radius:3px">Prijs= kosten+winst</code></div>
+                </div>
+              </div>
+              <div style="font-size:13px;color:var(--gray-text);line-height:1.7">
+                <strong>Werking:</strong> Unit Price = Standard Cost × (1 + Profit% / 100). Vereist dat zowel <em>Standard Cost</em> als <em>Profit%</em> ingevuld zijn op het artikel. Als de Trimble of Sitech prijslijst een <em>List Price</em> heeft gezet, wordt die direct gebruikt.<br>
+                <strong style="color:var(--green)">Gebruikt door:</strong> Alle overige artikeltypen
+              </div>
+            </div>
+          </div>
+
+          <!-- Optie 3 -->
+          <div class="card">
+            <div class="card-body">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+                <span style="background:var(--amber);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">3</span>
+                <div>
+                  <div style="font-size:14px;font-weight:600">No Relation</div>
+                  <div style="font-size:12px;color:var(--gray-text)">Template veld Price/Profit: <code style="background:var(--gray-bg);padding:1px 5px;border-radius:3px">No Relation</code></div>
+                </div>
+              </div>
+              <div style="font-size:13px;color:var(--gray-text);line-height:1.7">
+                <strong>Werking:</strong> Er is geen vaste relatie tussen kostprijs en verkoopprijs. De gebruiker stelt de prijs handmatig in. Geen automatische berekening.<br>
+                <strong style="color:var(--amber)">Gebruikt door:</strong> Templates met No Relation instelling
+              </div>
+            </div>
+          </div>
+
+          <!-- Overzicht per template -->
+          <div class="card">
+            <div class="card-body">
+              <div style="font-size:14px;font-weight:600;margin-bottom:12px">Instelling per artikel-template</div>
+              <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead><tr style="background:var(--gray-bg)">
+                  <th style="padding:8px 12px;text-align:left">Template</th>
+                  <th style="padding:8px 12px;text-align:left">Price/Profit instelling</th>
+                  <th style="padding:8px 12px;text-align:center">Methode</th>
+                </tr></thead>
+                <tbody id="tbl-calc-templates"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1504,6 +1580,7 @@ window.showPanel = function(name,el){
     renderPrijslijstNieuw();
   }
   if(name==='aanvragen'){ renderFilterMerkAanvragen(); renderAanvragen(); }
+  if(name==='kostencalculatie'){ renderKostencalculatie(); }
   if(name==='trimble-prijslijst'){ loadTrimbleArchief(); }
   if(name==='assemblage'){
     getDocs(collection(db,'artikelen')).then(snap=>{
@@ -3126,13 +3203,65 @@ function getArtikelByProductId(productId){
 }
 
 // Hulpfunctie: bereken unit price voor een artikel
+// Helper: geef calculatiemethode voor een artikel (1, 2 of 3)
+function getCalcMethode(art){
+  if(!art) return 3;
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===art.templateId)||{};
+  const pp = (t.priceProfit||'').toLowerCase();
+  if(pp.includes('winst') && pp.includes('prijs')) return 1; // Winst = Prijs - Kosten
+  if(pp.includes('kosten') || pp.includes('prijs=')) return 2; // Prijs = Kosten + Winst%
+  return 3; // No Relation
+}
+
 function berekenUnitPrice(art){
   if(!art) return null;
-  const cost = parseFloat(art.standardCost||0);
-  const pct  = parseFloat(art.profitPct||'');
-  // Alleen berekenen als BEIDE velden aanwezig en groter dan nul
-  if(cost>0 && !isNaN(pct) && pct>0) return cost*(1+pct/100);
+  const methode = getCalcMethode(art);
+
+  if(methode===2){
+    // Prijs = Kosten + Winst% → standaard artikel
+    const lp   = parseFloat(art.listPrice||0);
+    if(lp>0) return lp; // List Price (Trimble/Sitech) heeft prioriteit
+    const cost = parseFloat(art.standardCost||0);
+    const pct  = parseFloat(art.profitPct||'');
+    if(cost>0 && !isNaN(pct) && pct>0) return cost*(1+pct/100);
+    return null;
+  }
+
+  if(methode===1){
+    // Winst = Prijs - Kosten → stuklijst-artikel, unit price = som unit prices BoM
+    // Dit wordt via berekenBomTotalen berekend, niet hier
+    const lp = parseFloat(art.listPrice||0);
+    if(lp>0) return lp;
+    return null;
+  }
+
+  // Methode 3 (No Relation) of onbekend
+  const lp = parseFloat(art.listPrice||0);
+  if(lp>0) return lp;
   return null;
+}
+
+function renderKostencalculatie(){
+  const tbody = document.getElementById('tbl-calc-templates');
+  if(!tbody) return;
+  tbody.innerHTML = ARTIKEL_TEMPLATES.map(t=>{
+    const pp = (t.priceProfit||'').toLowerCase();
+    let methode, badge, color;
+    if(pp.includes('winst') && pp.includes('prijs')){
+      methode=1; badge='1 — Winst = Prijs − Kosten'; color='#1e40af';
+    } else if(pp.includes('kosten') || pp.includes('prijs=')){
+      methode=2; badge='2 — Prijs = Kosten + Winst%'; color='var(--green)';
+    } else {
+      methode=3; badge='3 — No Relation'; color='var(--amber)';
+    }
+    return `<tr>
+      <td style="padding:8px 12px;font-weight:500">${t.naam||t.id}</td>
+      <td style="padding:8px 12px;font-size:12px;color:var(--gray-text)">${t.priceProfit||'—'}</td>
+      <td style="padding:8px 12px;text-align:center">
+        <span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;color:#fff;background:${color}">${badge}</span>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 function renderBomDetailTabel(b){
@@ -3588,24 +3717,30 @@ function getResourceVerkoopprijs(resourceId){
 // Hulpfunctie: bereken totalen voor een BoM record
 // Geeft { stdTotaal, unitTotaal } terug inclusief resources
 function berekenBomTotalen(bom){
+  // BoM-artikelen (ASSEMBL/SBU/EWV) gebruiken Methode 1: Winst = Prijs − Kosten
+  // unitTotaal = som van unit prices van onderdelen (niet std cost)
   let stdTotaal = 0, unitTotaal = 0;
-  let heeftData = false;
+  let heeftData = false, heeftAlleUnitPrijzen = true;
 
-  // Artikelen
   (bom.artikelen||[]).forEach(a=>{
     const art = getArtikelByProductId(a.artikelId);
     if(!art) return;
     const stdCost   = parseFloat(art.standardCost||0);
-    const unitPrice = berekenUnitPrice(art) || stdCost; // fallback op stdCost
+    const unitPrice = berekenUnitPrice(art); // null als niet beschikbaar
     const aantal    = parseFloat(a.aantal||0);
-    if(aantal){
-      stdTotaal  += stdCost   * aantal;
+    if(!aantal) return;
+    stdTotaal += stdCost * aantal;
+    if(unitPrice!==null){
       unitTotaal += unitPrice * aantal;
-      heeftData = true;
+    } else {
+      heeftAlleUnitPrijzen = false;
+      // gebruik stdCost als fallback zodat totaal altijd gevuld is
+      unitTotaal += stdCost * aantal;
     }
+    heeftData = true;
   });
 
-  // Resources: welding, mounting, calibration uren × tarief
+  // Resources: uren × tarief
   const welding     = parseFloat(bom.welding||0);
   const mounting    = parseFloat(bom.mounting||0);
   const calibration = parseFloat(bom.calibration||0);
@@ -3625,7 +3760,11 @@ function berekenBomTotalen(bom){
     heeftData = true;
   }
 
-  return heeftData ? { stdTotaal, unitTotaal } : null;
+  if(!heeftData) return null;
+  // Winstberekening (Methode 1): winst = unitTotaal - stdTotaal
+  const winstBedrag = unitTotaal - stdTotaal;
+  const winstPct    = stdTotaal>0 ? (winstBedrag/stdTotaal*100) : null;
+  return { stdTotaal, unitTotaal, winstBedrag, winstPct, heeftAlleUnitPrijzen };
 }
 
 function getSbuTotaalStd(sbuId){
@@ -4087,7 +4226,7 @@ function renderEwv(){
     const pp=(t.priceProfit||'').toLowerCase();
     const cost=parseFloat(a.standardCost||0);
     const pct=parseFloat(a.profitPct||'');
-    const unitPrice = berekenUnitPrice(a) ? '€\u00a0'+berekenUnitPrice(a).toFixed(2) : '—';
+    const unitPrice = berekenUnitPrice(a) !== null ? '€\u00a0'+berekenUnitPrice(a).toFixed(2) : '—';
     const sel=ewvSelectie.has(a.id);
     // Omschrijving: als name begint met "SBU" gebruik dan defaultVendor, anders name
     const nameVal = a.name||'';
