@@ -949,6 +949,41 @@ tr.row-selected td{background:var(--blue-light)}
   </div>
 </div>
 
+<!-- MODAL ARTIKEL SNEL BEWERKEN (vanuit BoM SBU) -->
+<div class="modal-bg" id="modal-artikel-snel">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h3 id="modal-artikel-snel-title">Artikel bewerken</h3>
+      <button class="modal-close" onclick="closeModal('modal-artikel-snel')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="art-snel-id" />
+      <div style="background:var(--gray-bg);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--gray-text)" id="art-snel-info"></div>
+      <div class="form-row cols2">
+        <div class="fg"><label>Standard Cost</label>
+          <input type="number" id="art-snel-stdcost" step="0.01" min="0" placeholder="bijv. 45.50"
+            style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px" /></div>
+        <div class="fg"><label>Profit % (korting)</label>
+          <input type="number" id="art-snel-profit" step="0.01" min="0" max="100" placeholder="bijv. 38.00"
+            style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px" /></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>List Price (unit price)</label>
+          <input type="number" id="art-snel-listprice" step="0.01" min="0" placeholder="bijv. 73.39"
+            style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px" /></div>
+        <div class="fg"><label>Name</label>
+          <input type="text" id="art-snel-name" placeholder="Artikelnaam"
+            style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px" /></div>
+      </div>
+      <div id="art-snel-berekend" style="margin-top:8px;font-size:12px;color:var(--gray-text)"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-artikel-snel')">Annuleren</button>
+      <button class="btn btn-blue" onclick="saveArtikelSnel()">Opslaan in Artikelen</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL BOM DETAIL -->
 <!-- MODAL BASIS CONFIG RIJ BEWERKEN -->
 <div class="modal-bg" id="modal-bc-rij">
@@ -2727,6 +2762,72 @@ function renderBomTabel(){
   '<tr><td colspan="12" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM data — upload een Excel of voeg handmatig toe</td></tr>';
 }
 
+window.openArtikelVanuitBom = function(productId){
+  const art = artikelen.find(a=>a.productId===productId);
+  if(!art){ alert(`Artikel ${productId} niet gevonden in de artikelenlijst.`); return; }
+
+  document.getElementById('art-snel-id').value = art.id;
+  document.getElementById('modal-artikel-snel-title').textContent = `Artikel bewerken — ${productId}`;
+  document.getElementById('art-snel-info').innerHTML =
+    `<strong>${art.productId}</strong> &nbsp;·&nbsp; ${art.name||'—'} &nbsp;·&nbsp; `+
+    `Template: ${ARTIKEL_TEMPLATES.find(t=>t.id===art.templateId)?.naam||art.templateId||'—'}`;
+  document.getElementById('art-snel-stdcost').value   = art.standardCost||'';
+  document.getElementById('art-snel-profit').value    = art.profitPct||'';
+  document.getElementById('art-snel-listprice').value = art.listPrice||'';
+  document.getElementById('art-snel-name').value      = art.name||'';
+  updateArtikelSnelBerekend();
+  openModal('modal-artikel-snel');
+};
+
+function updateArtikelSnelBerekend(){
+  const cost = parseFloat(document.getElementById('art-snel-stdcost')?.value||0);
+  const pct  = parseFloat(document.getElementById('art-snel-profit')?.value||0);
+  const lp   = parseFloat(document.getElementById('art-snel-listprice')?.value||0);
+  const el   = document.getElementById('art-snel-berekend');
+  if(!el) return;
+  if(cost>0 && pct>0){
+    const calc = cost*(1+pct/100);
+    el.innerHTML = `Berekende unit price: <strong>€ ${calc.toFixed(2)}</strong> (std cost × (1 + profit%/100))`;
+  } else if(lp>0){
+    el.innerHTML = `List price als unit price: <strong>€ ${lp.toFixed(2)}</strong>`;
+  } else {
+    el.textContent = 'Vul Standard Cost + Profit % in voor automatische berekening.';
+  }
+}
+
+// Live berekening tonen
+['art-snel-stdcost','art-snel-profit','art-snel-listprice'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('input', updateArtikelSnelBerekend);
+});
+
+window.saveArtikelSnel = async function(){
+  const artId    = document.getElementById('art-snel-id').value;
+  const stdCost  = document.getElementById('art-snel-stdcost').value.trim();
+  const profit   = document.getElementById('art-snel-profit').value.trim();
+  const listPrice= document.getElementById('art-snel-listprice').value.trim();
+  const name     = document.getElementById('art-snel-name').value.trim();
+  if(!artId){ alert('Geen artikel geselecteerd'); return; }
+
+  const data = {};
+  if(stdCost)   data.standardCost = stdCost;
+  if(profit)    data.profitPct    = profit;
+  if(listPrice) data.listPrice    = listPrice;
+  if(name)      data.name         = name;
+
+  await updateDoc(doc(db,'artikelen',artId), data);
+
+  // Update in-memory
+  const idx = artikelen.findIndex(a=>a.id===artId);
+  if(idx>-1) Object.assign(artikelen[idx], data);
+
+  closeModal('modal-artikel-snel');
+  // Herrender de stuklijst met bijgewerkte data
+  const b = bomData.find(x=>x.id===bomDetailId);
+  if(b) renderBomDetailTabel(b);
+  showSaving('Artikel opgeslagen');
+};
+
 window.openBomDetail = function(){
   const id = document.getElementById('sel-bom-zoek').value;
   if(!id){ alert('Selecteer eerst een SBU'); return; }
@@ -2874,6 +2975,9 @@ function renderBomDetailTabel(b){
     if(totStd)    totStandard += totStd;
     if(totUnit2)  totUnit     += totUnit2;
     if(afgerond)  totAfgerond += afgerond;
+    const editKnop = art
+      ? `<button class="btn btn-sm" onclick="openArtikelVanuitBom('${a.artikelId}')" style="margin-right:4px" title="Artikel bewerken">✎</button>`
+      : `<span style="font-size:11px;color:var(--red)">!</span>`;
     return `<tr id="bom-rij-${i}">
       <td><input type="text" value="${a.artikelId||''}" data-idx="${i}" data-field="artikelId"
         onchange="bomRijUpdate(${i},'artikelId',this.value)"
@@ -2890,7 +2994,8 @@ function renderBomDetailTabel(b){
       <td style="text-align:right;font-size:12px;color:var(--green)">${unitPrice!==null?'€\u00a0'+unitPrice.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--green)">${totUnit2!==null?'€\u00a0'+totUnit2.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:600;color:var(--green)">${afgerond!==null?'€\u00a0'+afgerond.toLocaleString('nl-NL'):'—'}</td>
-      <td style="text-align:right">
+      <td style="text-align:right;white-space:nowrap">
+        ${editKnop}
         <button class="btn btn-sm btn-red" onclick="bomRijVerwijder(${i})">×</button>
       </td>
     </tr>`;
