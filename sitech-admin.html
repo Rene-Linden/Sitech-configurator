@@ -558,6 +558,7 @@ tr.row-selected td{background:var(--blue-light)}
             <button class="btn btn-green" id="btn-bom-ewv-upload">Excel uploaden</button>
             <button class="btn btn-blue" onclick="openNieuwBomEwv()">+ Nieuwe BoM</button>
             <button class="btn btn-sm btn-red" onclick="cleanupBomEwv()" title="Verwijder records met ongeldige IDs">🗑 Herstel data</button>
+            <button class="btn" onclick="synchroniseerLijsten()" style="border-color:rgba(133,79,11,.3);color:var(--amber);background:var(--amber-light)" title="Synchroniseer EWV, BoM EWV, BoM SBU en SBU">⟳ Synchroniseer lijsten</button>
             <input type="file" id="bom-ewv-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
             <span id="bom-ewv-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
           </div>
@@ -3523,6 +3524,137 @@ window.cleanupBomEwv = async function(){
   }
   showSaving(`${corrupt.length} ongeldige records verwijderd`);
   await loadBomEwvData();
+};
+
+window.synchroniseerLijsten = async function(){
+  if(!confirm('Lijsten synchroniseren?\n\nDit voert de volgende acties uit:\n1. EWV artikelen ↔ BoM EWV — ontbrekende regels aanmaken\n2. BoM SBU regels die in BoM EWV "Oude naam" staan verwijderen uit BoM SBU\n3. SBU artikelen ↔ BoM SBU — ontbrekende regels aanmaken')) return;
+
+  const status = document.getElementById('bom-ewv-upload-status');
+  status.textContent = 'Data laden…';
+
+  // Laad alle benodigde data
+  const [ewvArtSnap, bomEwvSnap, bomSbuSnap, sbuArtSnap] = await Promise.all([
+    getDocs(collection(db,'artikelen')),
+    getDocs(collection(db,'bom_ewv')),
+    getDocs(collection(db,'bom_sbu')),
+    getDocs(collection(db,'artikelen')),
+  ]);
+
+  // EWV artikelen (templateId = isEWV templates)
+  const ewvTemplateIds = new Set(ARTIKEL_TEMPLATES.filter(t=>t.isEWV).map(t=>t.id));
+  const sbuTemplateIds = new Set(ARTIKEL_TEMPLATES.filter(t=>t.isSBU).map(t=>t.id));
+  const alleArtikelen = ewvArtSnap.docs.map(d=>({id:d.id,...d.data()}));
+  const ewvArtikelen  = alleArtikelen.filter(a=>ewvTemplateIds.has(a.templateId));
+  const sbuArtikelen  = alleArtikelen.filter(a=>sbuTemplateIds.has(a.templateId));
+
+  const bomEwvRecords = bomEwvSnap.docs.map(d=>({id:d.id,...d.data()}));
+  const bomSbuRecords = bomSbuSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+  const logs = [];
+  let aangemaakt = 0, verwijderd = 0;
+
+  // =====================================================================
+  // ACTIE 1: EWV artikelen ↔ BoM EWV synchroniseren
+  // =====================================================================
+  const ewvArtIds   = new Set(ewvArtikelen.map(a=>a.productId));
+  const bomEwvIds   = new Set(bomEwvRecords.map(b=>b.sbuId));
+
+  // EWV artikelen die geen BoM EWV hebben → BoM EWV aanmaken
+  const ewvZonderBom = ewvArtikelen.filter(a=>!bomEwvIds.has(a.productId));
+  if(ewvZonderBom.length){
+    const batch = writeBatch(db);
+    ewvZonderBom.forEach(a=>{
+      const newId = 'bomewv'+Date.now()+Math.random();
+      batch.set(doc(db,'bom_ewv',newId),{ sbuId:a.productId, naam:a.name||'', oudNaam:'', artikelen:[], welding:'', mounting:'', calibration:'' });
+      logs.push(`BoM EWV aangemaakt voor EWV artikel: ${a.productId}`);
+      aangemaakt++;
+    });
+    await batch.commit();
+  }
+
+  // BoM EWV records die geen EWV artikel hebben → EWV artikel aanmaken
+  const bomEwvZonderArt = bomEwvRecords.filter(b=>!ewvArtIds.has(b.sbuId));
+  if(bomEwvZonderArt.length){
+    const ewvTemplate = ARTIKEL_TEMPLATES.find(t=>t.isEWV);
+    if(ewvTemplate){
+      const batch = writeBatch(db);
+      bomEwvZonderArt.forEach(b=>{
+        const newId = 'art'+Date.now()+Math.random();
+        batch.set(doc(db,'artikelen',newId),{ templateId:ewvTemplate.id, productId:b.sbuId, name:b.naam||'' });
+        logs.push(`EWV artikel aangemaakt voor BoM EWV: ${b.sbuId}`);
+        aangemaakt++;
+      });
+      await batch.commit();
+    }
+  }
+
+  // =====================================================================
+  // ACTIE 2: BoM SBU regels die in BoM EWV "oudNaam" voorkomen → verwijderen uit BoM SBU
+  // =====================================================================
+  const oudNamenInEwv = new Set(bomEwvRecords.map(b=>(b.oudNaam||'').trim()).filter(Boolean));
+  const bomSbuTeVerwijderen = bomSbuRecords.filter(b=>oudNamenInEwv.has(b.sbuId));
+  if(bomSbuTeVerwijderen.length){
+    if(confirm(`${bomSbuTeVerwijderen.length} BoM SBU record(s) komen voor in BoM EWV als "Oude naam" en worden verwijderd uit BoM SBU:\n${bomSbuTeVerwijderen.map(b=>b.sbuId).join(', ')}\n\nDoorgaan?`)){
+      const batch = writeBatch(db);
+      bomSbuTeVerwijderen.forEach(b=>{ batch.delete(doc(db,'bom_sbu',b.id)); logs.push(`BoM SBU verwijderd (in EWV oudNaam): ${b.sbuId}`); verwijderd++; });
+      await batch.commit();
+    }
+  }
+
+  // =====================================================================
+  // ACTIE 3: SBU artikelen ↔ BoM SBU synchroniseren
+  // =====================================================================
+  // Herlaad bomSbu na mogelijke verwijdering
+  const bomSbuSnap2 = await getDocs(collection(db,'bom_sbu'));
+  const bomSbuRec2  = bomSbuSnap2.docs.map(d=>({id:d.id,...d.data()}));
+  const bomSbuIds2  = new Set(bomSbuRec2.map(b=>b.sbuId));
+  const sbuArtIds   = new Set(sbuArtikelen.map(a=>a.productId));
+
+  // SBU artikelen zonder BoM SBU → BoM SBU aanmaken
+  const sbuZonderBom = sbuArtikelen.filter(a=>!bomSbuIds2.has(a.productId));
+  if(sbuZonderBom.length){
+    const batch = writeBatch(db);
+    sbuZonderBom.forEach(a=>{
+      const newId = 'bom'+Date.now()+Math.random();
+      batch.set(doc(db,'bom_sbu',newId),{ sbuId:a.productId, naam:a.name||'', artikelen:[], welding:'', mounting:'', calibration:'' });
+      logs.push(`BoM SBU aangemaakt voor SBU artikel: ${a.productId}`);
+      aangemaakt++;
+    });
+    await batch.commit();
+  }
+
+  // BoM SBU records zonder SBU artikel → SBU artikel aanmaken
+  const bomSbuZonderArt = bomSbuRec2.filter(b=>!sbuArtIds.has(b.sbuId));
+  if(bomSbuZonderArt.length){
+    const sbuTemplate = ARTIKEL_TEMPLATES.find(t=>t.isSBU);
+    if(sbuTemplate){
+      const batch = writeBatch(db);
+      bomSbuZonderArt.forEach(b=>{
+        const newId = 'art'+Date.now()+Math.random();
+        batch.set(doc(db,'artikelen',newId),{ templateId:sbuTemplate.id, productId:b.sbuId, name:b.naam||'' });
+        logs.push(`SBU artikel aangemaakt voor BoM SBU: ${b.sbuId}`);
+        aangemaakt++;
+      });
+      await batch.commit();
+    }
+  }
+
+  // Herlaad alle data
+  await Promise.all([loadBomEwvData(), loadBomData()]);
+  const bomEwvData2 = (await getDocs(collection(db,'bom_ewv'))).docs.map(d=>({id:d.id,...d.data()}));
+  bomEwvData.length = 0; bomEwvData2.forEach(b=>bomEwvData.push(b));
+  renderBomEwvTabel(); vulBomEwvZoekSelector();
+
+  status.textContent = `✓ ${aangemaakt} aangemaakt, ${verwijderd} verwijderd`;
+  setTimeout(()=>status.textContent='', 5000);
+
+  // Toon log
+  if(logs.length){
+    console.log('Synchronisatie log:\n'+logs.join('\n'));
+    alert(`Synchronisatie voltooid:\n• ${aangemaakt} records aangemaakt\n• ${verwijderd} records verwijderd\n\nDetails:\n${logs.slice(0,20).join('\n')}${logs.length>20?`\n... en nog ${logs.length-20} meer`:''}`);
+  } else {
+    alert('Synchronisatie voltooid — alle lijsten zijn al gesynchroniseerd.');
+  }
 };
 
 // BoM EWV Excel upload
