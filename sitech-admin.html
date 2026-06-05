@@ -335,6 +335,7 @@ tr.row-selected td{background:var(--blue-light)}
             </div>
 
             <button class="btn btn-sm btn-red" onclick="verwijderGeselecteerd()">Verwijderen</button>
+            <button class="btn btn-sm" style="background:var(--green-light);color:var(--green);border:0.5px solid rgba(59,109,17,.3)" onclick="openKopierenModal()">Kopiëren</button>
             <button class="btn btn-sm" onclick="deselecteerAlles()">Selectie opheffen</button>
           </div>
 
@@ -1151,6 +1152,49 @@ tr.row-selected td{background:var(--blue-light)}
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-bom-edit')">Annuleren</button>
       <button class="btn btn-blue" onclick="saveBom()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ARTIKEL KOPIËREN -->
+<div class="modal-bg" id="modal-kopieer-artikel">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3>Artikelen kopiëren</h3>
+      <button class="modal-close" onclick="closeModal('modal-kopieer-artikel')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="kopieer-info" style="font-size:13px;color:var(--gray-text);margin-bottom:16px"></div>
+
+      <div class="form-row cols2">
+        <div class="fg">
+          <label>Toevoeging (tekst na "-")</label>
+          <input type="text" id="kopieer-toevoeging" placeholder="bijv. B, v2, COPY"
+            style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px" />
+        </div>
+        <div class="fg">
+          <label>Positie toevoeging</label>
+          <select id="kopieer-positie" style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px">
+            <option value="achter">Achter — ST-00001-B</option>
+            <option value="voor">Voor — B-ST-00001</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="fg" style="margin-top:10px">
+        <label>Opslaan in template *</label>
+        <select id="kopieer-template" style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px">
+          <option value="">— Kies template —</option>
+        </select>
+      </div>
+
+      <div id="kopieer-preview" style="margin-top:14px;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:12px;color:var(--gray-text)">
+        Vul een toevoeging in om preview te zien…
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-kopieer-artikel')">Annuleren</button>
+      <button class="btn btn-blue" onclick="voerKopierenUit()">Kopiëren</button>
     </div>
   </div>
 </div>
@@ -2130,6 +2174,102 @@ function renderArtikelenTbody(){
     });
   });
 }
+
+window.openKopierenModal = function(){
+  const ids = [...artikelSelectie];
+  if(!ids.length){ alert('Selecteer eerst artikelen'); return; }
+
+  // Vul template selector
+  const sel = document.getElementById('kopieer-template');
+  sel.innerHTML = '<option value="">— Kies template —</option>' +
+    ARTIKEL_TEMPLATES.map(t=>`<option value="${t.id}">${t.naam}</option>`).join('');
+
+  // Info
+  const arts = ids.map(id=>artikelen.find(a=>a.id===id)).filter(Boolean);
+  document.getElementById('kopieer-info').innerHTML =
+    `<strong>${arts.length}</strong> artikel${arts.length!==1?'en':''} geselecteerd om te kopiëren.`+
+    `<div style="margin-top:4px;color:var(--gray-text);font-size:11px">${arts.slice(0,5).map(a=>a.productId).join(', ')}${arts.length>5?` en nog ${arts.length-5}...`:''}</div>`;
+
+  document.getElementById('kopieer-toevoeging').value = '';
+  document.getElementById('kopieer-positie').value = 'achter';
+  document.getElementById('kopieer-preview').textContent = 'Vul een toevoeging in om preview te zien…';
+  openModal('modal-kopieer-artikel');
+};
+
+// Live preview bijwerken
+function updateKopieerPreview(){
+  const toev = document.getElementById('kopieer-toevoeging')?.value.trim();
+  const pos  = document.getElementById('kopieer-positie')?.value;
+  const el   = document.getElementById('kopieer-preview');
+  if(!el) return;
+  if(!toev){ el.textContent='Vul een toevoeging in om preview te zien…'; return; }
+  const ids = [...artikelSelectie];
+  const voorbeelden = ids.slice(0,3).map(id=>{
+    const art = artikelen.find(a=>a.id===id);
+    if(!art) return '';
+    const nieuw = pos==='voor' ? `${toev}-${art.productId}` : `${art.productId}-${toev}`;
+    return `${art.productId} → <strong>${nieuw}</strong>`;
+  }).filter(Boolean);
+  el.innerHTML = voorbeelden.join('<br>') + (ids.length>3?`<br><span style="color:var(--gray-text)">... en nog ${ids.length-3} meer</span>`:'');
+}
+
+document.getElementById('kopieer-toevoeging').addEventListener('input', updateKopieerPreview);
+document.getElementById('kopieer-positie').addEventListener('change', updateKopieerPreview);
+
+window.voerKopierenUit = async function(){
+  const toev     = document.getElementById('kopieer-toevoeging').value.trim();
+  const pos      = document.getElementById('kopieer-positie').value;
+  const templateId = document.getElementById('kopieer-template').value;
+  if(!toev)        { alert('Vul een toevoeging in'); return; }
+  if(!templateId)  { alert('Kies een template'); return; }
+
+  const ids  = [...artikelSelectie];
+  const arts = ids.map(id=>artikelen.find(a=>a.id===id)).filter(Boolean);
+  if(!arts.length) return;
+
+  const bestaandeProductIds = new Set(artikelen.map(a=>a.productId));
+  const nieuweArts = [];
+  const dubbelen   = [];
+
+  arts.forEach(a=>{
+    const nieuwId = pos==='voor' ? `${toev}-${a.productId}` : `${a.productId}-${toev}`;
+    if(bestaandeProductIds.has(nieuwId)){
+      dubbelen.push(nieuwId);
+    } else {
+      // Deep copy van alle velden, nieuw productId en templateId
+      const kopie = {...a};
+      delete kopie.id;
+      kopie.productId  = nieuwId;
+      kopie.templateId = templateId;
+      nieuweArts.push(kopie);
+    }
+  });
+
+  if(dubbelen.length>0){
+    if(!confirm(`${dubbelen.length} artikel${dubbelen.length!==1?'en':''} bestaan al met dit nummer:\n${dubbelen.slice(0,5).join(', ')}\n\nDeze worden overgeslagen. Doorgaan met de overige ${nieuweArts.length}?`)){
+      return;
+    }
+  }
+
+  if(!nieuweArts.length){ alert('Geen nieuwe artikelen om aan te maken — alle nummers bestaan al.'); return; }
+
+  let aangemaakt = 0;
+  for(let i=0; i<nieuweArts.length; i+=500){
+    const batch = writeBatch(db);
+    nieuweArts.slice(i,i+500).forEach(a=>{
+      const newDocId = 'art'+Date.now()+Math.random();
+      batch.set(doc(db,'artikelen',newDocId), a);
+      artikelen.push({id:newDocId,...a});
+      aangemaakt++;
+    });
+    await batch.commit();
+  }
+
+  closeModal('modal-kopieer-artikel');
+  deselecteerAlles();
+  renderArtikelen();
+  showSaving(`✓ ${aangemaakt} artikel${aangemaakt!==1?'en':''} gekopieerd naar ${ARTIKEL_TEMPLATES.find(t=>t.id===templateId)?.naam||templateId}`);
+};
 
 window.toggleColFilter = function(id){
   document.querySelectorAll('.col-filter-dropdown.open').forEach(d=>{ if(d.id!==id) d.classList.remove('open'); });
