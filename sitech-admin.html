@@ -2970,6 +2970,8 @@ function renderBomDetailTabel(b){
   let totStandard = 0, totUnit = 0, totAfgerond = 0;
   const rijen = arts.map((a,i)=>{
     const art = getArtikelByProductId(a.artikelId);
+    // Naam: gebruik a.naam uit stuklijst, of haal op uit artikelenbestand
+    const naamDisplay = a.naam || (art ? art.name : '') || '';
     const stdCost   = art ? parseFloat(art.standardCost||0) : null;
     const unitPrice = art ? berekenUnitPrice(art) : null;
     const aantal    = parseFloat(a.aantal||0);
@@ -2986,7 +2988,7 @@ function renderBomDetailTabel(b){
       <td><input type="text" value="${a.artikelId||''}" data-idx="${i}" data-field="artikelId"
         onchange="bomRijUpdate(${i},'artikelId',this.value)"
         style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none" /></td>
-      <td><input type="text" value="${a.naam||''}" data-idx="${i}" data-field="naam"
+      <td><input type="text" value="${naamDisplay}" data-idx="${i}" data-field="naam"
         onchange="bomRijUpdate(${i},'naam',this.value)"
         style="width:100%;padding:4px 6px;border:0.5px solid var(--gray-border);border-radius:4px;font-size:12px;outline:none" /></td>
       <td><input type="text" value="${a.aantal||''}" data-idx="${i}" data-field="aantal"
