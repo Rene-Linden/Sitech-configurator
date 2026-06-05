@@ -2833,6 +2833,8 @@ window.saveArtikelSnel = async function(){
   // Herrender de stuklijst met bijgewerkte data
   const b = bomData.find(x=>x.id===bomDetailId);
   if(b) renderBomDetailTabel(b);
+  // Bijwerken hoofdtabel zodat 'Prijzen compleet' direct klopt
+  renderBomTabel();
   showSaving('Artikel opgeslagen');
 };
 
@@ -3069,6 +3071,9 @@ window.bomRijUpdate = function(idx, field, value){
   if(!b||!b.artikelen[idx]) return;
   b.artikelen[idx][field] = value;
   setDoc(doc(db,'bom_sbu',bomDetailId), b);
+  // Herbereken prijzen in popup en bijwerk 'Prijzen compleet' in hoofdtabel
+  renderBomDetailTabel(b);
+  renderBomTabel();
 };
 
 window.bomRijVerwijder = function(idx){
