@@ -304,7 +304,7 @@ tr.row-selected td{background:var(--blue-light)}
       <!-- PRIJZEN OEM PANEL -->
       <div class="panel" id="panel-prijzen-oem">
         <div class="panel-title">Prijzen OEM</div>
-        <div class="panel-sub">Selecteer een EWV samenstelling om de kostprijzen en verkoopprijzen van alle onderdelen en resources te berekenen.</div>
+        <div class="panel-sub">Selecteer een EWV samenstelling om de kostprijzen en verkoopprijzen per SBU te berekenen.</div>
 
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
           <select id="sel-oem-ewv" onchange="renderPrijzenOem()"
@@ -315,26 +315,25 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
 
         <div id="oem-inhoud" style="display:none">
-          <!-- Samenvatting bovenaan -->
           <div id="oem-samenvatting" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
 
-          <!-- Stuklijst tabel -->
           <div style="overflow-x:auto">
-            <table style="width:100%;min-width:800px;border-collapse:collapse;font-size:13px">
+            <table style="width:100%;min-width:900px;border-collapse:collapse;font-size:13px">
               <thead>
                 <tr style="background:var(--gray-bg)">
-                  <th colspan="3" style="padding:6px 14px;border-bottom:0;background:var(--gray-bg)"></th>
-                  <th colspan="2" style="padding:5px 14px;text-align:center;font-size:10px;font-weight:700;color:#185FA5;background:#dbeafe;border-left:2px solid #93c5fd;border-top:2px solid #93c5fd;border-right:2px solid #93c5fd;letter-spacing:.06em">KOSTPRIJS</th>
-                  <th colspan="2" style="padding:5px 14px;text-align:center;font-size:10px;font-weight:700;color:#166534;background:#dcfce7;border-left:2px solid #86efac;border-top:2px solid #86efac;border-right:2px solid #86efac;letter-spacing:.06em">VERKOOPPRIJS</th>
+                  <th colspan="2" style="padding:6px 14px;border-bottom:0;background:var(--gray-bg)"></th>
+                  <th colspan="3" style="padding:5px 14px;text-align:center;font-size:10px;font-weight:700;color:#185FA5;background:#dbeafe;border-left:2px solid #93c5fd;border-top:2px solid #93c5fd;border-right:2px solid #93c5fd;letter-spacing:.06em">KOSTPRIJS</th>
+                  <th colspan="3" style="padding:5px 14px;text-align:center;font-size:10px;font-weight:700;color:#166534;background:#dcfce7;border-left:2px solid #86efac;border-top:2px solid #86efac;border-right:2px solid #86efac;letter-spacing:.06em">VERKOOPPRIJS</th>
                 </tr>
                 <tr style="background:var(--gray-bg)">
-                  <th style="padding:9px 14px;text-align:left;min-width:140px">Artikel / Resource</th>
-                  <th style="padding:9px 14px;text-align:left;min-width:240px">Naam</th>
-                  <th style="padding:9px 14px;text-align:right;min-width:70px">Aantal</th>
-                  <th style="padding:9px 14px;text-align:right;min-width:110px;color:#185FA5;background:#eff6ff;border-left:2px solid #93c5fd">Per stuk</th>
-                  <th style="padding:9px 14px;text-align:right;min-width:110px;color:#185FA5;background:#eff6ff;border-right:2px solid #93c5fd">Totaal</th>
-                  <th style="padding:9px 14px;text-align:right;min-width:110px;color:#166534;background:#f0fdf4;border-left:2px solid #86efac">Per stuk</th>
-                  <th style="padding:9px 14px;text-align:right;min-width:110px;color:#166534;background:#f0fdf4;border-right:2px solid #86efac">Totaal</th>
+                  <th style="padding:9px 14px;text-align:left;min-width:120px">SBU</th>
+                  <th style="padding:9px 14px;text-align:left;min-width:260px">Naam</th>
+                  <th style="padding:9px 14px;text-align:right;min-width:120px;color:#185FA5;background:#eff6ff;border-left:2px solid #93c5fd">Items</th>
+                  <th style="padding:9px 14px;text-align:right;min-width:120px;color:#185FA5;background:#eff6ff">Resources</th>
+                  <th style="padding:9px 14px;text-align:right;min-width:120px;color:#185FA5;background:#eff6ff;font-weight:700;border-right:2px solid #93c5fd">Totaal</th>
+                  <th style="padding:9px 14px;text-align:right;min-width:120px;color:#166534;background:#f0fdf4;border-left:2px solid #86efac">Items</th>
+                  <th style="padding:9px 14px;text-align:right;min-width:120px;color:#166534;background:#f0fdf4">Resources</th>
+                  <th style="padding:9px 14px;text-align:right;min-width:120px;color:#166534;background:#f0fdf4;font-weight:700;border-right:2px solid #86efac">Totaal</th>
                 </tr>
               </thead>
               <tbody id="tbl-oem-body"></tbody>
@@ -1945,83 +1944,113 @@ window.renderPrijzenOem = async function(){
   if(info) info.textContent = `${ewv.sbuId} · ${ewv.naam}`;
   inhoud.style.display='block';
 
-  const rijen = [];
-  let totKostArt=0, totVerkArt=0, totKostRes=0, totVerkRes=0;
+  const fmt = v => v!==null&&v!==undefined&&!isNaN(v)
+    ? '€\u00a0'+parseFloat(v).toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2})
+    : '—';
+  const fmtCeil = v => v!==null&&!isNaN(v) ? '€\u00a0'+Math.ceil(v).toLocaleString('nl-NL') : '—';
 
-  // Artikelen (SBU's en losse onderdelen)
+  let totKostItems=0, totKostRes=0, totVerkItems=0, totVerkRes=0;
+  const rijen = [];
+
   (ewv.artikelen||[]).forEach(a=>{
     const bom = bomData.find(b=>b.sbuId===a.artikelId);
     const art = getArtikelByProductId(a.artikelId);
     const naam = a.naam || (bom?bom.naam:'') || (art?art.name:'') || a.artikelId;
     const aantal = parseFloat(a.aantal||1);
 
-    let kostPerStuk=null, verkPerStuk=null;
+    let kostItems=null, kostRes=null, verkItems=null, verkRes=null;
+
     if(bom){
-      const tot = berekenBomTotalen(bom);
-      if(tot){ kostPerStuk=tot.stdTotaal; verkPerStuk=Math.ceil(tot.unitTotaal); }
+      // SBU: bereken items en resources apart
+      let stdItems=0, unitItems=0, stdRes=0, unitRes=0;
+      (bom.artikelen||[]).forEach(ba=>{
+        const bart = getArtikelByProductId(ba.artikelId);
+        if(!bart) return;
+        const aant = parseFloat(ba.aantal||0);
+        const kp = parseFloat(bart.standardCost||0);
+        const up = berekenArtikelUnitPriceVoorBom(bart)||0;
+        stdItems  += kp*aant;
+        unitItems += up*aant;
+      });
+      const welding    = parseFloat(bom.welding||0);
+      const mounting   = parseFloat(bom.mounting||0);
+      const calibration= parseFloat(bom.calibration||0);
+      stdRes  = welding*getResourceKostprijs('welding')
+              + mounting*getResourceKostprijs('mounting')
+              + calibration*getResourceKostprijs('calibration');
+      unitRes = welding*getResourceVerkoopprijs('welding')
+              + mounting*getResourceVerkoopprijs('mounting')
+              + calibration*getResourceVerkoopprijs('calibration');
+
+      kostItems = stdItems*aantal;
+      kostRes   = stdRes*aantal;
+      verkItems = unitItems*aantal;
+      verkRes   = unitRes*aantal;
     } else if(art){
-      kostPerStuk = parseFloat(art.standardCost||0)||null;
-      verkPerStuk = berekenArtikelUnitPriceVoorBom(art);
+      // Los artikel
+      kostItems = (parseFloat(art.standardCost||0)||0)*aantal;
+      kostRes   = 0;
+      const up = berekenArtikelUnitPriceVoorBom(art);
+      verkItems = up!==null ? up*aantal : null;
+      verkRes   = 0;
     }
 
-    const kostTot = kostPerStuk!==null ? kostPerStuk*aantal : null;
-    const verkTot = verkPerStuk!==null ? verkPerStuk*aantal : null;
-    if(kostTot) totKostArt+=kostTot;
-    if(verkTot) totVerkArt+=verkTot;
+    if(kostItems!=null) totKostItems+=kostItems;
+    if(kostRes!=null)   totKostRes+=kostRes;
+    if(verkItems!=null) totVerkItems+=verkItems;
+    if(verkRes!=null)   totVerkRes+=verkRes;
 
-    rijen.push({type:'artikel', id:a.artikelId, naam, aantal, kostPerStuk, verkPerStuk, kostTot, verkTot});
+    const kostTot = (kostItems!=null||kostRes!=null) ? (kostItems||0)+(kostRes||0) : null;
+    const verkTot = (verkItems!=null||verkRes!=null) ? (verkItems||0)+(verkRes||0) : null;
+    rijen.push({id:a.artikelId, naam, kostItems, kostRes, kostTot, verkItems, verkRes, verkTot});
   });
 
-  // Resources
-  const welding    = parseFloat(ewv.welding||0);
-  const mounting   = parseFloat(ewv.mounting||0);
-  const calibration= parseFloat(ewv.calibration||0);
-  [[welding,'Welding'],[mounting,'Mounting'],[calibration,'Calibration']].forEach(([uren,naam])=>{
-    if(!uren) return;
-    const kp = getResourceKostprijs(naam.toLowerCase());
-    const vp = getResourceVerkoopprijs(naam.toLowerCase());
-    const kostTot = uren*kp, verkTot = uren*vp;
-    totKostRes+=kostTot; totVerkRes+=verkTot;
-    rijen.push({type:'resource', id:naam, naam:`${naam} (${uren} uur)`, aantal:uren, kostPerStuk:kp, verkPerStuk:vp, kostTot, verkTot});
-  });
+  // EWV eigen resources (als die er zijn)
+  const ewvWeld=parseFloat(ewv.welding||0), ewvMount=parseFloat(ewv.mounting||0), ewvCalib=parseFloat(ewv.calibration||0);
+  if(ewvWeld||ewvMount||ewvCalib){
+    const kr = ewvWeld*getResourceKostprijs('welding')+ewvMount*getResourceKostprijs('mounting')+ewvCalib*getResourceKostprijs('calibration');
+    const vr = ewvWeld*getResourceVerkoopprijs('welding')+ewvMount*getResourceVerkoopprijs('mounting')+ewvCalib*getResourceVerkoopprijs('calibration');
+    totKostRes+=kr; totVerkRes+=vr;
+    rijen.push({id:'Resources',naam:`EWV resources (W:${ewvWeld}u M:${ewvMount}u C:${ewvCalib}u)`,
+      kostItems:null,kostRes:kr,kostTot:kr,verkItems:null,verkRes:vr,verkTot:vr,isRes:true});
+  }
 
-  const fmt = v => v!==null&&v!==undefined ? '€\u00a0'+v.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-  const fmtCeil = v => v!==null ? '€\u00a0'+Math.ceil(v).toLocaleString('nl-NL') : '—';
-
-  // Samenvatting kaartjes
-  const totKost = totKostArt+totKostRes;
-  const totVerk = totVerkArt+totVerkRes;
+  const totKost = totKostItems+totKostRes;
+  const totVerk = totVerkItems+totVerkRes;
   const marge = totVerk>0 ? ((totVerk-totKost)/totVerk*100) : null;
   const margeKleur = marge===null?'#64748b':marge>=20?'#166534':marge>=0?'#854d0e':'#991b1b';
-  samenv.innerHTML = [
-    ['Totaal kostprijs','#1e40af',fmt(totKost),'Artikelen + resources'],
-    ['Totaal verkoopprijs','#166534',fmtCeil(totVerk),'Artikelen + resources'],
-    ['Marge',margeKleur,marge!==null?marge.toFixed(1)+'%':'—','(Verkoop − Kost) / Verkoop'],
-    ['Resources kost','#854d0e',fmt(totKostRes),`Welding/Mounting/Calibration`],
-  ].map(([titel,kleur,waarde,sub])=>`
-    <div style="background:var(--white);border:0.5px solid var(--gray-border);border-radius:10px;padding:14px 16px">
-      <div style="font-size:11px;color:var(--gray-text);margin-bottom:4px">${titel}</div>
-      <div style="font-size:20px;font-weight:700;color:${kleur}">${waarde}</div>
-      <div style="font-size:11px;color:var(--gray-text);margin-top:2px">${sub}</div>
-    </div>`).join('');
 
-  // Tabelrijen
-  const groepStijl = (type) => type==='resource' ? 'background:rgba(133,79,11,.04)' : '';
-  tbody.innerHTML = rijen.map(r=>`<tr style="${groepStijl(r.type)};border-bottom:0.5px solid #f1f5f9">
-    <td style="padding:9px 14px;font-size:12px;font-family:monospace;color:var(--blue)">${r.id}</td>
+  samenv.innerHTML = [
+    ['Totaal kostprijs','#1e40af',fmt(totKost),'Items + resources'],
+    ['Totaal verkoopprijs','#166534',fmtCeil(totVerk),'Items + resources'],
+    ['Marge',margeKleur,marge!==null?marge.toFixed(1)+'%':'—','(Verkoop − Kost) / Verkoop'],
+    ['Kostprijs resources','#854d0e',fmt(totKostRes),'Uren × tarief'],
+  ].map(([t,k,w,s])=>`<div style="background:var(--white);border:0.5px solid var(--gray-border);border-radius:10px;padding:14px 16px">
+    <div style="font-size:11px;color:var(--gray-text);margin-bottom:4px">${t}</div>
+    <div style="font-size:20px;font-weight:700;color:${k}">${w}</div>
+    <div style="font-size:11px;color:var(--gray-text);margin-top:2px">${s}</div>
+  </div>`).join('');
+
+  tbody.innerHTML = rijen.map(r=>`<tr style="${r.isRes?'background:rgba(133,79,11,.04)':'background:var(--white)'};border-bottom:0.5px solid #f1f5f9">
+    <td style="padding:9px 14px;font-size:12px;font-family:monospace;color:var(--blue)">
+      <a onclick="openBomVanuitPrijslijst('${r.id}')" style="color:var(--blue);cursor:pointer;text-decoration:none;border-bottom:1px dotted var(--blue)">${r.id}</a>
+    </td>
     <td style="padding:9px 14px;font-size:13px">${r.naam}</td>
-    <td style="padding:9px 14px;text-align:right;font-size:12px;color:var(--gray-text)">${r.type==='resource'?r.aantal+' u':r.aantal}</td>
-    <td style="padding:9px 14px;text-align:right;color:#185FA5;background:#f8fbff;border-left:2px solid #93c5fd">${fmt(r.kostPerStuk)}</td>
-    <td style="padding:9px 14px;text-align:right;color:#185FA5;font-weight:500;background:#f8fbff;border-right:2px solid #93c5fd">${fmt(r.kostTot)}</td>
-    <td style="padding:9px 14px;text-align:right;color:#166534;background:#f8fff9;border-left:2px solid #86efac">${fmt(r.verkPerStuk)}</td>
-    <td style="padding:9px 14px;text-align:right;color:#166534;font-weight:500;background:#f8fff9;border-right:2px solid #86efac">${fmtCeil(r.verkTot)}</td>
+    <td style="padding:9px 14px;text-align:right;color:#185FA5;background:#f8fbff;border-left:2px solid #93c5fd">${fmt(r.kostItems)}</td>
+    <td style="padding:9px 14px;text-align:right;color:#185FA5;background:#f8fbff">${r.kostRes!==null&&r.kostRes>0?fmt(r.kostRes):'—'}</td>
+    <td style="padding:9px 14px;text-align:right;color:#185FA5;font-weight:700;background:#eff6ff;border-right:2px solid #93c5fd">${fmt(r.kostTot)}</td>
+    <td style="padding:9px 14px;text-align:right;color:#166534;background:#f8fff9;border-left:2px solid #86efac">${fmt(r.verkItems)}</td>
+    <td style="padding:9px 14px;text-align:right;color:#166534;background:#f8fff9">${r.verkRes!==null&&r.verkRes>0?fmtCeil(r.verkRes):'—'}</td>
+    <td style="padding:9px 14px;text-align:right;color:#166534;font-weight:700;background:#f0fdf4;border-right:2px solid #86efac">${fmtCeil(r.verkTot)}</td>
   </tr>`).join('') +
   `<tr style="background:var(--gray-bg);font-weight:700;border-top:2px solid var(--gray-border)">
-    <td colspan="3" style="padding:10px 14px;font-size:13px">Totaal</td>
-    <td style="padding:10px 14px;text-align:right;color:#185FA5;background:#eff6ff;border-left:2px solid #93c5fd">${fmt(totKost)}</td>
-    <td style="padding:10px 14px;text-align:right;color:#185FA5;background:#eff6ff;border-right:2px solid #93c5fd;font-size:14px">${fmt(totKost)}</td>
-    <td style="padding:10px 14px;text-align:right;color:#166534;background:#f0fdf4;border-left:2px solid #86efac">${fmtCeil(totVerk)}</td>
-    <td style="padding:10px 14px;text-align:right;color:#166534;background:#f0fdf4;border-right:2px solid #86efac;font-size:14px">${fmtCeil(totVerk)}</td>
+    <td colspan="2" style="padding:10px 14px;font-size:13px">Totaal</td>
+    <td style="padding:10px 14px;text-align:right;color:#185FA5;background:#eff6ff;border-left:2px solid #93c5fd">${fmt(totKostItems)}</td>
+    <td style="padding:10px 14px;text-align:right;color:#185FA5;background:#eff6ff">${fmt(totKostRes)}</td>
+    <td style="padding:10px 14px;text-align:right;color:#185FA5;font-size:14px;background:#dbeafe;border-right:2px solid #93c5fd">${fmt(totKost)}</td>
+    <td style="padding:10px 14px;text-align:right;color:#166534;background:#f0fdf4;border-left:2px solid #86efac">${fmtCeil(totVerkItems)}</td>
+    <td style="padding:10px 14px;text-align:right;color:#166534;background:#f0fdf4">${fmtCeil(totVerkRes)}</td>
+    <td style="padding:10px 14px;text-align:right;color:#166534;font-size:14px;background:#dcfce7;border-right:2px solid #86efac">${fmtCeil(totVerk)}</td>
   </tr>`;
 };
 // ============================================================
