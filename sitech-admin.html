@@ -986,6 +986,34 @@ tr.row-selected td{background:var(--blue-light)}
 </div>
 
 <!-- MODAL BOM DETAIL -->
+<!-- MODAL BASIS CONFIG KOPIE -->
+<div class="modal-bg" id="modal-bc-kopie">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3>Configuratieregel kopiëren</h3>
+      <button class="modal-close" onclick="closeModal('modal-bc-kopie')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="bc-kopie-ri" />
+      <div id="bc-kopie-info" style="background:var(--gray-bg);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--gray-text)"></div>
+      <div class="form-row">
+        <div class="fg"><label>Machine type *</label>
+          <input type="text" id="bc-kopie-type" placeholder="bijv. Volvo EC300E - EC480E"
+            style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px" /></div>
+      </div>
+      <div class="fg" style="margin-top:10px"><label>Kopiëren naar merk *</label>
+        <select id="bc-kopie-merk" style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px">
+          <option value="">— Kies merk —</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-bc-kopie')">Annuleren</button>
+      <button class="btn btn-blue" onclick="saveBcKopie()">Kopiëren</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL BASIS CONFIG RIJ BEWERKEN -->
 <div class="modal-bg" id="modal-bc-rij">
   <div class="modal" style="max-width:680px">
@@ -4408,6 +4436,7 @@ function renderBcTabel(){
       <td style="padding:8px 12px;text-align:right;font-size:13px;font-weight:600;color:var(--blue)">${verkoop!==null?'€ '+verkoop.toFixed(2):'—'}</td>
       <td style="padding:8px 12px;text-align:right;white-space:nowrap">
         <button class="btn btn-sm" onclick="bcRijBewerken(${ri})">Bewerken</button>
+        <button class="btn btn-sm" style="margin-left:4px;background:var(--green-light);color:var(--green);border:0.5px solid rgba(59,109,17,.3)" onclick="bcRijKopieren(${ri})">Kopiëren</button>
         <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="bcRijVerwijderen(${ri})">Verwijderen</button>
       </td>
     </tr>`;
@@ -4463,6 +4492,40 @@ window.bcRijToevoegen = function(){
   vulBcSbuSelects(null);
   document.getElementById('modal-bc-rij-title').textContent='Nieuwe configuratie';
   openModal('modal-bc-rij');
+};
+
+window.bcRijKopieren = function(ri){
+  const rij = (bcData[bcHuidigMerk]||[])[ri];
+  if(!rij) return;
+  document.getElementById('bc-kopie-ri').value = ri;
+  document.getElementById('bc-kopie-type').value = rij.type||'';
+  document.getElementById('bc-kopie-info').innerHTML =
+    `Kopie van: <strong>${rij.type} — ${rij.omschrijving}</strong>`;
+  // Vul merken dropdown
+  const sel = document.getElementById('bc-kopie-merk');
+  const gesorteerd = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||''));
+  sel.innerHTML = '<option value="">— Kies merk —</option>' +
+    gesorteerd.map(m=>`<option value="${m.id}" ${m.id===bcHuidigMerk?'selected':''}>${m.naam||m.id}</option>`).join('');
+  openModal('modal-bc-kopie');
+};
+
+window.saveBcKopie = async function(){
+  const ri      = parseInt(document.getElementById('bc-kopie-ri').value);
+  const type    = document.getElementById('bc-kopie-type').value.trim();
+  const merkId  = document.getElementById('bc-kopie-merk').value;
+  if(!type)   { alert('Machine type is verplicht'); return; }
+  if(!merkId) { alert('Kies een merk'); return; }
+  const origRij = (bcData[bcHuidigMerk]||[])[ri];
+  if(!origRij) return;
+  // Maak kopie met nieuw type
+  const kopie = {...origRij, type};
+  if(!bcData[merkId]) bcData[merkId] = [];
+  bcData[merkId].push(kopie);
+  await setDoc(doc(db,'basis_config',merkId), {rijen: bcData[merkId]});
+  closeModal('modal-bc-kopie');
+  showSaving(`Regel gekopieerd naar ${merken.find(m=>m.id===merkId)?.naam||merkId}`);
+  // Als huidig merk, herrender
+  if(merkId===bcHuidigMerk) renderBcTabel();
 };
 
 window.bcRijBewerken = function(ri){
