@@ -315,7 +315,8 @@ tr.row-selected td{background:var(--blue-light)}
         </div>
 
         <div id="oem-inhoud" style="display:none">
-          <div id="oem-samenvatting" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
+          <!-- Samenvatting kaartjes boven de tabel -->
+          <div id="oem-samenvatting" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
 
           <div style="overflow-x:auto">
             <table style="width:100%;min-width:900px;border-collapse:collapse;font-size:13px">
@@ -346,9 +347,6 @@ tr.row-selected td{background:var(--blue-light)}
             <div style="padding:12px 18px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border);font-size:14px;font-weight:600;position:sticky;top:0;z-index:10">
               Scenario — Kortingscalculator
             </div>
-
-            <!-- Samenvatting kaartjes (van de EWV selectie) -->
-            <div id="oem-samenvatting-scenario" style="padding:16px 18px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;border-bottom:0.5px solid #f1f5f9"></div>
 
             <!-- Extra SBU toevoegen -->
             <div style="padding:14px 18px;border-bottom:0.5px solid #f1f5f9;background:#fafafa">
@@ -2122,8 +2120,8 @@ window.berekenOemScenario = function(){
   document.getElementById('oem-res-marge').style.color      = margeKleur;
   document.getElementById('oem-res-eff-pct').textContent    = effKorting.toFixed(2)+'%';
 
-  // Update samenvatting kaartjes
-  const samenv = document.getElementById('oem-samenvatting-scenario');
+  // Update samenvatting kaartjes bovenaan
+  const samenv = document.getElementById('oem-samenvatting');
   if(samenv) samenv.innerHTML = [
     ['Totaal kostprijs','#1e40af','€\u00a0'+totKost.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2}),'Items + resources'],
     ['Advies verkoopprijs','#185FA5',fmt(advies),'Incl. extra SBU\'s'],
@@ -2253,15 +2251,6 @@ window.renderPrijzenOem = async function(){
 
   oemTotalen = { verkItems: totVerkItems, verkRes: totVerkRes, totVerk, totKost };
   berekenOemScenario();
-
-  samenv.innerHTML = [    ['Totaal verkoopprijs','#166534',fmtCeil(totVerk),'Items + resources'],
-    ['Marge',margeKleur,marge!==null?marge.toFixed(1)+'%':'—','(Verkoop − Kost) / Verkoop'],
-    ['Kostprijs resources','#854d0e',fmt(totKostRes),'Uren × tarief'],
-  ].map(([t,k,w,s])=>`<div style="background:var(--white);border:0.5px solid var(--gray-border);border-radius:10px;padding:14px 16px">
-    <div style="font-size:11px;color:var(--gray-text);margin-bottom:4px">${t}</div>
-    <div style="font-size:20px;font-weight:700;color:${k}">${w}</div>
-    <div style="font-size:11px;color:var(--gray-text);margin-top:2px">${s}</div>
-  </div>`).join('');
 
   tbody.innerHTML = rijen.map(r=>`<tr style="${r.isRes?'background:rgba(133,79,11,.04)':'background:var(--white)'};border-bottom:0.5px solid #f1f5f9">
     <td style="padding:9px 14px;font-size:12px;font-family:monospace;color:var(--blue)">
