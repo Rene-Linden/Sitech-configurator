@@ -2179,6 +2179,20 @@ window.renderPrijzenOem = async function(){
   const fmtCeil = v => v!==null&&!isNaN(v) ? '€\u00a0'+Math.ceil(v).toLocaleString('nl-NL') : '—';
 
   let totKostItems=0, totKostRes=0, totVerkItems=0, totVerkRes=0;
+  // Zorg dat bomData geladen is
+  if(!bomData.length){
+    const bomSnap = await getDocs(collection(db,'bom_sbu'));
+    bomData = bomSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+  }
+  if(!artikelen.length){
+    const artSnap = await getDocs(collection(db,'artikelen'));
+    artikelen = artSnap.docs.map(d=>({id:d.id,...d.data()}));
+  }
+
+  console.log('EWV artikelen:', ewv.artikelen?.length, ewv.artikelen?.map(a=>a.artikelId));
+  console.log('bomData length:', bomData.length);
+  console.log('Eerste match test:', ewv.artikelen?.[0]?.artikelId, bomData.find(b=>b.sbuId===ewv.artikelen?.[0]?.artikelId)?.sbuId);
+
   const rijen = [];
 
   (ewv.artikelen||[]).forEach(a=>{
