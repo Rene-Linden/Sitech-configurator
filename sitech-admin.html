@@ -342,12 +342,29 @@ tr.row-selected td{background:var(--blue-light)}
 
           <!-- SCENARIO CALCULATOR -->
           <div style="margin-top:24px;background:var(--white);border:0.5px solid var(--gray-border);border-radius:12px;overflow:hidden">
-            <div style="padding:12px 18px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border);font-size:14px;font-weight:600">
+            <!-- Sticky header -->
+            <div style="padding:12px 18px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border);font-size:14px;font-weight:600;position:sticky;top:0;z-index:10">
               Scenario — Kortingscalculator
             </div>
-            <div style="padding:16px 18px;display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:start">
+
+            <!-- Sectie: Extra SBU toevoegen -->
+            <div style="padding:16px 18px;border-bottom:0.5px solid #f1f5f9">
+              <label style="font-size:12px;font-weight:600;color:var(--gray-text);display:block;margin-bottom:8px">Extra SBU's toevoegen aan calculatie</label>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <select id="oem-extra-sbu-sel" style="padding:7px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;min-width:280px">
+                  <option value="">— Kies SBU om toe te voegen —</option>
+                </select>
+                <input type="number" id="oem-extra-sbu-aantal" value="1" min="1" step="1"
+                  style="width:70px;padding:7px 10px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;text-align:center;outline:none" />
+                <button class="btn btn-blue" onclick="oemExtraSbuToevoegen()">+ Toevoegen</button>
+              </div>
+              <div id="oem-extra-sbu-lijst" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"></div>
+            </div>
+
+            <!-- Keuze 1 + 2 -->
+            <div style="padding:16px 18px;display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:start;border-bottom:0.5px solid #f1f5f9">
               <div>
-                <label style="font-size:12px;font-weight:500;color:var(--gray-text);display:block;margin-bottom:6px">Keuze 1 — Kortingspercentage</label>
+                <label style="font-size:12px;font-weight:600;color:var(--gray-text);display:block;margin-bottom:6px">Keuze 1 — Kortingspercentage</label>
                 <div style="display:flex;align-items:center;border:0.5px solid var(--gray-border);border-radius:8px;overflow:hidden;width:140px">
                   <input type="number" id="oem-korting-pct" value="0" min="0" max="100" step="0.5"
                     oninput="berekenOemScenario()"
@@ -356,7 +373,7 @@ tr.row-selected td{background:var(--blue-light)}
                 </div>
               </div>
               <div>
-                <label style="font-size:12px;font-weight:500;color:var(--gray-text);display:block;margin-bottom:6px">Keuze 2 — Korting toepassen op</label>
+                <label style="font-size:12px;font-weight:600;color:var(--gray-text);display:block;margin-bottom:6px">Keuze 2 — Korting toepassen op</label>
                 <div style="display:flex;gap:10px;flex-wrap:wrap">
                   <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;padding:8px 14px;border:0.5px solid var(--gray-border);border-radius:8px">
                     <input type="radio" name="oem-basis" value="heel" onchange="berekenOemScenario()" checked /> Gehele verkoopprijs
@@ -368,29 +385,36 @@ tr.row-selected td{background:var(--blue-light)}
               </div>
             </div>
 
-            <!-- Resultaatbalk -->
-            <div id="oem-scenario-balk" style="padding:16px 18px;border-top:0.5px solid var(--gray-border);display:none">
+            <!-- Resultaatblokken -->
+            <div id="oem-scenario-balk" style="padding:16px 18px;display:none">
               <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+                <!-- Blok 1: Advies verkoopprijs -->
                 <div style="background:#eff6ff;border-radius:10px;padding:14px 16px;border:0.5px solid #93c5fd">
-                  <div style="font-size:11px;color:#185FA5;margin-bottom:4px">Advies verkoopprijs</div>
+                  <div style="font-size:11px;color:#185FA5;margin-bottom:4px;font-weight:600">Advies verkoopprijs</div>
                   <div id="oem-res-advies" style="font-size:18px;font-weight:700;color:#185FA5">—</div>
+                  <div id="oem-res-advies-sub" style="font-size:11px;color:#185FA5;margin-top:2px;opacity:.7"></div>
                 </div>
+                <!-- Blok 2: OEM inkoopprijs (advies minus korting) -->
                 <div style="background:#dcfce7;border-radius:10px;padding:14px 16px;border:0.5px solid #86efac">
-                  <div style="font-size:11px;color:#166534;margin-bottom:4px">OEM verkoopprijs (na korting)</div>
+                  <div style="font-size:11px;color:#166534;margin-bottom:4px;font-weight:600">OEM inkoopprijs</div>
                   <div id="oem-res-verkoop" style="font-size:18px;font-weight:700;color:#166534">—</div>
                   <div id="oem-res-korting-info" style="font-size:11px;color:#166534;margin-top:2px"></div>
                 </div>
+                <!-- Blok 3: Absoluut kortingsbedrag dat OEM krijgt -->
                 <div style="background:#fef9c3;border-radius:10px;padding:14px 16px;border:0.5px solid #fde047">
-                  <div style="font-size:11px;color:#854d0e;margin-bottom:4px">OEM betaalt aan Sitech</div>
+                  <div style="font-size:11px;color:#854d0e;margin-bottom:4px;font-weight:600">OEM korting (absoluut)</div>
                   <div id="oem-res-oem" style="font-size:18px;font-weight:700;color:#854d0e">—</div>
+                  <div id="oem-res-oem-sub" style="font-size:11px;color:#854d0e;margin-top:2px"></div>
                 </div>
+                <!-- Blok 4: Sitech ontvangt / marge -->
                 <div style="background:#f0fdf4;border-radius:10px;padding:14px 16px;border:0.5px solid #86efac">
-                  <div style="font-size:11px;color:#166534;margin-bottom:4px">Sitech ontvangt (marge)</div>
+                  <div style="font-size:11px;color:#166534;margin-bottom:4px;font-weight:600">Sitech ontvangt (marge)</div>
                   <div id="oem-res-sitech" style="font-size:18px;font-weight:700;color:#166534">—</div>
                   <div id="oem-res-marge" style="font-size:11px;color:var(--gray-text);margin-top:2px"></div>
                 </div>
+                <!-- Blok 5: Effectieve korting -->
                 <div style="background:var(--gray-bg);border-radius:10px;padding:14px 16px;border:0.5px solid var(--gray-border)">
-                  <div style="font-size:11px;color:var(--gray-text);margin-bottom:4px">Effectieve korting totale order</div>
+                  <div style="font-size:11px;color:var(--gray-text);margin-bottom:4px;font-weight:600">Effectieve korting totale order</div>
                   <div id="oem-res-eff-pct" style="font-size:18px;font-weight:700;color:var(--gray-text)">—</div>
                 </div>
               </div>
@@ -1968,53 +1992,125 @@ function renderMerkFilterOpties(){
 // ============================================================
 // PRIJZEN OEM MODULE
 // ============================================================
-// Bewaar OEM totalen voor scenario berekening
-let oemTotalen = { verkItems:0, verkRes:0, totVerk:0, totKost:0 };
+// Extra SBU's voor scenario
+let oemExtraSbus = []; // [{sbuId, naam, verkItems, verkRes, kostItems, kostRes, aantal}]
+
+window.oemExtraSbuToevoegen = function(){
+  const sel = document.getElementById('oem-extra-sbu-sel');
+  const aantalEl = document.getElementById('oem-extra-sbu-aantal');
+  const sbuId = sel?.value; if(!sbuId) return;
+  const aantal = Math.max(1, parseInt(aantalEl?.value||1));
+  const bom = bomData.find(b=>b.sbuId===sbuId);
+  if(!bom){ alert(`SBU ${sbuId} niet gevonden in BoM SBU`); return; }
+
+  // Bereken items en resources van deze SBU
+  let kostItems=0, unitItems=0, kostRes=0, unitRes=0;
+  (bom.artikelen||[]).forEach(ba=>{
+    const bart=getArtikelByProductId(ba.artikelId); if(!bart) return;
+    const aant=parseFloat(ba.aantal||0);
+    kostItems += parseFloat(bart.standardCost||0)*aant;
+    unitItems += (berekenArtikelUnitPriceVoorBom(bart)||0)*aant;
+  });
+  const w=parseFloat(bom.welding||0),m=parseFloat(bom.mounting||0),c=parseFloat(bom.calibration||0);
+  kostRes = w*getResourceKostprijs('welding')+m*getResourceKostprijs('mounting')+c*getResourceKostprijs('calibration');
+  unitRes = w*getResourceVerkoopprijs('welding')+m*getResourceVerkoopprijs('mounting')+c*getResourceVerkoopprijs('calibration');
+
+  oemExtraSbus.push({sbuId, naam:bom.naam, verkItems:unitItems*aantal, verkRes:unitRes*aantal,
+    kostItems:kostItems*aantal, kostRes:kostRes*aantal, aantal});
+
+  // Toon badges
+  const lijst = document.getElementById('oem-extra-sbu-lijst');
+  lijst.innerHTML = oemExtraSbus.map((s,i)=>`
+    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--blue-light);color:var(--blue);padding:4px 10px;border-radius:20px;font-size:12px;border:0.5px solid rgba(24,95,165,.2)">
+      ${s.sbuId}${s.aantal>1?` ×${s.aantal}`:''} — ${s.naam}
+      <button onclick="oemExtraSbuVerwijder(${i})" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:14px;line-height:1;padding:0">×</button>
+    </span>`).join('');
+
+  // Ververs scenario
+  berekenOemScenario();
+  aantalEl.value=1;
+};
+
+window.oemExtraSbuVerwijder = function(idx){
+  oemExtraSbus.splice(idx,1);
+  const lijst = document.getElementById('oem-extra-sbu-lijst');
+  lijst.innerHTML = oemExtraSbus.map((s,i)=>`
+    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--blue-light);color:var(--blue);padding:4px 10px;border-radius:20px;font-size:12px;border:0.5px solid rgba(24,95,165,.2)">
+      ${s.sbuId}${s.aantal>1?` ×${s.aantal}`:''} — ${s.naam}
+      <button onclick="oemExtraSbuVerwijder(${i})" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:14px;line-height:1;padding:0">×</button>
+    </span>`).join('');
+  berekenOemScenario();
+};
+
+// Vul SBU dropdown voor scenario
+function vulOemExtraSbuDropdown(){
+  const sel = document.getElementById('oem-extra-sbu-sel');
+  if(!sel||sel.options.length>1) return;
+  const sbuTemplateIds = new Set(ARTIKEL_TEMPLATES.filter(t=>t.isSBU).map(t=>t.id));
+  const sbuLijst = artikelen.filter(a=>sbuTemplateIds.has(a.templateId)).sort((a,b)=>a.productId.localeCompare(b.productId));
+  sel.innerHTML='<option value="">— Kies SBU om toe te voegen —</option>'+
+    sbuLijst.map(a=>`<option value="${a.productId}">${a.productId} — ${a.name||''}</option>`).join('');
+}
 
 window.berekenOemScenario = function(){
   const pct   = parseFloat(document.getElementById('oem-korting-pct')?.value||0);
   const basis = document.querySelector('input[name="oem-basis"]:checked')?.value||'heel';
   const balk  = document.getElementById('oem-scenario-balk');
   if(!balk) return;
-  balk.style.display='block';
 
-  const advies    = oemTotalen.totVerk;
-  const kostprijs = oemTotalen.totKost;
-  const items     = oemTotalen.verkItems;
-  const resources = oemTotalen.verkRes;
+  // Basis totalen van geselecteerde EWV + extra SBU's
+  const extraVerkItems = oemExtraSbus.reduce((s,x)=>s+x.verkItems,0);
+  const extraVerkRes   = oemExtraSbus.reduce((s,x)=>s+x.verkRes,0);
+  const extraKostItems = oemExtraSbus.reduce((s,x)=>s+x.kostItems,0);
+  const extraKostRes   = oemExtraSbus.reduce((s,x)=>s+x.kostRes,0);
+
+  const totVerkItems = oemTotalen.verkItems + extraVerkItems;
+  const totVerkRes   = oemTotalen.verkRes   + extraVerkRes;
+  const totKost      = oemTotalen.totKost   + extraKostItems + extraKostRes;
+  const advies       = Math.ceil(totVerkItems + totVerkRes);
 
   if(!advies){ balk.style.display='none'; return; }
+  balk.style.display='block';
 
-  // Bereken korting
+  // Kortingsberekening
   let kortingBedrag = 0;
   if(basis==='heel'){
     kortingBedrag = advies * (pct/100);
   } else {
-    // Alleen over materialen (items), niet over resources
-    kortingBedrag = items * (pct/100);
+    kortingBedrag = totVerkItems * (pct/100);
   }
 
-  const naKorting       = Math.ceil(advies - kortingBedrag);
-  const oemBetaalt      = naKorting;                          // wat OEM betaalt
-  const sitechOntvangt  = Math.ceil(naKorting - kostprijs);   // marge voor Sitech
-  const effKorting      = advies>0 ? ((advies - naKorting)/advies*100) : 0;
-  const margePct        = naKorting>0 ? ((naKorting - kostprijs)/naKorting*100) : 0;
+  const oemInkoop      = Math.ceil(advies - kortingBedrag);   // blok 2: OEM inkoopprijs
+  const kortingAbsoluut= Math.round(advies - oemInkoop);      // blok 3: absoluut kortingsbedrag
+  const sitechOntvangt = Math.ceil(oemInkoop - totKost);      // blok 4: Sitech marge
+  const effKorting     = advies>0 ? ((advies-oemInkoop)/advies*100) : 0;
+  const margePct       = oemInkoop>0 ? ((oemInkoop-totKost)/oemInkoop*100) : 0;
 
-  const fmt = v => '€\u00a0'+Math.ceil(v).toLocaleString('nl-NL');
+  const fmt = v=>'€\u00a0'+Math.ceil(v).toLocaleString('nl-NL');
   const margeKleur = margePct>=20?'#166534':margePct>=0?'#854d0e':'#991b1b';
 
-  document.getElementById('oem-res-advies').textContent    = fmt(advies);
-  document.getElementById('oem-res-verkoop').textContent   = fmt(naKorting);
+  // Blok 1: Advies
+  document.getElementById('oem-res-advies').textContent = fmt(advies);
+  document.getElementById('oem-res-advies-sub').textContent =
+    oemExtraSbus.length ? `incl. ${oemExtraSbus.length} extra SBU${oemExtraSbus.length!==1?'s':''}` : '';
+
+  // Blok 2: OEM inkoopprijs
+  document.getElementById('oem-res-verkoop').textContent = fmt(oemInkoop);
   document.getElementById('oem-res-korting-info').textContent =
-    basis==='heel'
-      ? `${pct}% op totaal (−${fmt(kortingBedrag)})`
-      : `${pct}% op materialen (−${fmt(kortingBedrag)})`;
-  document.getElementById('oem-res-oem').textContent       = fmt(oemBetaalt);
-  document.getElementById('oem-res-sitech').textContent    = fmt(sitechOntvangt);
-  document.getElementById('oem-res-marge').textContent     = `${margePct.toFixed(1)}% marge`;
-  document.getElementById('oem-res-marge').style.color     = margeKleur;
-  document.getElementById('oem-res-eff-pct').textContent   = effKorting.toFixed(2)+'%';
-  document.getElementById('oem-res-sitech').style.color    = margeKleur;
+    pct>0 ? (basis==='heel'?`${pct}% op totaal`:(`${pct}% op materialen (res. ongewijzigd)`)) : 'Geen korting';
+
+  // Blok 3: Absoluut kortingsbedrag
+  document.getElementById('oem-res-oem').textContent = fmt(kortingAbsoluut);
+  document.getElementById('oem-res-oem-sub').textContent = `Voordeel voor OEM t.o.v. adviesprijs`;
+
+  // Blok 4: Sitech marge
+  document.getElementById('oem-res-sitech').textContent = fmt(sitechOntvangt);
+  document.getElementById('oem-res-sitech').style.color = margeKleur;
+  document.getElementById('oem-res-marge').textContent  = `${margePct.toFixed(1)}% marge`;
+  document.getElementById('oem-res-marge').style.color  = margeKleur;
+
+  // Blok 5: Effectieve korting
+  document.getElementById('oem-res-eff-pct').textContent = effKorting.toFixed(2)+'%';
 };
 async function laadPrijzenOem(){
   const te_laden = [];
@@ -2047,6 +2143,14 @@ window.renderPrijzenOem = async function(){
 
   if(info) info.textContent = `${ewv.sbuId} · ${ewv.naam}`;
   inhoud.style.display='block';
+
+  // Reset extra SBU's bij nieuwe EWV keuze
+  oemExtraSbus = [];
+  const lijst = document.getElementById('oem-extra-sbu-lijst');
+  if(lijst) lijst.innerHTML='';
+
+  // Vul SBU dropdown
+  vulOemExtraSbuDropdown();
 
   const fmt = v => v!==null&&v!==undefined&&!isNaN(v)
     ? '€\u00a0'+parseFloat(v).toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2})
