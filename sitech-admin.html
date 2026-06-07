@@ -272,6 +272,26 @@ tr.row-selected td{background:var(--blue-light)}
           <table><thead><tr><th>Gebruikersnaam</th><th>Merk</th><th>Wachtwoord</th><th>Status</th><th></th></tr></thead>
           <tbody id="tbl-users"><tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden...</td></tr></tbody></table>
         </div>
+
+        <!-- Beheerpaneel accounts -->
+        <div style="margin-top:24px">
+          <div class="panel-title" style="font-size:15px">Beheerpaneel accounts</div>
+          <div class="panel-sub">Accounts voor toegang tot dit beheerpaneel. Rollen bepalen wat zichtbaar en bewerkbaar is.</div>
+          <div style="margin-bottom:10px"><button class="btn btn-blue" onclick="openAddBeheerAccount()">+ Nieuw account</button></div>
+          <div class="card">
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <thead style="background:var(--gray-bg)">
+                <tr>
+                  <th style="padding:10px 14px;text-align:left">Gebruikersnaam</th>
+                  <th style="padding:10px 14px;text-align:left">Rol</th>
+                  <th style="padding:10px 14px;text-align:left">Rechten</th>
+                  <th style="padding:10px 14px"></th>
+                </tr>
+              </thead>
+              <tbody id="tbl-beheer-accounts"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <div class="panel" id="panel-sitech">
@@ -1531,6 +1551,45 @@ tr.row-selected td{background:var(--blue-light)}
   </div>
 </div>
 
+<!-- MODAL BEHEER ACCOUNT -->
+<div class="modal-bg" id="modal-beheer-account">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <h3 id="modal-beheer-acc-title">Beheeraccount toevoegen</h3>
+      <button class="modal-close" onclick="closeModal('modal-beheer-account')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="beheer-acc-edit-key" />
+      <div class="form-row">
+        <div class="fg"><label>Gebruikersnaam *</label>
+          <input type="text" id="beheer-acc-user" placeholder="bijv. jan.sales"
+            style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px" /></div>
+      </div>
+      <div class="form-row">
+        <div class="fg"><label>Wachtwoord *</label>
+          <input type="password" id="beheer-acc-pw" placeholder="Minimaal 8 tekens"
+            style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px" /></div>
+      </div>
+      <div class="form-row">
+        <div class="fg"><label>Rol *</label>
+          <select id="beheer-acc-rol" onchange="updateBeheerAccRolInfo()"
+            style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px">
+            <option value="account_manager">Account Manager</option>
+            <option value="sales_manager">Sales Manager</option>
+            <option value="operations_manager">Operations Manager</option>
+            <option value="admin">Beheerder (Admin)</option>
+          </select>
+        </div>
+      </div>
+      <div id="beheer-acc-rol-info" style="background:var(--gray-bg);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--gray-text);margin-top:4px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-beheer-account')">Annuleren</button>
+      <button class="btn btn-blue" onclick="saveBeheerAccount()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL GEBRUIKER -->
 <div class="modal-bg" id="modal-user">
   <div class="modal">
@@ -1670,7 +1729,47 @@ const firebaseConfig = {
   appId: "1:220701109022:web:bd7d53aa4c2d49d372f70f"
 };
 
-const ADMIN_ACCOUNTS = { 'admin':'Sitech@2024!', 'verkoop':'Verkoop@123', 'beheer':'Beheer@456' };
+// Accounts met rollen: admin | sales_manager | account_manager | operations_manager
+const ACCOUNTS = {
+  'admin':          { ww: 'Sitech@2024!',   rol: 'admin' },
+  'sales':          { ww: 'Sales@2024!',    rol: 'sales_manager' },
+  'accountmgr':     { ww: 'Account@2024!',  rol: 'account_manager' },
+  'operations':     { ww: 'Ops@2024!',      rol: 'operations_manager' },
+  'verkoop':        { ww: 'Verkoop@123',     rol: 'sales_manager' },
+  'beheer':         { ww: 'Beheer@456',      rol: 'admin' },
+};
+
+// Rechten per rol
+const ROL_RECHTEN = {
+  admin: {
+    beheer: 'schrijven', configurator: 'schrijven', prijzenOem: true,
+    showPanels: null // null = alles
+  },
+  sales_manager: {
+    beheer: 'verborgen', configurator: 'schrijven', prijzenOem: true,
+    schrijvenPanels: new Set(['merken','basis-config','blokken','prijslijsten','prijzen-oem','sbu-prijslijst']),
+    showPanels: new Set(['merken','basis-config','sbu-config','blokken','prijslijsten','aanvragen','prijzen-oem','sbu-prijslijst'])
+  },
+  account_manager: {
+    beheer: 'verborgen', configurator: 'lezen', prijzenOem: false,
+    showPanels: new Set(['merken','basis-config','sbu-config','blokken','prijslijsten','aanvragen','sbu-prijslijst'])
+  },
+  operations_manager: {
+    beheer: 'lezen', configurator: 'lezen', prijzenOem: false,
+    showPanels: null // kan alles zien, maar niet schrijven
+  },
+};
+
+let huidigeRol = 'admin';
+let huidigeGebruiker = '';
+
+function getRechten(){ return ROL_RECHTEN[huidigeRol] || ROL_RECHTEN.admin; }
+function magSchrijven(panel){ const r=getRechten(); if(r.schrijvenPanels) return r.schrijvenPanels.has(panel); return r.beheer==='schrijven'||r.configurator==='schrijven'; }
+function magZien(panel){
+  const r = getRechten();
+  if(!r.showPanels) return true; // admin/ops = alles
+  return r.showPanels.has(panel);
+}
 
 const app = initializeApp(firebaseConfig);
 const db      = getFirestore(app);
@@ -1690,20 +1789,67 @@ let chartInstance = null;
 function toonApp(){
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  pasRolToe();
   startListeners();
+  // Laad extra Firestore accounts
+  getDocs(collection(db,'beheer_accounts')).then(snap=>{
+    snap.docs.forEach(d=>{
+      const a = d.data();
+      if(a.gebruikersnaam && a.wachtwoord && a.rol && !ACCOUNTS[a.gebruikersnaam]){
+        ACCOUNTS[a.gebruikersnaam] = {ww:a.wachtwoord, rol:a.rol};
+      }
+    });
+  });
+}
+
+function pasRolToe(){
+  const r = getRechten();
+  const ROL_LABELS = {
+    admin:'Beheerder', sales_manager:'Sales Manager',
+    account_manager:'Account Manager', operations_manager:'Operations Manager'
+  };
+  // Toon rol in topbar
+  const badge = document.querySelector('.badge');
+  if(badge) badge.textContent = ROL_LABELS[huidigeRol]||huidigeRol;
+
+  // Beheer sectie: verberg nav items op basis van rol
+  const beheerPanels = ['artikel-templates','kostencalculatie','trimble-prijslijst','artikelen','assemblage','bom-sbu','sbu','bom-ewv','ewv','sbu-prijslijst'];
+  const configPanels = ['merken','basis-config','sbu-config','blokken','prijslijsten','aanvragen'];
+
+  document.querySelectorAll('.nav-item[onclick]').forEach(el=>{
+    const match = el.getAttribute('onclick').match(/showPanel\('([^']+)'/);
+    if(!match) return;
+    const panelName = match[1];
+    const zichtbaar = magZien(panelName);
+    el.style.display = zichtbaar ? '' : 'none';
+  });
+
+  // Verberg beheer sectie label als geen beheer-items zichtbaar
+  if(r.beheer==='verborgen'){
+    const beheerLabel = document.querySelector('.sidebar div[style*="Beheer"]') ||
+      [...document.querySelectorAll('.sidebar div')].find(d=>d.textContent.trim()==='Beheer');
+    if(beheerLabel) beheerLabel.style.display='none';
+    document.getElementById('sb-beheer')?.style.setProperty('display','none');
+  }
 }
 
 window.doLogin = function(){
-  const u = document.getElementById('adm-user').value.trim();
+  const u = document.getElementById('adm-user').value.trim().toLowerCase();
   const p = document.getElementById('adm-pw').value;
-  if(ADMIN_ACCOUNTS[u] === p){
-    sessionStorage.setItem('adm_sess', u);
+  const acc = ACCOUNTS[u];
+  if(acc && acc.ww === p){
+    huidigeGebruiker = u;
+    huidigeRol = acc.rol;
+    sessionStorage.setItem('adm_sess', JSON.stringify({u, rol:acc.rol}));
     toonApp();
-  } else { document.getElementById('login-err').style.display = 'block'; }
+  } else {
+    document.getElementById('login-err').style.display = 'block';
+  }
 };
 
 window.doLogout = function(){
   sessionStorage.removeItem('adm_sess');
+  huidigeRol = 'admin'; huidigeGebruiker = '';
   [unsubMerken,unsubGebruikers,unsubPrijslijsten,unsubAanvragen,unsubSitech].forEach(u=>u&&u());
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
@@ -1711,11 +1857,23 @@ window.doLogout = function(){
   document.getElementById('adm-pw').value = '';
 };
 
-// Herstel sessie na refresh — wacht op DOM
 document.addEventListener('DOMContentLoaded', ()=>{
   const sess = sessionStorage.getItem('adm_sess');
-  if(sess && ADMIN_ACCOUNTS[sess]){
-    toonApp();
+  if(sess){
+    try{
+      const parsed = JSON.parse(sess);
+      if(parsed.u && ACCOUNTS[parsed.u]){
+        huidigeGebruiker = parsed.u;
+        huidigeRol = parsed.rol || ACCOUNTS[parsed.u].rol;
+        toonApp(); return;
+      }
+    } catch(e){}
+    // Legacy: plain string
+    if(ACCOUNTS[sess]){
+      huidigeGebruiker = sess;
+      huidigeRol = ACCOUNTS[sess].rol;
+      toonApp();
+    }
   }
 });
 
@@ -1764,6 +1922,7 @@ function showSaving(msg='Opgeslagen'){
 }
 
 window.showPanel = function(name,el){
+  if(!magZien(name)){ alert('U heeft geen toegang tot deze pagina.'); return; }
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
@@ -1819,6 +1978,7 @@ window.showPanel = function(name,el){
   if(name==='blokken'){ loadBlokken(); }
   if(name==='sbu-config'){ loadSbuConfig(); }
   if(name==='resources'){ loadResources(); }
+  if(name==='gebruikers'){ laadBeheerAccounts(); }
   if(name==='bom-ewv'){ loadBomEwvData(); }
   if(name==='ewv'){
     vulEwvTemplateSelector();
@@ -2001,7 +2161,99 @@ function renderMerkFilterOpties(){
 }
 
 // ============================================================
-// AANVRAGEN MODULE
+// BEHEER ACCOUNTS MODULE
+// ============================================================
+const ROL_OMSCHRIJVING = {
+  admin: 'Beheer: alles · Configurator: alles',
+  sales_manager: 'Beheer: verborgen · Configurator: schrijven · Prijzen OEM: ja · Merken/Basis config/Blokken/Prijslijsten: schrijven',
+  account_manager: 'Beheer: verborgen · Configurator: alleen lezen · Prijzen OEM: nee',
+  operations_manager: 'Beheer: alleen lezen · Configurator: alleen lezen · Prijzen OEM: nee',
+};
+const ROL_LABELS = {
+  admin:'Beheerder', sales_manager:'Sales Manager',
+  account_manager:'Account Manager', operations_manager:'Operations Manager'
+};
+const ROL_KLEUREN = {
+  admin:'#185FA5', sales_manager:'#166534',
+  account_manager:'#854d0e', operations_manager:'#5b21b6'
+};
+
+let beheerAccountsCache = [];
+
+async function laadBeheerAccounts(){
+  const snap = await getDocs(collection(db,'beheer_accounts'));
+  beheerAccountsCache = snap.docs.map(d=>({id:d.id,...d.data()}));
+  renderBeheerAccounts();
+}
+
+function renderBeheerAccounts(){
+  const tbody = document.getElementById('tbl-beheer-accounts');
+  if(!tbody) return;
+
+  // Combineer hardcoded + Firestore accounts
+  const hardcoded = Object.entries(ACCOUNTS).map(([u,v])=>({
+    id:'hard_'+u, gebruikersnaam:u, rol:v.rol, hardcoded:true
+  }));
+  const alle = [...hardcoded, ...beheerAccountsCache.filter(a=>!ACCOUNTS[a.gebruikersnaam])];
+
+  tbody.innerHTML = alle.map(a=>`<tr>
+    <td style="padding:10px 14px;font-weight:500">${a.gebruikersnaam}</td>
+    <td style="padding:10px 14px">
+      <span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;color:#fff;background:${ROL_KLEUREN[a.rol]||'#64748b'}">${ROL_LABELS[a.rol]||a.rol}</span>
+    </td>
+    <td style="padding:10px 14px;font-size:11px;color:var(--gray-text)">${ROL_OMSCHRIJVING[a.rol]||'—'}</td>
+    <td style="padding:10px 14px;text-align:right">
+      ${!a.hardcoded?`<button class="btn btn-sm btn-red" onclick="verwijderBeheerAccount('${a.id}')">Verwijderen</button>`:'<span style="font-size:11px;color:var(--gray-text)">Vast account</span>'}
+    </td>
+  </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--gray-text);padding:1rem">Geen accounts</td></tr>';
+}
+
+window.updateBeheerAccRolInfo = function(){
+  const rol = document.getElementById('beheer-acc-rol')?.value;
+  const el = document.getElementById('beheer-acc-rol-info');
+  if(el && rol) el.textContent = ROL_OMSCHRIJVING[rol]||'';
+};
+
+window.openAddBeheerAccount = function(){
+  document.getElementById('beheer-acc-edit-key').value='';
+  document.getElementById('beheer-acc-user').value='';
+  document.getElementById('beheer-acc-pw').value='';
+  document.getElementById('beheer-acc-rol').value='account_manager';
+  document.getElementById('modal-beheer-acc-title').textContent='Beheeraccount toevoegen';
+  updateBeheerAccRolInfo();
+  openModal('modal-beheer-account');
+};
+
+window.saveBeheerAccount = async function(){
+  const user = document.getElementById('beheer-acc-user').value.trim().toLowerCase();
+  const pw   = document.getElementById('beheer-acc-pw').value;
+  const rol  = document.getElementById('beheer-acc-rol').value;
+  if(!user){ alert('Gebruikersnaam is verplicht'); return; }
+  if(!pw||pw.length<6){ alert('Wachtwoord minimaal 6 tekens'); return; }
+  if(ACCOUNTS[user]){ alert('Deze gebruikersnaam is een vast account en kan niet overschreven worden'); return; }
+  const data = { gebruikersnaam:user, wachtwoord:pw, rol };
+  // Check of al bestaat
+  const bestaand = beheerAccountsCache.find(a=>a.gebruikersnaam===user);
+  if(bestaand){
+    await setDoc(doc(db,'beheer_accounts',bestaand.id), data);
+  } else {
+    await setDoc(doc(db,'beheer_accounts','acc_'+Date.now()), data);
+  }
+  // Update ACCOUNTS in-memory
+  ACCOUNTS[user] = {ww:pw, rol};
+  closeModal('modal-beheer-account');
+  await laadBeheerAccounts();
+  showSaving('Account opgeslagen');
+};
+
+window.verwijderBeheerAccount = async function(id){
+  if(!confirm('Account verwijderen?')) return;
+  const a = beheerAccountsCache.find(x=>x.id===id);
+  if(a) delete ACCOUNTS[a.gebruikersnaam];
+  await deleteDoc(doc(db,'beheer_accounts',id));
+  await laadBeheerAccounts();
+  showSaving('Account verwijderd');
+};
 // ============================================================
 function renderFilterMerkAanvragen(){
   const sel = document.getElementById('filter-merk-aanvragen');
