@@ -2093,31 +2093,55 @@ window.oemExtraSbuToevoegen = function(){
   oemExtraSbus.push({sbuId, naam:bom.naam, verkItems:unitItems*aantal, verkRes:unitRes*aantal,
     kostItems:kostItems*aantal, kostRes:kostRes*aantal, aantal});
 
-  // Toon badges
-  const lijst = document.getElementById('oem-extra-sbu-lijst');
-  lijst.innerHTML = oemExtraSbus.map((s,i)=>`
-    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--blue-light);color:var(--blue);padding:4px 10px;border-radius:20px;font-size:12px;border:0.5px solid rgba(24,95,165,.2)">
-      ${s.sbuId}${s.aantal>1?` ×${s.aantal}`:''} — ${s.naam}
-      <button onclick="oemExtraSbuVerwijder(${i})" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:14px;line-height:1;padding:0">×</button>
-    </span>`).join('');
-
-  // Ververs scenario
+  renderOemExtraSbuLijst();
   berekenOemScenario();
   aantalEl.value=1;
 };
 
 window.oemExtraSbuVerwijder = function(idx){
   oemExtraSbus.splice(idx,1);
-  const lijst = document.getElementById('oem-extra-sbu-lijst');
-  lijst.innerHTML = oemExtraSbus.map((s,i)=>`
-    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--blue-light);color:var(--blue);padding:4px 10px;border-radius:20px;font-size:12px;border:0.5px solid rgba(24,95,165,.2)">
-      ${s.sbuId}${s.aantal>1?` ×${s.aantal}`:''} — ${s.naam}
-      <button onclick="oemExtraSbuVerwijder(${i})" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:14px;line-height:1;padding:0">×</button>
-    </span>`).join('');
+  renderOemExtraSbuLijst();
   berekenOemScenario();
 };
 
-// Vul SBU dropdown voor scenario
+function renderOemExtraSbuLijst(){
+  const lijst = document.getElementById('oem-extra-sbu-lijst');
+  if(!lijst) return;
+  if(!oemExtraSbus.length){ lijst.innerHTML=''; return; }
+
+  const fmt = v => v!==null&&!isNaN(v) ? '€\u00a0'+Math.ceil(v).toLocaleString('nl-NL') : '—';
+  lijst.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px">
+      <thead><tr style="background:var(--gray-bg)">
+        <th style="padding:6px 10px;text-align:left">SBU</th>
+        <th style="padding:6px 10px;text-align:left">Naam</th>
+        <th style="padding:6px 10px;text-align:center">Aantal</th>
+        <th style="padding:6px 10px;text-align:right;color:#185FA5">Kost items</th>
+        <th style="padding:6px 10px;text-align:right;color:#185FA5">Kost res.</th>
+        <th style="padding:6px 10px;text-align:right;color:#185FA5;font-weight:700">Totaal kost</th>
+        <th style="padding:6px 10px;text-align:right;color:#166534">Verk. items</th>
+        <th style="padding:6px 10px;text-align:right;color:#166534">Verk. res.</th>
+        <th style="padding:6px 10px;text-align:right;color:#166534;font-weight:700">Totaal verk.</th>
+        <th style="padding:6px 10px"></th>
+      </tr></thead>
+      <tbody>
+        ${oemExtraSbus.map((s,i)=>`<tr style="border-bottom:0.5px solid #f1f5f9">
+          <td style="padding:6px 10px;font-weight:600;color:var(--blue)">${s.sbuId}</td>
+          <td style="padding:6px 10px;color:var(--gray-text);font-size:11px">${s.naam}</td>
+          <td style="padding:6px 10px;text-align:center">${s.aantal}</td>
+          <td style="padding:6px 10px;text-align:right;color:#185FA5;background:#f8fbff">${fmt(s.kostItems)}</td>
+          <td style="padding:6px 10px;text-align:right;color:#185FA5;background:#f8fbff">${s.kostRes>0?fmt(s.kostRes):'—'}</td>
+          <td style="padding:6px 10px;text-align:right;color:#185FA5;font-weight:600;background:#eff6ff">${fmt(s.kostItems+s.kostRes)}</td>
+          <td style="padding:6px 10px;text-align:right;color:#166534;background:#f8fff9">${fmt(s.verkItems)}</td>
+          <td style="padding:6px 10px;text-align:right;color:#166534;background:#f8fff9">${s.verkRes>0?fmt(s.verkRes):'—'}</td>
+          <td style="padding:6px 10px;text-align:right;color:#166534;font-weight:600;background:#f0fdf4">${fmt(s.verkItems+s.verkRes)}</td>
+          <td style="padding:6px 10px;text-align:right">
+            <button onclick="oemExtraSbuVerwijder(${i})" style="background:none;border:0.5px solid var(--red-light);color:var(--red);border-radius:4px;cursor:pointer;font-size:11px;padding:2px 7px">✕</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
 function vulOemExtraSbuDropdown(){
   const sel = document.getElementById('oem-extra-sbu-sel');
   if(!sel||sel.options.length>1) return;
