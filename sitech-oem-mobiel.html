@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Sitech — OEM Prijzen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2e3348;
+    --blue:#4f8ef7;--blue-dim:#1e3a6e;--green:#34d399;--green-dim:#064e3b;
+    --amber:#fbbf24;--amber-dim:#451a03;--red:#f87171;--red-dim:#450a0a;
+    --text:#f1f5f9;--muted:#64748b;--small:#94a3b8;
+    --radius:14px;--card-pad:16px;
+  }
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;overflow-x:hidden}
+
+  /* LOGIN */
+  #login{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100dvh;padding:2rem;gap:1.5rem}
+  .login-logo{font-size:28px;font-weight:700;letter-spacing:-.5px;color:var(--blue)}
+  .login-sub{font-size:13px;color:var(--muted);text-align:center}
+  .login-card{width:100%;max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;display:flex;flex-direction:column;gap:14px}
+  .login-card label{font-size:12px;font-weight:600;color:var(--small);text-transform:uppercase;letter-spacing:.05em}
+  .login-card input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:15px;font-family:inherit;outline:none}
+  .login-card input:focus{border-color:var(--blue)}
+  .btn-login{width:100%;background:var(--blue);color:#fff;font-weight:700;font-size:15px;padding:14px;border:none;border-radius:10px;cursor:pointer;font-family:inherit}
+  .login-err{color:var(--red);font-size:13px;text-align:center;display:none}
+
+  /* APP */
+  #app{display:none;flex-direction:column;min-height:100dvh}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+  .topbar-brand{font-size:17px;font-weight:700;color:var(--blue)}
+  .topbar-right{display:flex;align-items:center;gap:10px}
+  .role-badge{font-size:11px;font-weight:600;background:var(--blue-dim);color:var(--blue);padding:3px 10px;border-radius:20px}
+  .btn-out{background:none;border:1px solid var(--border);color:var(--muted);font-size:12px;padding:5px 12px;border-radius:8px;cursor:pointer;font-family:inherit}
+
+  .content{flex:1;padding:16px;display:flex;flex-direction:column;gap:16px}
+
+  /* SELECT */
+  .field-label{font-size:11px;font-weight:700;color:var(--small);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+  select.oem-sel{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 14px;color:var(--text);font-size:14px;font-family:inherit;outline:none;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2364748b' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+
+  /* CARDS */
+  .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .summary-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+  .summary-card .lbl{font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500}
+  .summary-card .val{font-size:20px;font-weight:700}
+  .summary-card .sub{font-size:10px;color:var(--muted);margin-top:2px}
+
+  /* TABLE card */
+  .table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .table-card .thead{background:var(--surface2);padding:10px 14px;display:grid;grid-template-columns:1fr auto auto;gap:8px;font-size:11px;font-weight:700;color:var(--small);text-transform:uppercase;letter-spacing:.05em}
+  .table-row{padding:12px 14px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
+  .table-row:first-child{border-top:none}
+  .row-id{font-family:'DM Mono',monospace;font-size:12px;color:var(--blue);font-weight:500}
+  .row-naam{font-size:12px;color:var(--muted)}
+  .row-kost{font-size:13px;font-weight:600;color:var(--text);text-align:right}
+  .row-verk{font-size:13px;font-weight:700;color:var(--green);text-align:right}
+  .total-row{padding:12px 14px;border-top:2px solid var(--border);display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;background:var(--surface2)}
+  .total-row .lbl{font-size:12px;font-weight:700;color:var(--text)}
+
+  /* SCENARIO */
+  .scenario-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
+  .scenario-header{padding:14px 16px;border-bottom:1px solid var(--border);font-size:14px;font-weight:700}
+  .scenario-body{padding:16px;display:flex;flex-direction:column;gap:14px}
+  .pct-field{display:flex;align-items:center;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--bg)}
+  .pct-field input{flex:1;background:none;border:none;padding:12px 14px;color:var(--text);font-size:16px;font-family:'DM Mono',monospace;outline:none;text-align:right}
+  .pct-field span{padding:12px 14px;color:var(--muted);font-size:14px;background:var(--surface)}
+  .radio-group{display:flex;flex-direction:column;gap:8px}
+  .radio-opt{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;font-size:14px}
+  .radio-opt input[type=radio]{accent-color:var(--blue);width:16px;height:16px}
+  .radio-opt.active{border-color:var(--blue);background:var(--blue-dim)}
+
+  /* RESULT */
+  .result-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .result-card{border-radius:12px;padding:14px}
+  .result-card .lbl{font-size:11px;font-weight:600;margin-bottom:4px}
+  .result-card .val{font-size:18px;font-weight:800}
+  .result-card .sub{font-size:10px;margin-top:3px;opacity:.8}
+  .r-blue{background:var(--blue-dim);border:1px solid #1d4ed8}
+  .r-blue .lbl,.r-blue .val,.r-blue .sub{color:var(--blue)}
+  .r-green{background:var(--green-dim);border:1px solid #065f46}
+  .r-green .lbl,.r-green .val,.r-green .sub{color:var(--green)}
+  .r-amber{background:var(--amber-dim);border:1px solid #92400e}
+  .r-amber .lbl,.r-amber .val,.r-amber .sub{color:var(--amber)}
+  .r-gray{background:var(--surface2);border:1px solid var(--border)}
+  .r-gray .lbl,.r-gray .sub{color:var(--muted)}
+  .r-gray .val{color:var(--text)}
+
+  .full-width{grid-column:span 2}
+
+  /* EXTRA SBU */
+  .extra-sbu-row{display:flex;gap:8px;align-items:center}
+  .extra-sbu-row select{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none}
+  .extra-sbu-row input[type=number]{width:60px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:11px 8px;color:var(--text);font-size:14px;font-family:'DM Mono',monospace;text-align:center;outline:none}
+  .btn-add{background:var(--blue);color:#fff;font-weight:700;padding:11px 16px;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-family:inherit;white-space:nowrap}
+  .extra-item{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-top:6px}
+  .extra-item .id{font-family:'DM Mono',monospace;font-size:12px;color:var(--blue);font-weight:500}
+  .extra-item .nm{font-size:12px;color:var(--muted)}
+  .extra-item .vk{font-size:13px;font-weight:700;color:var(--green)}
+  .btn-del{background:var(--red-dim);color:var(--red);border:none;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12px;font-family:inherit}
+
+  .section-title{font-size:13px;font-weight:700;color:var(--small);text-transform:uppercase;letter-spacing:.07em}
+  .loader{text-align:center;color:var(--muted);padding:2rem;font-size:13px}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-logo">Sitech</div>
+  <div class="login-sub">OEM Prijsberekening</div>
+  <div class="login-card">
+    <div>
+      <label>Gebruikersnaam</label>
+      <input type="text" id="l-user" placeholder="gebruikersnaam" autocomplete="username" />
+    </div>
+    <div>
+      <label>Wachtwoord</label>
+      <input type="password" id="l-pw" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doMobielLogin()" />
+    </div>
+    <button class="btn-login" onclick="doMobielLogin()">Inloggen</button>
+    <div class="login-err" id="l-err">Onjuiste inloggegevens</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand">OEM Prijzen</div>
+    <div class="topbar-right">
+      <span class="role-badge" id="m-rol">—</span>
+      <button class="btn-out" onclick="doMobielLogout()">Uitloggen</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- EWV Selectie -->
+    <div>
+      <div class="field-label">EWV samenstelling</div>
+      <select class="oem-sel" id="m-ewv-sel" onchange="mLaadEwv()">
+        <option value="">— Selecteer EWV —</option>
+      </select>
+    </div>
+
+    <!-- Samenvatting -->
+    <div id="m-inhoud" class="hidden" style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Kaartjes -->
+      <div class="summary-grid" id="m-cards"></div>
+
+      <!-- Stuklijst -->
+      <div>
+        <div class="section-title" style="margin-bottom:8px">Stuklijst</div>
+        <div class="table-card">
+          <div class="thead">
+            <span>SBU / Onderdeel</span>
+            <span style="text-align:right">Kost</span>
+            <span style="text-align:right;color:#34d399">Verkoop</span>
+          </div>
+          <div id="m-tabel-body"></div>
+        </div>
+      </div>
+
+      <!-- SCENARIO -->
+      <div class="scenario-card">
+        <div class="scenario-header">Scenario — Kortingscalculator</div>
+        <div class="scenario-body">
+
+          <!-- Extra SBU -->
+          <div>
+            <div class="section-title" style="margin-bottom:8px">Extra SBU toevoegen</div>
+            <div class="extra-sbu-row">
+              <select id="m-extra-sel">
+                <option value="">— Kies SBU —</option>
+              </select>
+              <input type="number" id="m-extra-aantal" value="1" min="1" />
+              <button class="btn-add" onclick="mExtraToevoegen()">+</button>
+            </div>
+            <div id="m-extra-lijst"></div>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border)" />
+
+          <!-- Keuze 1 -->
+          <div>
+            <div class="field-label">Keuze 1 — Standaard Sitech korting</div>
+            <div class="pct-field">
+              <input type="number" id="m-sitech-pct" value="0" min="0" max="100" step="0.5"
+                placeholder="0" oninput="mBereken()" />
+              <span>%</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:5px">Wordt over het gehele bedrag berekend</div>
+          </div>
+
+          <!-- Keuze 2 -->
+          <div>
+            <div class="field-label">Keuze 2 — Extra kortingspercentage</div>
+            <div class="pct-field">
+              <input type="number" id="m-extra-pct" value="0" min="0" max="100" step="0.5"
+                placeholder="0" oninput="mBereken()" />
+              <span>%</span>
+            </div>
+          </div>
+
+          <!-- Keuze 3 -->
+          <div>
+            <div class="field-label">Keuze 3 — Keuze 2 toepassen op</div>
+            <div class="radio-group">
+              <label class="radio-opt active" id="opt-heel">
+                <input type="radio" name="m-basis" value="heel" checked onchange="mRadioStyle();mBereken()" />
+                Gehele verkoopprijs
+              </label>
+              <label class="radio-opt" id="opt-mat">
+                <input type="radio" name="m-basis" value="materiaal" onchange="mRadioStyle();mBereken()" />
+                Alleen over materialen
+              </label>
+            </div>
+          </div>
+
+          <!-- Resultaten -->
+          <div id="m-resultaten" class="hidden">
+            <div class="field-label" style="margin-bottom:10px">Resultaat</div>
+            <div class="result-grid">
+              <div class="result-card r-blue full-width">
+                <div class="lbl">Advies verkoopprijs</div>
+                <div class="val" id="m-res-advies">—</div>
+                <div class="sub" id="m-res-advies-sub"></div>
+              </div>
+              <div class="result-card r-green">
+                <div class="lbl">OEM inkoopprijs</div>
+                <div class="val" id="m-res-inkoop">—</div>
+                <div class="sub" id="m-res-inkoop-sub"></div>
+              </div>
+              <div class="result-card r-amber">
+                <div class="lbl">OEM korting</div>
+                <div class="val" id="m-res-korting">—</div>
+                <div class="sub">Voordeel t.o.v. advies</div>
+              </div>
+              <div class="result-card r-green">
+                <div class="lbl">Sitech ontvangt</div>
+                <div class="val" id="m-res-sitech">—</div>
+                <div class="sub" id="m-res-marge"></div>
+              </div>
+              <div class="result-card r-gray full-width">
+                <div class="lbl">Effectieve korting totale order</div>
+                <div class="val" id="m-res-eff">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div id="m-loader" class="loader hidden">Laden…</div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBktIXqssmyaVo_VRuPXkDAPiytsSn QjjM",
+  authDomain: "sitech-configurator.firebaseapp.com",
+  projectId: "sitech-configurator",
+  storageBucket: "sitech-configurator.firebasestorage.app",
+  messagingSenderId: "220701109022",
+  appId: "1:220701109022:web:bd7d53aa4c2d49d372f70f"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+
+// Accounts — zelfde als beheerpaneel
+const ACCOUNTS = {
+  'admin':      { ww:'Sitech@2024!',  rol:'admin' },
+  'sales':      { ww:'Sales@2024!',   rol:'sales_manager' },
+  'accountmgr': { ww:'Account@2024!', rol:'account_manager' },
+  'operations': { ww:'Ops@2024!',     rol:'operations_manager' },
+  'verkoop':    { ww:'Verkoop@123',   rol:'sales_manager' },
+  'beheer':     { ww:'Beheer@456',    rol:'admin' },
+};
+
+const ROL_LABELS = { admin:'Beheerder', sales_manager:'Sales Manager', account_manager:'Account Manager', operations_manager:'Operations Manager' };
+const MAG_OEM = ['admin','sales_manager'];
+
+let huidigRol = '', bomEwvData = [], bomData = [], artikelen = [], resourcesData = [
+  {id:'welding',kostprijs:45,verkoopprijs:95},
+  {id:'mounting',kostprijs:45,verkoopprijs:95},
+  {id:'calibration',kostprijs:45,verkoopprijs:95},
+], ARTIKEL_TEMPLATES = [];
+let mOemTotalen = { verkItems:0, verkRes:0, totKost:0 };
+let mExtraSbus = [];
+
+// AUTH
+window.doMobielLogin = async function(){
+  const u = document.getElementById('l-user').value.trim().toLowerCase();
+  const p = document.getElementById('l-pw').value;
+  const acc = ACCOUNTS[u];
+  const err = document.getElementById('l-err');
+  err.style.display='none';
+  if(!acc || acc.ww!==p){ err.style.display='block'; return; }
+  if(!MAG_OEM.includes(acc.rol)){
+    err.textContent='Uw rol heeft geen toegang tot OEM prijzen'; err.style.display='block'; return;
+  }
+  huidigRol = acc.rol;
+  sessionStorage.setItem('oem_sess', JSON.stringify({u,rol:acc.rol}));
+  document.getElementById('m-rol').textContent = ROL_LABELS[acc.rol]||acc.rol;
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='flex';
+  await laadData();
+};
+
+window.doMobielLogout = function(){
+  sessionStorage.removeItem('oem_sess');
+  document.getElementById('login').style.display='flex';
+  document.getElementById('app').style.display='none';
+};
+
+// Herstel sessie
+(async()=>{
+  const sess = sessionStorage.getItem('oem_sess');
+  if(sess){ try{
+    const p = JSON.parse(sess);
+    if(p.u && ACCOUNTS[p.u] && MAG_OEM.includes(p.rol)){
+      huidigRol = p.rol;
+      document.getElementById('m-rol').textContent = ROL_LABELS[p.rol]||p.rol;
+      document.getElementById('login').style.display='none';
+      document.getElementById('app').style.display='flex';
+      await laadData();
+    }
+  }catch(e){} }
+})();
+
+async function laadData(){
+  document.getElementById('m-loader').classList.remove('hidden');
+  const [ewvSnap,bomSnap,artSnap,resSnap,atSnap] = await Promise.all([
+    getDocs(collection(db,'bom_ewv')),
+    getDocs(collection(db,'bom_sbu')),
+    getDocs(collection(db,'artikelen')),
+    getDocs(collection(db,'resources')),
+    getDocs(collection(db,'artikel_templates')),
+  ]);
+  bomEwvData = ewvSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+  bomData    = bomSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+  artikelen  = artSnap.docs.map(d=>({id:d.id,...d.data()}));
+  resSnap.docs.forEach(d=>{ const r=resourcesData.find(x=>x.id===d.id); if(r) Object.assign(r,d.data()); });
+  ARTIKEL_TEMPLATES = atSnap.docs.map(d=>({id:d.id,...d.data()}));
+  document.getElementById('m-loader').classList.add('hidden');
+
+  // Vul EWV dropdown
+  const sel = document.getElementById('m-ewv-sel');
+  sel.innerHTML = '<option value="">— Selecteer EWV —</option>' +
+    bomEwvData.map(b=>`<option value="${b.id}">${b.sbuId} — ${b.naam}</option>`).join('');
+
+  // Vul extra SBU dropdown
+  const sbuTemplateIds = new Set(ARTIKEL_TEMPLATES.filter(t=>t.isSBU).map(t=>t.id));
+  const sbuLijst = artikelen.filter(a=>sbuTemplateIds.has(a.templateId)).sort((a,b)=>a.productId.localeCompare(b.productId));
+  const extraSel = document.getElementById('m-extra-sel');
+  extraSel.innerHTML = '<option value="">— Kies SBU —</option>' +
+    sbuLijst.map(a=>`<option value="${a.productId}">${a.productId} — ${a.name||''}</option>`).join('');
+}
+
+function getArt(productId){ return artikelen.find(a=>a.productId===productId)||null; }
+function resPrijs(id,veld){ return resourcesData.find(r=>r.id===id)?.[veld]||45; }
+
+function berekenSbu(bom){
+  let kostItems=0,unitItems=0,kostRes=0,unitRes=0;
+  (bom.artikelen||[]).forEach(ba=>{
+    const bart=getArt(ba.artikelId); if(!bart) return;
+    const aant=parseFloat(ba.aantal||0);
+    kostItems += parseFloat(bart.standardCost||0)*aant;
+    const lp=parseFloat(bart.listPrice||0), cost=parseFloat(bart.standardCost||0), pct=parseFloat(bart.profitPct||'');
+    const up = lp>0?lp:(cost>0&&!isNaN(pct)&&pct>0?cost*(1+pct/100):0);
+    unitItems += up*aant;
+  });
+  const w=parseFloat(bom.welding||0),m=parseFloat(bom.mounting||0),c=parseFloat(bom.calibration||0);
+  kostRes  = w*resPrijs('welding','kostprijs')+m*resPrijs('mounting','kostprijs')+c*resPrijs('calibration','kostprijs');
+  unitRes  = w*resPrijs('welding','verkoopprijs')+m*resPrijs('mounting','verkoopprijs')+c*resPrijs('calibration','verkoopprijs');
+  return {kostItems,kostRes,unitItems,unitRes};
+}
+
+const fmt  = v => v!=null?'€\u00a0'+Math.ceil(v).toLocaleString('nl-NL'):'—';
+const fmt2 = v => v!=null?'€\u00a0'+parseFloat(v).toFixed(2):'—';
+
+window.mLaadEwv = function(){
+  const id  = document.getElementById('m-ewv-sel').value;
+  const inh = document.getElementById('m-inhoud');
+  if(!id){ inh.classList.add('hidden'); return; }
+  const ewv = bomEwvData.find(b=>b.id===id);
+  if(!ewv){ inh.classList.add('hidden'); return; }
+  inh.style.display='flex'; inh.classList.remove('hidden');
+  mExtraSbus = [];
+  document.getElementById('m-extra-lijst').innerHTML='';
+
+  let totKostItems=0,totKostRes=0,totVerkItems=0,totVerkRes=0;
+  const rijen = [];
+
+  (ewv.artikelen||[]).forEach(a=>{
+    const bom=bomData.find(b=>b.sbuId===a.artikelId);
+    const art=getArt(a.artikelId);
+    const naam=a.naam||(bom?bom.naam:'')|| (art?art.name:'')||a.artikelId;
+    const aantal=parseFloat(a.aantal||1);
+    let ki=0,kr=0,vi=0,vr=0;
+    if(bom){ const s=berekenSbu(bom); ki=s.kostItems*aantal;kr=s.kostRes*aantal;vi=s.unitItems*aantal;vr=s.unitRes*aantal; }
+    else if(art){ ki=parseFloat(art.standardCost||0)*aantal; const lp=parseFloat(art.listPrice||0),cost=parseFloat(art.standardCost||0),pct=parseFloat(art.profitPct||''); vi=(lp>0?lp:(cost>0&&!isNaN(pct)&&pct>0?cost*(1+pct/100):0))*aantal; }
+    totKostItems+=ki; totKostRes+=kr; totVerkItems+=vi; totVerkRes+=vr;
+    rijen.push({id:a.artikelId,naam,kost:ki+kr,verk:vi+vr});
+  });
+
+  // EWV eigen resources
+  const ew=parseFloat(ewv.welding||0),em=parseFloat(ewv.mounting||0),ec=parseFloat(ewv.calibration||0);
+  if(ew||em||ec){
+    const kr=ew*resPrijs('welding','kostprijs')+em*resPrijs('mounting','kostprijs')+ec*resPrijs('calibration','kostprijs');
+    const vr=ew*resPrijs('welding','verkoopprijs')+em*resPrijs('mounting','verkoopprijs')+ec*resPrijs('calibration','verkoopprijs');
+    totKostRes+=kr; totVerkRes+=vr;
+    rijen.push({id:'Resources',naam:`EWV resources`,kost:kr,verk:vr,isRes:true});
+  }
+
+  mOemTotalen = {verkItems:totVerkItems,verkRes:totVerkRes,totKost:totKostItems+totKostRes};
+
+  // Render kaartjes
+  const totVerk=Math.ceil(totVerkItems+totVerkRes);
+  const totKost=totKostItems+totKostRes;
+  const marge=totVerk>0?((totVerk-totKost)/totVerk*100):null;
+  const mk=marge===null?'var(--muted)':marge>=20?'var(--green)':marge>=0?'var(--amber)':'var(--red)';
+  document.getElementById('m-cards').innerHTML = [
+    ['Kostprijs','#4f8ef7',fmt2(totKost),'Items + resources'],
+    ['Verkoopprijs','var(--green)',fmt(totVerk),'Advies'],
+    ['Marge',mk,marge!=null?marge.toFixed(1)+'%':'—','(Verk−Kost)/Verk'],
+    ['Res. kost','var(--amber)',fmt2(totKostRes),'Welding/Mounting/Cal.'],
+  ].map(([l,c,v,s])=>`<div class="summary-card">
+    <div class="lbl">${l}</div>
+    <div class="val" style="color:${c}">${v}</div>
+    <div class="sub">${s}</div>
+  </div>`).join('');
+
+  // Render tabel
+  document.getElementById('m-tabel-body').innerHTML = rijen.map(r=>`
+    <div class="table-row" style="${r.isRes?'background:#1a1a0a':''}">
+      <div><div class="row-id">${r.id}</div><div class="row-naam">${r.naam}</div></div>
+      <div class="row-kost">${fmt2(r.kost)}</div>
+      <div class="row-verk">${fmt(r.verk)}</div>
+    </div>`).join('') +
+    `<div class="total-row">
+      <div class="lbl">Totaal</div>
+      <div class="row-kost">${fmt2(totKost)}</div>
+      <div class="row-verk">${fmt(totVerk)}</div>
+    </div>`;
+
+  mBereken();
+};
+
+window.mExtraToevoegen = function(){
+  const sel=document.getElementById('m-extra-sel'); const sbuId=sel.value; if(!sbuId) return;
+  const aant=Math.max(1,parseInt(document.getElementById('m-extra-aantal').value||1));
+  const bom=bomData.find(b=>b.sbuId===sbuId); if(!bom){ alert('Niet gevonden'); return; }
+  const s=berekenSbu(bom);
+  mExtraSbus.push({sbuId,naam:bom.naam,verkItems:s.unitItems*aant,verkRes:s.unitRes*aant,kostItems:s.kostItems*aant,kostRes:s.kostRes*aant,aantal:aant});
+  renderExtraLijst(); mBereken();
+};
+
+function renderExtraLijst(){
+  document.getElementById('m-extra-lijst').innerHTML = mExtraSbus.map((s,i)=>`
+    <div class="extra-item">
+      <div>
+        <div class="id">${s.sbuId}${s.aantal>1?' ×'+s.aantal:''}</div>
+        <div class="nm">${s.naam}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="vk">${fmt(s.verkItems+s.verkRes)}</div>
+        <button class="btn-del" onclick="mExtraVerwijder(${i})">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+window.mExtraVerwijder = function(i){ mExtraSbus.splice(i,1); renderExtraLijst(); mBereken(); };
+
+window.mRadioStyle = function(){
+  const v=document.querySelector('input[name="m-basis"]:checked')?.value;
+  document.getElementById('opt-heel').classList.toggle('active',v==='heel');
+  document.getElementById('opt-mat').classList.toggle('active',v==='materiaal');
+};
+
+window.mBereken = function(){
+  const sitechPct=parseFloat(document.getElementById('m-sitech-pct')?.value||0);
+  const extraPct =parseFloat(document.getElementById('m-extra-pct')?.value||0);
+  const basis    =document.querySelector('input[name="m-basis"]:checked')?.value||'heel';
+  const res      =document.getElementById('m-resultaten');
+
+  const exVerkItems=mExtraSbus.reduce((s,x)=>s+x.verkItems,0);
+  const exVerkRes  =mExtraSbus.reduce((s,x)=>s+x.verkRes,0);
+  const exKost     =mExtraSbus.reduce((s,x)=>s+x.kostItems+x.kostRes,0);
+  const totVerkItems=mOemTotalen.verkItems+exVerkItems;
+  const totVerkRes  =mOemTotalen.verkRes+exVerkRes;
+  const totKost     =mOemTotalen.totKost+exKost;
+  const advies      =Math.ceil(totVerkItems+totVerkRes);
+
+  if(!advies){ res.classList.add('hidden'); return; }
+  res.classList.remove('hidden');
+
+  const sitechKorting=advies*(sitechPct/100);
+  const naStandaard  =advies-sitechKorting;
+  const extraKorting =basis==='heel'?naStandaard*(extraPct/100):totVerkItems*(extraPct/100);
+  const oemInkoop    =Math.ceil(naStandaard-extraKorting);
+  const kortingAbs   =Math.round(advies-oemInkoop);
+  const sitechOntvangen=Math.ceil(oemInkoop-totKost);
+  const effKorting   =advies>0?((advies-oemInkoop)/advies*100):0;
+  const margePct     =oemInkoop>0?((oemInkoop-totKost)/oemInkoop*100):0;
+  const margeKleur   =margePct>=20?'var(--green)':margePct>=0?'var(--amber)':'var(--red)';
+
+  const ktxt=[];
+  if(sitechPct>0) ktxt.push(`${sitechPct}% Sitech`);
+  if(extraPct>0)  ktxt.push(`${extraPct}% extra (${basis==='heel'?'totaal':'materialen'})`);
+
+  document.getElementById('m-res-advies').textContent  = fmt(advies);
+  document.getElementById('m-res-advies-sub').textContent = mExtraSbus.length?`incl. ${mExtraSbus.length} extra SBU`:'';
+  document.getElementById('m-res-inkoop').textContent  = fmt(oemInkoop);
+  document.getElementById('m-res-inkoop-sub').textContent = ktxt.join(' + ')||'Geen korting';
+  document.getElementById('m-res-korting').textContent = fmt(kortingAbs);
+  document.getElementById('m-res-sitech').textContent  = fmt(sitechOntvangen);
+  document.getElementById('m-res-sitech').style.color  = margeKleur;
+  document.getElementById('m-res-marge').textContent   = margePct.toFixed(1)+'% marge';
+  document.getElementById('m-res-marge').style.color   = margeKleur;
+  document.getElementById('m-res-eff').textContent     = effKorting.toFixed(2)+'%';
+};
+</script>
+</body>
+</html>
