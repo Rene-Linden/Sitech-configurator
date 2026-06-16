@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<title>Sitech — SPS Configurator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --blue:#185FA5;--blue-lt:#EFF6FF;--green:#16a34a;--green-lt:#f0fdf4;
+    --red:#dc2626;--red-lt:#fef2f2;--amber:#d97706;--amber-lt:#fffbeb;
+    --gray:#64748b;--border:#e2e8f0;--bg:#f8fafc;--white:#fff;
+    --text:#1e293b;--muted:#64748b;--radius:14px;
+  }
+  html,body{min-height:100dvh;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px}
+
+  /* LOGIN */
+  #login{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100dvh;padding:2rem;gap:1.2rem;background:var(--bg)}
+  .login-logo{font-size:26px;font-weight:800;color:var(--blue);letter-spacing:-.5px}
+  .login-sub{font-size:13px;color:var(--muted)}
+  .login-card{width:100%;max-width:360px;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;display:flex;flex-direction:column;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .login-card label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .login-card input{width:100%;border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:15px;font-family:inherit;outline:none;background:var(--bg)}
+  .login-card input:focus{border-color:var(--blue);background:var(--white)}
+  .btn-login{width:100%;background:var(--blue);color:#fff;font-weight:700;font-size:15px;padding:14px;border:none;border-radius:10px;cursor:pointer;font-family:inherit}
+  .login-err{color:var(--red);font-size:13px;text-align:center;display:none}
+
+  /* APP */
+  #app{display:none;flex-direction:column;min-height:100dvh}
+  .topbar{background:var(--white);border-bottom:1px solid var(--border);padding:13px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+  .topbar-brand{font-size:17px;font-weight:800;color:var(--blue)}
+  .topbar-sub{font-size:11px;color:var(--muted);margin-top:1px}
+  .btn-out{background:none;border:1px solid var(--border);color:var(--muted);font-size:12px;padding:5px 12px;border-radius:8px;cursor:pointer;font-family:inherit}
+
+  .content{flex:1;padding:16px;display:flex;flex-direction:column;gap:14px}
+
+  /* SELECT */
+  .field-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+  select.big-sel{width:100%;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:13px 14px;color:var(--text);font-size:14px;font-family:inherit;outline:none;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2364748b' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+
+  /* ARTIKEL KAARTJE */
+  .artikel-kaart{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;align-items:flex-start;gap:10px}
+  .art-id{font-family:'DM Mono',monospace;font-size:11px;color:var(--blue);font-weight:500}
+  .art-naam{font-size:13px;font-weight:500;margin-top:2px}
+  .art-prijs{font-size:14px;font-weight:700;color:var(--green);white-space:nowrap}
+  .art-sub{font-size:11px;color:var(--muted)}
+  .art-aantal{display:flex;align-items:center;gap:6px;margin-top:8px}
+  .art-aantal button{width:32px;height:32px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+  .art-aantal input{width:50px;border:1px solid var(--border);border-radius:8px;padding:6px;text-align:center;font-size:14px;font-family:'DM Mono',monospace;outline:none}
+  .btn-del-art{margin-left:auto;background:var(--red-lt);color:var(--red);border:1px solid rgba(220,38,38,.2);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap}
+
+  /* TOTALEN CARD */
+  .totaal-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .totaal-row{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)}
+  .totaal-row:last-child{border-bottom:none}
+  .totaal-lbl{font-size:13px;color:var(--muted)}
+  .totaal-val{font-size:15px;font-weight:700}
+  .netto-row{background:var(--blue-lt);padding:16px;display:flex;justify-content:space-between;align-items:center}
+  .netto-lbl{font-size:14px;font-weight:700;color:var(--blue)}
+  .netto-val{font-size:22px;font-weight:800;color:var(--blue)}
+
+  /* KORTING INPUTS */
+  .korting-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .korting-field{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;align-items:center}
+  .korting-field input{flex:1;border:none;padding:11px 12px;font-size:15px;font-family:'DM Mono',monospace;outline:none;color:var(--text);background:transparent}
+  .korting-field span{padding:11px 12px;color:var(--muted);font-size:13px;background:var(--bg)}
+
+  /* ORDER BTN */
+  .btn-order{width:100%;background:var(--blue);color:#fff;font-weight:700;font-size:16px;padding:16px;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px}
+  .btn-reset{width:100%;background:none;border:1px solid var(--border);color:var(--muted);font-size:14px;padding:12px;border-radius:var(--radius);cursor:pointer;font-family:inherit}
+
+  .section-hdr{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+  .chip{background:var(--blue-lt);color:var(--blue);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;display:inline-block}
+  .loader{text-align:center;color:var(--muted);padding:2rem;font-size:13px}
+  .empty{text-align:center;color:var(--muted);padding:1.5rem;font-size:13px}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-logo">Sitech</div>
+  <div class="login-sub">SPS Configurator</div>
+  <div class="login-card">
+    <div><label>Gebruikersnaam</label>
+      <input type="text" id="l-user" placeholder="gebruikersnaam" autocomplete="username" /></div>
+    <div><label>Wachtwoord</label>
+      <input type="password" id="l-pw" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()" /></div>
+    <button class="btn-login" onclick="doLogin()">Inloggen</button>
+    <div class="login-err" id="l-err">Onjuiste inloggegevens</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div><div class="topbar-brand">SPS Configurator</div><div class="topbar-sub">Sitech</div></div>
+    <button class="btn-out" onclick="doLogout()">Uitloggen</button>
+  </div>
+
+  <div class="content">
+
+    <!-- Stap 1: SPS kiezen -->
+    <div>
+      <div class="field-label">SPS product</div>
+      <select class="big-sel" id="m-sps-sel" onchange="mLaadSps()">
+        <option value="">— Kies een SPS product —</option>
+      </select>
+    </div>
+
+    <div id="loader" class="loader hidden">Laden…</div>
+
+    <!-- Stap 2: Configuratie -->
+    <div id="m-cfg" class="hidden" style="display:flex;flex-direction:column;gap:14px">
+
+      <!-- Header -->
+      <div id="m-sps-hdr" style="padding:12px 16px;background:var(--white);border:1px solid var(--border);border-radius:12px;font-size:13px"></div>
+
+      <!-- Artikelen -->
+      <div>
+        <div class="section-hdr" style="margin-bottom:8px">Artikelen <span class="chip" id="m-art-count">0</span></div>
+        <div id="m-art-lijst" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+
+      <!-- Subtotaal -->
+      <div class="totaal-card">
+        <div class="totaal-row">
+          <span class="totaal-lbl">Subtotaal</span>
+          <span class="totaal-val" id="m-subtotaal">€ 0,00</span>
+        </div>
+
+        <!-- Korting -->
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div class="field-label" style="margin-bottom:8px">Korting</div>
+          <div class="korting-grid">
+            <div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Bedrag (€)</div>
+              <div class="korting-field">
+                <input type="number" id="m-k-bedrag" placeholder="0" min="0" step="0.01" oninput="mKortingBedrag()" />
+                <span>€</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Percentage (%)</div>
+              <div class="korting-field">
+                <input type="number" id="m-k-pct" placeholder="0" min="0" max="100" step="0.5" oninput="mKortingPct()" />
+                <span>%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="totaal-row">
+          <span class="totaal-lbl" style="color:var(--red)">Korting</span>
+          <span class="totaal-val" style="color:var(--red)" id="m-korting">— € 0,00</span>
+        </div>
+        <div class="netto-row">
+          <span class="netto-lbl">Netto totaal</span>
+          <span class="netto-val" id="m-netto">€ 0,00</span>
+        </div>
+      </div>
+
+      <!-- Actie knoppen -->
+      <button class="btn-order" onclick="mOrder()">
+        <span>✉</span> Order versturen
+      </button>
+      <button class="btn-reset" onclick="mReset()">Opnieuw beginnen</button>
+      <div id="m-status" style="text-align:center;font-size:13px;color:var(--green);display:none">✓ Mail geopend</div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBktIXqssmyaVo_VRuPXkDAPiytsSn QjjM",
+  authDomain: "sitech-configurator.firebaseapp.com",
+  projectId: "sitech-configurator",
+  storageBucket: "sitech-configurator.firebasestorage.app",
+  messagingSenderId: "220701109022",
+  appId: "1:220701109022:web:bd7d53aa4c2d49d372f70f"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+
+const ACCOUNTS = {
+  'admin':{'ww':'Sitech@2024!'},'sales':{'ww':'Sales@2024!'},'verkoop':{'ww':'Verkoop@123'},
+  'accountmgr':{'ww':'Account@2024!'},'operations':{'ww':'Ops@2024!'},'beheer':{'ww':'Beheer@456'},
+};
+
+let bomSpsData=[], artikelen=[], regels=[], gekozenId=null;
+
+// AUTH
+window.doLogin = async function(){
+  const u=document.getElementById('l-user').value.trim().toLowerCase();
+  const p=document.getElementById('l-pw').value;
+  const acc=ACCOUNTS[u];
+  document.getElementById('l-err').style.display='none';
+  if(!acc||acc.ww!==p){ document.getElementById('l-err').style.display='block'; return; }
+  sessionStorage.setItem('sps_sess',u);
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='flex';
+  await laadData();
+};
+window.doLogout = function(){
+  sessionStorage.removeItem('sps_sess');
+  document.getElementById('login').style.display='flex';
+  document.getElementById('app').style.display='none';
+};
+(async()=>{
+  const s=sessionStorage.getItem('sps_sess');
+  if(s&&ACCOUNTS[s]){ document.getElementById('login').style.display='none'; document.getElementById('app').style.display='flex'; await laadData(); }
+})();
+
+async function laadData(){
+  document.getElementById('loader').classList.remove('hidden');
+  const [spsSnap,artSnap]=await Promise.all([getDocs(collection(db,'bom_sps')),getDocs(collection(db,'artikelen'))]);
+  bomSpsData=spsSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.spsId||'').localeCompare(b.spsId||''));
+  artikelen=artSnap.docs.map(d=>({id:d.id,...d.data()}));
+  document.getElementById('loader').classList.add('hidden');
+  const sel=document.getElementById('m-sps-sel');
+  sel.innerHTML='<option value="">— Kies een SPS product —</option>'+
+    bomSpsData.map(b=>`<option value="${b.id}">${b.spsId} — ${b.naam||''}</option>`).join('');
+}
+
+function getUP(artId){
+  const a=artikelen.find(x=>x.productId===artId); if(!a) return null;
+  const lp=parseFloat(a.listPrice||0); if(lp>0) return lp;
+  const c=parseFloat(a.standardCost||0),p=parseFloat(a.profitPct||'');
+  return c>0&&!isNaN(p)&&p>0?c*(1+p/100):null;
+}
+
+window.mLaadSps = function(){
+  const id=document.getElementById('m-sps-sel').value;
+  const cfg=document.getElementById('m-cfg');
+  if(!id){ cfg.classList.add('hidden'); return; }
+  const b=bomSpsData.find(x=>x.id===id); if(!b) return;
+  gekozenId=id; regels=(b.artikelen||[]).map(a=>({...a}));
+  document.getElementById('m-sps-hdr').innerHTML=`<strong>${b.spsId}</strong> &nbsp;·&nbsp; ${b.naam||'—'}`;
+  document.getElementById('m-k-bedrag').value=''; document.getElementById('m-k-pct').value='';
+  cfg.style.display='flex'; cfg.classList.remove('hidden');
+  mRender();
+};
+
+function mRender(){
+  const lijst=document.getElementById('m-art-lijst');
+  let totaal=0;
+  lijst.innerHTML=regels.map((r,i)=>{
+    const art=artikelen.find(a=>a.productId===r.artikelId);
+    const naam=r.naam||(art?art.name:'')||r.artikelId;
+    const up=getUP(r.artikelId);
+    const aant=parseFloat(r.aantal||1);
+    const sub=up!=null?up*aant:null;
+    if(sub) totaal+=sub;
+    return `<div class="artikel-kaart">
+      <div style="flex:1">
+        <div class="art-id">${r.artikelId}</div>
+        <div class="art-naam">${naam}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+          <div>
+            <div class="art-prijs">${up!=null?'€\u00a0'+up.toFixed(2):'—'} <span style="font-weight:400;font-size:11px;color:var(--muted)">p/st</span></div>
+            <div class="art-sub">Subtotaal: ${sub!=null?'€\u00a0'+sub.toFixed(2):'—'}</div>
+          </div>
+          <button class="btn-del-art" onclick="mDel(${i})">✕ Verwijder</button>
+        </div>
+        <div class="art-aantal">
+          <button onclick="mAant(${i},-1)">−</button>
+          <input type="number" value="${aant}" min="1" onchange="mAantSet(${i},this.value)" />
+          <button onclick="mAant(${i},1)">+</button>
+          <span style="font-size:11px;color:var(--muted);margin-left:4px">stuks</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('')||`<div class="empty">Geen artikelen meer in de configuratie</div>`;
+
+  document.getElementById('m-art-count').textContent=regels.length;
+  document.getElementById('m-subtotaal').textContent='€\u00a0'+totaal.toFixed(2).replace('.',',');
+  mHerbereken(totaal);
+}
+
+function getTotaal(){ return regels.reduce((s,r)=>{ const up=getUP(r.artikelId); return s+(up!=null?up*parseFloat(r.aantal||1):0); },0); }
+
+function mHerbereken(totaal){
+  const b=parseFloat(document.getElementById('m-k-bedrag')?.value||0);
+  const p=parseFloat(document.getElementById('m-k-pct')?.value||0);
+  const k=b>0?b:(p>0?totaal*(p/100):0);
+  const n=Math.max(0,totaal-k);
+  const fmt=v=>'€\u00a0'+v.toFixed(2).replace('.',',');
+  document.getElementById('m-korting').textContent='— '+fmt(k);
+  document.getElementById('m-netto').textContent=fmt(n);
+}
+
+window.mDel    = i=>{ regels.splice(i,1); mRender(); };
+window.mAant   = (i,d)=>{ regels[i].aantal=Math.max(1,(parseFloat(regels[i].aantal||1)+d)); mRender(); };
+window.mAantSet= (i,v)=>{ regels[i].aantal=Math.max(1,parseInt(v)||1); mRender(); };
+window.mKortingBedrag = ()=>{ document.getElementById('m-k-pct').value=''; mHerbereken(getTotaal()); };
+window.mKortingPct    = ()=>{ document.getElementById('m-k-bedrag').value=''; mHerbereken(getTotaal()); };
+
+window.mOrder = function(){
+  const b=bomSpsData.find(x=>x.id===gekozenId);
+  const tot=getTotaal();
+  const kb=parseFloat(document.getElementById('m-k-bedrag')?.value||0);
+  const kp=parseFloat(document.getElementById('m-k-pct')?.value||0);
+  const k=kb>0?kb:(kp>0?tot*(kp/100):0);
+  const n=tot-k; const fmt=v=>'€ '+v.toFixed(2);
+  const lines=regels.map(r=>{
+    const a=artikelen.find(x=>x.productId===r.artikelId);
+    const nm=r.naam||(a?a.name:'')||r.artikelId;
+    const up=getUP(r.artikelId);
+    return `• ${r.artikelId} | ${nm} | ${r.aantal}x | ${up!=null?fmt(up):'—'}`;
+  }).join('\n');
+  const body=`SPS Configuratie Order\n${'='.repeat(40)}\n${b?.spsId} — ${b?.naam||''}\nDatum: ${new Date().toLocaleDateString('nl-NL')}\n\nARTIKELEN:\n${lines}\n\n${'─'.repeat(40)}\nTotaal bruto: ${fmt(tot)}\n${k>0?`Korting: — ${fmt(k)}\n`:''}Netto totaal: ${fmt(n)}`;
+  window.open(`mailto:?subject=SPS Order — ${b?.spsId||''}&body=${encodeURIComponent(body)}`);
+  const s=document.getElementById('m-status'); s.style.display='block'; setTimeout(()=>s.style.display='none',4000);
+};
+
+window.mReset = function(){
+  gekozenId=null; regels=[];
+  document.getElementById('m-sps-sel').value='';
+  document.getElementById('m-cfg').classList.add('hidden');
+};
+</script>
+</body>
+</html>

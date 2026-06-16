@@ -172,6 +172,7 @@ tr.row-selected td{background:var(--blue-light)}
       </div>
       <div id="sb-config" style="display:none">
         <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
+        <a class="nav-item" onclick="showPanel('configurator-sps',this)">Configurator SPS</a>
         <a class="nav-item" onclick="showPanel('basis-config',this)">Basis Configuratie</a>
         <a class="nav-item" onclick="showPanel('sbu-config',this)">SBU Configurator</a>
         <a class="nav-item" onclick="showPanel('blokken',this)">Blokken</a>
@@ -276,6 +277,86 @@ tr.row-selected td{background:var(--blue-light)}
               <tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- CONFIGURATOR SPS PANEL -->
+      <div class="panel" id="panel-configurator-sps">
+        <div class="panel-title">Configurator SPS</div>
+        <div class="panel-sub">Stel een SPS order samen, pas de stuklijst aan en verstuur de offerte.</div>
+
+        <!-- Stap 1: Kies SPS -->
+        <div style="max-width:600px;margin-bottom:20px">
+          <label style="font-size:12px;font-weight:600;color:var(--gray-text);display:block;margin-bottom:6px">Selecteer SPS product</label>
+          <select id="sps-cfg-sel" onchange="spsConfigLaad()"
+            style="width:100%;padding:10px 14px;border:0.5px solid var(--gray-border);border-radius:10px;font-size:14px;outline:none;background:var(--white)">
+            <option value="">— Kies een SPS product —</option>
+          </select>
+        </div>
+
+        <!-- Stap 2: Configuratie -->
+        <div id="sps-cfg-inhoud" style="display:none">
+          <div id="sps-cfg-header" style="background:var(--gray-bg);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--gray-text)"></div>
+
+          <!-- Stuklijst tabel -->
+          <div style="overflow-x:auto;margin-bottom:20px">
+            <table style="width:100%;min-width:600px;border-collapse:collapse;font-size:13px">
+              <thead>
+                <tr style="background:var(--gray-bg)">
+                  <th style="padding:9px 14px;text-align:left;min-width:130px">Artikelnr.</th>
+                  <th style="padding:9px 14px;text-align:left;min-width:260px">Beschrijving</th>
+                  <th style="padding:9px 14px;text-align:right;min-width:100px;color:var(--green)">Verkoopprijs</th>
+                  <th style="padding:9px 14px;text-align:center;min-width:80px">Aantal</th>
+                  <th style="padding:9px 14px;text-align:right;min-width:110px;color:var(--green)">Subtotaal</th>
+                  <th style="padding:9px 14px;min-width:50px"></th>
+                </tr>
+              </thead>
+              <tbody id="sps-cfg-tabel"></tbody>
+              <tfoot>
+                <tr style="background:var(--gray-bg);border-top:2px solid var(--gray-border)">
+                  <td colspan="4" style="padding:12px 14px;font-weight:700;font-size:14px">Totaal</td>
+                  <td style="padding:12px 14px;text-align:right;font-weight:700;font-size:16px;color:var(--green)" id="sps-cfg-totaal">€ 0,00</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Korting -->
+          <div class="card" style="margin-bottom:20px;max-width:500px">
+            <div class="card-body">
+              <div style="font-size:13px;font-weight:600;margin-bottom:12px">Korting</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:var(--gray-text);display:block;margin-bottom:4px">Kortingsbedrag (€)</label>
+                  <input type="number" id="sps-korting-bedrag" min="0" step="0.01" placeholder="0,00"
+                    oninput="spsKortingBedrag()"
+                    style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;outline:none" />
+                </div>
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:var(--gray-text);display:block;margin-bottom:4px">Kortingspercentage (%)</label>
+                  <input type="number" id="sps-korting-pct" min="0" max="100" step="0.1" placeholder="0"
+                    oninput="spsKortingPct()"
+                    style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;outline:none" />
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--gray-bg);border-radius:8px">
+                <span style="font-size:13px;color:var(--gray-text)">Korting</span>
+                <span id="sps-korting-toon" style="font-weight:600;color:var(--red)">— € 0,00</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--blue-light);border-radius:8px;margin-top:8px">
+                <span style="font-size:14px;font-weight:700;color:var(--blue)">Netto totaal</span>
+                <span id="sps-netto-totaal" style="font-size:18px;font-weight:800;color:var(--blue)">€ 0,00</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Order versturen -->
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <button class="btn btn-blue" style="padding:10px 24px;font-size:14px" onclick="spsCfgOrder()">✉ Order versturen</button>
+            <button class="btn" onclick="spsConfigReset()" style="color:var(--gray-text)">Opnieuw beginnen</button>
+            <span id="sps-cfg-status" style="font-size:13px;color:var(--gray-text)"></span>
+          </div>
         </div>
       </div>
 
@@ -1994,6 +2075,7 @@ window.showPanel = function(name,el){
     if(!bomData.length)   laden.push(getDocs(collection(db,'bom_sbu')).then(s=>{ bomData=s.docs.map(d=>({id:d.id,...d.data()})); }));
     Promise.all(laden).then(()=>renderSbuPrijslijst());
   }
+  if(name==='configurator-sps'){ laadSpsCfg(); }
   if(name==='bom-sps'){ laadBomSps(); }
   if(name==='kostencalculatie'){ renderKostencalculatie(); }
   if(name==='trimble-prijslijst'){ loadTrimbleArchief(); }
@@ -2211,6 +2293,156 @@ function renderMerkFilterOpties(){
   if(cur && merken.find(m=>m.id===cur)) sel.value = cur;
   renderPrijslijst();
 }
+
+// ============================================================
+// CONFIGURATOR SPS MODULE
+// ============================================================
+let spsCfgRegels = []; // huidige stuklijst die bewerkt wordt
+let spsCfgGeselecteerd = null;
+
+async function laadSpsCfg(){
+  if(!bomSpsData.length) await laadBomSps();
+  if(!artikelen.length){
+    const snap = await getDocs(collection(db,'artikelen'));
+    artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
+  }
+  const sel = document.getElementById('sps-cfg-sel');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">— Kies een SPS product —</option>' +
+    bomSpsData.map(b=>`<option value="${b.id}">${b.spsId} — ${b.naam||''}</option>`).join('');
+  // Herstel selectie
+  if(spsCfgGeselecteerd) sel.value = spsCfgGeselecteerd;
+}
+
+window.spsConfigLaad = function(){
+  const id = document.getElementById('sps-cfg-sel').value;
+  if(!id){ document.getElementById('sps-cfg-inhoud').style.display='none'; return; }
+  const b = bomSpsData.find(x=>x.id===id);
+  if(!b){ return; }
+  spsCfgGeselecteerd = id;
+  // Initialiseer werklijst
+  spsCfgRegels = (b.artikelen||[]).map(a=>({...a}));
+  document.getElementById('sps-cfg-header').innerHTML =
+    `<strong>${b.spsId}</strong> &nbsp;·&nbsp; ${b.naam||'—'} &nbsp;·&nbsp; <span style="color:var(--gray-text)">${spsCfgRegels.length} artikelen</span>`;
+  document.getElementById('sps-cfg-inhoud').style.display='block';
+  document.getElementById('sps-korting-bedrag').value='';
+  document.getElementById('sps-korting-pct').value='';
+  spsRenderTabel();
+};
+
+function spsGetUnitPrice(artikelId){
+  const art = artikelen.find(a=>a.productId===artikelId);
+  if(!art) return null;
+  const lp  = parseFloat(art.listPrice||0);
+  if(lp>0) return lp;
+  const cost = parseFloat(art.standardCost||0);
+  const pct  = parseFloat(art.profitPct||'');
+  if(cost>0 && !isNaN(pct) && pct>0) return cost*(1+pct/100);
+  return null;
+}
+
+function spsRenderTabel(){
+  const tbody = document.getElementById('sps-cfg-tabel');
+  if(!tbody) return;
+  let totaal = 0;
+  tbody.innerHTML = spsCfgRegels.map((r,i)=>{
+    const art = artikelen.find(a=>a.productId===r.artikelId);
+    const naam = r.naam || (art?art.name:'') || r.artikelId;
+    const up = spsGetUnitPrice(r.artikelId);
+    const aantal = parseFloat(r.aantal||1);
+    const subtot = up!==null ? up*aantal : null;
+    if(subtot) totaal+=subtot;
+    return `<tr style="border-bottom:0.5px solid var(--gray-border)">
+      <td style="padding:10px 14px;font-family:monospace;font-size:12px;color:var(--blue)">${r.artikelId}</td>
+      <td style="padding:10px 14px;font-size:13px">${naam}</td>
+      <td style="padding:10px 14px;text-align:right;font-size:13px;color:var(--green)">${up!==null?'€\u00a0'+up.toFixed(2):'—'}</td>
+      <td style="padding:10px 14px;text-align:center">
+        <input type="number" value="${aantal}" min="1" step="1"
+          onchange="spsAantalWijzig(${i},this.value)"
+          style="width:60px;padding:4px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:13px;text-align:center;outline:none" />
+      </td>
+      <td style="padding:10px 14px;text-align:right;font-size:13px;font-weight:600;color:var(--green)">${subtot!==null?'€\u00a0'+subtot.toFixed(2):'—'}</td>
+      <td style="padding:10px 14px;text-align:center">
+        <button onclick="spsVerwijderRegel(${i})"
+          style="background:var(--red-light);color:var(--red);border:0.5px solid rgba(163,45,45,.3);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px">✕</button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen artikelen</td></tr>';
+
+  document.getElementById('sps-cfg-totaal').textContent = '€\u00a0'+totaal.toFixed(2).replace('.',',');
+  spsHerbereken(totaal);
+}
+
+function spsHerbereken(totaal){
+  const bedrag  = parseFloat(document.getElementById('sps-korting-bedrag')?.value||0);
+  const pct     = parseFloat(document.getElementById('sps-korting-pct')?.value||0);
+  const korting = bedrag>0 ? bedrag : (pct>0 ? totaal*(pct/100) : 0);
+  const netto   = Math.max(0, totaal-korting);
+  const fmt = v=>'€\u00a0'+v.toFixed(2).replace('.',',');
+  document.getElementById('sps-korting-toon').textContent = `— ${fmt(korting)}`;
+  document.getElementById('sps-netto-totaal').textContent = fmt(netto);
+}
+
+function spsGetTotaal(){
+  return spsCfgRegels.reduce((s,r)=>{
+    const up=spsGetUnitPrice(r.artikelId); return s+(up!==null?up*parseFloat(r.aantal||1):0);
+  },0);
+}
+
+window.spsAantalWijzig = function(idx,val){
+  spsCfgRegels[idx].aantal = Math.max(1,parseInt(val)||1);
+  spsRenderTabel();
+};
+
+window.spsVerwijderRegel = function(idx){
+  spsCfgRegels.splice(idx,1);
+  spsRenderTabel();
+};
+
+window.spsKortingBedrag = function(){
+  document.getElementById('sps-korting-pct').value='';
+  spsHerbereken(spsGetTotaal());
+};
+window.spsKortingPct = function(){
+  document.getElementById('sps-korting-bedrag').value='';
+  spsHerbereken(spsGetTotaal());
+};
+
+window.spsConfigReset = function(){
+  spsCfgGeselecteerd=null; spsCfgRegels=[];
+  document.getElementById('sps-cfg-sel').value='';
+  document.getElementById('sps-cfg-inhoud').style.display='none';
+};
+
+window.spsCfgOrder = function(){
+  const b = bomSpsData.find(x=>x.id===spsCfgGeselecteerd);
+  const totaal = spsGetTotaal();
+  const bedrag = parseFloat(document.getElementById('sps-korting-bedrag')?.value||0);
+  const pct    = parseFloat(document.getElementById('sps-korting-pct')?.value||0);
+  const korting= bedrag>0?bedrag:(pct>0?totaal*(pct/100):0);
+  const netto  = totaal-korting;
+  const fmt    = v=>'€ '+v.toFixed(2).replace('.',',');
+  const regels = spsCfgRegels.map(r=>{
+    const art=artikelen.find(a=>a.productId===r.artikelId);
+    const naam=r.naam||(art?art.name:'')||r.artikelId;
+    const up=spsGetUnitPrice(r.artikelId);
+    const sub=up!==null?up*parseFloat(r.aantal||1):null;
+    return `${r.artikelId} | ${naam} | ${r.aantal}x | ${up!=null?fmt(up):'—'} | ${sub!=null?fmt(sub):'—'}`;
+  }).join('\n');
+  const body =
+    `SPS Configuratie Order\n${'='.repeat(50)}\n` +
+    `Product: ${b?.spsId||'—'} — ${b?.naam||''}\n` +
+    `Datum: ${new Date().toLocaleDateString('nl-NL')}\n\n` +
+    `ARTIKELEN:\n${regels}\n\n` +
+    `${'─'.repeat(50)}\n` +
+    `Totaal bruto:    ${fmt(totaal)}\n` +
+    (korting>0?`Korting:         — ${fmt(korting)}${pct>0?` (${pct}%)`:`(${fmt(bedrag)})`}\n`:'')+
+    `Netto totaal:    ${fmt(netto)}\n`;
+  const mailto = `mailto:?subject=SPS Order — ${b?.spsId||''}&body=${encodeURIComponent(body)}`;
+  window.open(mailto);
+  document.getElementById('sps-cfg-status').textContent = '✓ Mail geopend';
+  setTimeout(()=>document.getElementById('sps-cfg-status').textContent='',4000);
+};
 
 // ============================================================
 // BOM SPS MODULE
