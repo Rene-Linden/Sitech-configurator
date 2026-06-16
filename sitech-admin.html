@@ -135,28 +135,38 @@ tr.row-selected td{background:var(--blue-light)}
   <div class="layout">
     <div class="sidebar" style="display:flex;flex-direction:column;overflow-y:auto">
 
-      <!-- BEHEER -->
-      <div onclick="toggleSidebarSectie('sb-beheer',this)"
-        style="padding:12px 16px 10px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;border-bottom:1px solid #f1f5f9">
-        <span>Beheer</span>
-        <span id="sb-beheer-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(0deg)">▼</span>
+      <!-- BEHEER ARTIKELEN -->
+      <div onclick="toggleSidebarSectie('sb-art',this)"
+        style="padding:11px 16px 9px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;border-bottom:1px solid #f1f5f9">
+        <span>Beheer artikelen</span>
+        <span id="sb-art-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(0deg)">▼</span>
       </div>
-      <div id="sb-beheer">
+      <div id="sb-art">
         <a class="nav-item" onclick="showPanel('artikel-templates',this)">Artikel Templates</a>
         <a class="nav-item" onclick="showPanel('kostencalculatie',this)">Kostencalculatie</a>
         <a class="nav-item" onclick="showPanel('trimble-prijslijst',this)">Artikel Prijslijst</a>
         <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
+      </div>
+
+      <!-- BEHEER BUNDELS -->
+      <div onclick="toggleSidebarSectie('sb-bundels',this)"
+        style="padding:11px 16px 9px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;border-top:1px solid #e5e7eb;border-bottom:1px solid #f1f5f9">
+        <span>Beheer bundels</span>
+        <span id="sb-bundels-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(-90deg)">▼</span>
+      </div>
+      <div id="sb-bundels" style="display:none">
         <a class="nav-item" onclick="showPanel('assemblage',this)">Assemblage op voorraad</a>
         <a class="nav-item" onclick="showPanel('bom-sbu',this)">BoM SBU</a>
         <a class="nav-item" onclick="showPanel('sbu',this)">SBU</a>
         <a class="nav-item" onclick="showPanel('bom-ewv',this)">BoM EWV</a>
         <a class="nav-item" onclick="showPanel('ewv',this)">EWV</a>
         <a class="nav-item" onclick="showPanel('sbu-prijslijst',this)">Prijslijst</a>
+        <a class="nav-item" onclick="showPanel('bom-sps',this)">BoM SPS</a>
       </div>
 
       <!-- CONFIGURATOR -->
       <div onclick="toggleSidebarSectie('sb-config',this)"
-        style="padding:12px 16px 10px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;border-top:1px solid #e5e7eb;border-bottom:1px solid #f1f5f9">
+        style="padding:11px 16px 9px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;border-top:1px solid #e5e7eb;border-bottom:1px solid #f1f5f9">
         <span>Configurator</span>
         <span id="sb-config-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(-90deg)">▼</span>
       </div>
@@ -225,6 +235,46 @@ tr.row-selected td{background:var(--blue-light)}
               </tr>
             </thead>
             <tbody id="tbl-sbu-prijslijst"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- BOM SPS PANEL -->
+      <div class="panel" id="panel-bom-sps">
+        <div class="panel-title">BoM SPS</div>
+        <div class="panel-sub">Stuklijsten per SPS artikel. Één rij per SPS met alle subbundel-artikelen en resources.</div>
+
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <input type="text" id="bom-sps-zoek" placeholder="Zoek op SPS-nummer of naam…"
+            style="padding:8px 12px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:13px;width:280px;outline:none"
+            oninput="filterBomSpsTabel()" />
+          <button class="btn btn-sm" onclick="clearBomSpsFilter()" style="color:var(--gray-text)">Wis filter</button>
+          <span id="bom-sps-filter-count" style="font-size:12px;color:var(--gray-text)"></span>
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <button class="btn btn-green" id="btn-bom-sps-upload">Excel uploaden</button>
+            <button class="btn btn-blue" onclick="openNieuwBomSps()">+ Nieuwe BoM</button>
+            <input type="file" id="bom-sps-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
+            <span id="bom-sps-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto">
+          <table style="width:100%;min-width:900px;border-collapse:collapse;font-size:13px">
+            <thead style="position:sticky;top:0;z-index:20;background:var(--gray-bg)">
+              <tr>
+                <th style="padding:9px 14px;min-width:120px">SPS</th>
+                <th style="padding:9px 14px;min-width:280px">Naam</th>
+                <th style="padding:9px 14px;min-width:80px;text-align:center">Artikelen</th>
+                <th style="padding:9px 14px;min-width:110px;text-align:center">Prijzen compleet</th>
+                <th style="padding:9px 14px;min-width:120px;text-align:right;color:var(--blue)">Totaal Std.</th>
+                <th style="padding:9px 14px;min-width:120px;text-align:right;color:var(--green)">Totaal Unit</th>
+                <th style="padding:9px 14px;min-width:120px;text-align:right;color:var(--green)">Afgerond ↑</th>
+                <th style="padding:9px 14px;min-width:120px"></th>
+              </tr>
+            </thead>
+            <tbody id="tbl-bom-sps-body">
+              <tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -1826,10 +1876,10 @@ function pasRolToe(){
 
   // Verberg beheer sectie label als geen beheer-items zichtbaar
   if(r.beheer==='verborgen'){
-    const beheerLabel = document.querySelector('.sidebar div[style*="Beheer"]') ||
-      [...document.querySelectorAll('.sidebar div')].find(d=>d.textContent.trim()==='Beheer');
-    if(beheerLabel) beheerLabel.style.display='none';
-    document.getElementById('sb-beheer')?.style.setProperty('display','none');
+    document.getElementById('sb-art')?.style.setProperty('display','none');
+    document.getElementById('sb-bundels')?.style.setProperty('display','none');
+    // Verberg ook de headers
+    document.querySelectorAll('.sidebar [onclick*="sb-art"],[onclick*="sb-bundels"]').forEach(el=>el.style.display='none');
   }
 }
 
@@ -1943,6 +1993,7 @@ window.showPanel = function(name,el){
     if(!bomData.length)   laden.push(getDocs(collection(db,'bom_sbu')).then(s=>{ bomData=s.docs.map(d=>({id:d.id,...d.data()})); }));
     Promise.all(laden).then(()=>renderSbuPrijslijst());
   }
+  if(name==='bom-sps'){ laadBomSps(); }
   if(name==='kostencalculatie'){ renderKostencalculatie(); }
   if(name==='trimble-prijslijst'){ loadTrimbleArchief(); }
   if(name==='assemblage'){
@@ -2161,7 +2212,146 @@ function renderMerkFilterOpties(){
 }
 
 // ============================================================
-// BEHEER ACCOUNTS MODULE
+// BOM SPS MODULE
+// ============================================================
+let bomSpsData = [];
+let bomSpsFilter = '';
+let bomSpsDetailId = null;
+
+async function laadBomSps(){
+  if(!artikelen.length){
+    const snap = await getDocs(collection(db,'artikelen'));
+    artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
+  }
+  if(!resourcesData[0]?.kostprijs){
+    const snap = await getDocs(collection(db,'resources'));
+    snap.docs.forEach(d=>{ const i=resourcesData.findIndex(r=>r.id===d.id); if(i>-1) Object.assign(resourcesData[i],d.data()); });
+  }
+  const snap = await getDocs(collection(db,'bom_sps'));
+  bomSpsData = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.spsId||'').localeCompare(b.spsId||''));
+  renderBomSpsTabel();
+}
+
+window.filterBomSpsTabel = function(){
+  bomSpsFilter = (document.getElementById('bom-sps-zoek')?.value||'').toLowerCase().trim();
+  renderBomSpsTabel();
+};
+window.clearBomSpsFilter = function(){
+  bomSpsFilter=''; const el=document.getElementById('bom-sps-zoek'); if(el) el.value='';
+  renderBomSpsTabel();
+};
+
+function renderBomSpsTabel(){
+  const tbody = document.getElementById('tbl-bom-sps-body');
+  if(!tbody) return;
+  const gefilterd = bomSpsFilter
+    ? bomSpsData.filter(b=>(b.spsId||'').toLowerCase().includes(bomSpsFilter)||(b.naam||'').toLowerCase().includes(bomSpsFilter))
+    : bomSpsData;
+  const countEl = document.getElementById('bom-sps-filter-count');
+  if(countEl) countEl.textContent = bomSpsFilter ? `${gefilterd.length} van ${bomSpsData.length}` : `${bomSpsData.length} SPS records`;
+
+  tbody.innerHTML = gefilterd.map(b=>{
+    const tot = berekenBomTotalen(b);
+    const arts = b.artikelen||[];
+    let alleHebbenPrijs = arts.length>0;
+    arts.forEach(a=>{ const art=getArtikelByProductId(a.artikelId); if(!berekenArtikelUnitPriceVoorBom(art)) alleHebbenPrijs=false; });
+    const prijsBadge = arts.length===0
+      ? `<span style="padding:2px 8px;border-radius:20px;font-size:11px;color:var(--gray-text);border:0.5px solid var(--gray-border)">—</span>`
+      : alleHebbenPrijs
+      ? `<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;background:var(--green-light);color:var(--green);border:0.5px solid rgba(59,109,17,.3)">✓ Ja</span>`
+      : `<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;background:var(--red-light);color:var(--red);border:0.5px solid rgba(163,45,45,.3)">✗ Nee</span>`;
+    return `<tr>
+      <td style="padding:9px 14px"><strong>${b.spsId||'—'}</strong></td>
+      <td style="padding:9px 14px;font-size:13px">${b.naam||'—'}</td>
+      <td style="padding:9px 14px;text-align:center;font-size:12px;color:var(--gray-text)">${arts.length}</td>
+      <td style="padding:9px 14px;text-align:center">${prijsBadge}</td>
+      <td style="padding:9px 14px;text-align:right;font-size:12px;font-weight:500;color:var(--blue)">${tot?'€\u00a0'+tot.stdTotaal.toFixed(2):'—'}</td>
+      <td style="padding:9px 14px;text-align:right;font-size:12px;font-weight:500;color:var(--green)">${tot?'€\u00a0'+tot.unitTotaal.toFixed(2):'—'}</td>
+      <td style="padding:9px 14px;text-align:right;font-size:12px;font-weight:600;color:var(--green)">${tot?'€\u00a0'+Math.ceil(tot.unitTotaal).toLocaleString('nl-NL'):'—'}</td>
+      <td style="padding:9px 14px;text-align:right;white-space:nowrap">
+        <button class="btn btn-sm" onclick="openBomSpsDetail('${b.id}')">Stuklijst</button>
+        <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteBomSps('${b.id}')">Verwijderen</button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen BoM SPS data — upload een Excel of voeg handmatig toe</td></tr>';
+}
+
+window.openNieuwBomSps = function(){
+  const id = 'SPS-'+String(bomSpsData.length+1).padStart('4','0');
+  alert(`Nieuwe BoM SPS aanmaken — gebruik de Excel upload of voeg handmatig toe.\nVoorgesteld ID: ${id}`);
+};
+
+window.deleteBomSps = async function(id){
+  if(!confirm('BoM SPS verwijderen?')) return;
+  await deleteDoc(doc(db,'bom_sps',id));
+  bomSpsData = bomSpsData.filter(b=>b.id!==id);
+  renderBomSpsTabel();
+  showSaving('BoM SPS verwijderd');
+};
+
+window.openBomSpsDetail = function(id){
+  // Hergebruik de BoM SBU detail modal met SPS data
+  const b = bomSpsData.find(x=>x.id===id);
+  if(!b) return;
+  bomSpsDetailId = id;
+  document.getElementById('modal-bom-detail-title').textContent = `${b.spsId} — ${b.naam||''}`;
+  document.getElementById('bom-detail-info').innerHTML =
+    `<strong>${b.spsId}</strong> · ${b.naam||'—'} · Welding: ${b.welding||'—'} u  Mounting: ${b.mounting||'—'} u  Calibration: ${b.calibration||'—'} u`;
+  document.getElementById('bom-res-welding').value    = b.welding||0;
+  document.getElementById('bom-res-mounting').value   = b.mounting||0;
+  document.getElementById('bom-res-calibration').value= b.calibration||0;
+  renderBomSpsDetailTabel(b);
+  openModal('modal-bom-detail');
+};
+
+function renderBomSpsDetailTabel(b){
+  // Hergebruik renderBomDetailTabel logica maar voor SPS
+  const tempBom = {...b, sbuId: b.spsId};
+  renderBomDetailTabel(tempBom);
+}
+
+// SPS upload handler
+document.getElementById('btn-bom-sps-upload').addEventListener('click',()=>document.getElementById('bom-sps-upload-input').click());
+document.getElementById('bom-sps-upload-input').addEventListener('change', async(event)=>{
+  const status = document.getElementById('bom-sps-upload-status');
+  const file   = event.target.files[0]; if(!file) return;
+  if(typeof XLSX==='undefined'){ alert('Excel-library nog niet geladen'); return; }
+  status.textContent='Bestand lezen…';
+  const reader = new FileReader();
+  reader.onload = async e=>{
+    try{
+      const wb  = XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const ws  = wb.Sheets[wb.SheetNames[0]];
+      const rows= XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      const start=rows[0]&&String(rows[0][0]).toLowerCase().includes('product')?1:0;
+      const data=rows.slice(start).filter(r=>String(r[0]||'').trim().match(/^SPS/i));
+      const spsMap={};
+      data.forEach(r=>{
+        const spsId=String(r[0]||'').trim(), naam=String(r[1]||'').trim();
+        const subId=String(r[3]||'').trim(), aantal=String(r[5]||'').trim(), eenheid=String(r[6]||'').trim();
+        if(!spsId) return;
+        if(!spsMap[spsId]) spsMap[spsId]={spsId,naam,artikelen:[],welding:'',mounting:'',calibration:''};
+        if(naam&&!spsMap[spsId].naam) spsMap[spsId].naam=naam;
+        if(subId==='Welding') spsMap[spsId].welding=aantal;
+        else if(subId==='Mounting') spsMap[spsId].mounting=aantal;
+        else if(subId==='Calibration') spsMap[spsId].calibration=aantal;
+        else if(subId) spsMap[spsId].artikelen.push({artikelId:subId,naam:'',aantal,eenheid});
+      });
+      const items=Object.values(spsMap);
+      if(!items.length){ status.textContent='Geen SPS records gevonden'; return; }
+      for(let i=0;i<items.length;i+=500){
+        const batch=writeBatch(db);
+        items.slice(i,i+500).forEach(b=>{ batch.set(doc(db,'bom_sps','sps'+Date.now()+Math.random()),b); });
+        await batch.commit();
+        status.textContent=`${Math.min(i+500,items.length)} / ${items.length} geladen…`;
+      }
+      await laadBomSps();
+      status.textContent=`✓ ${items.length} SPS records geladen`;
+      setTimeout(()=>status.textContent='',4000);
+    }catch(err){ status.textContent=''; alert('Fout: '+err.message); }
+  };
+  reader.readAsArrayBuffer(file); event.target.value='';
+});
 // ============================================================
 const ROL_OMSCHRIJVING = {
   admin: 'Beheer: alles · Configurator: alles',
