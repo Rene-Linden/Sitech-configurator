@@ -848,6 +848,7 @@ tr.row-selected td{background:var(--blue-light)}
             <button class="btn btn-blue" id="btn-sbu-nieuw">+ Nieuw artikel</button>
             <button class="btn btn-green" id="btn-sbu-upload">Excel uploaden</button>
             <button class="btn" id="btn-sbu-download" style="border-color:rgba(59,109,17,.3);color:var(--green);background:var(--green-light)">Excel downloaden</button>
+            <button class="btn" id="btn-sbu-bc-download" style="border-color:rgba(24,95,165,.3);color:var(--blue);background:var(--blue-light)">BC-Excel download</button>
             <input type="file" id="sbu-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
             <span id="sbu-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
             <span id="sbu-count" style="font-size:13px;color:var(--gray-text);margin-left:auto"></span>
@@ -7174,8 +7175,63 @@ document.getElementById('btn-sbu-download').addEventListener('click',()=>{
   XLSX.utils.book_append_sheet(wb,ws,'SBU Artikelen');
   XLSX.writeFile(wb,`sbu-artikelen-${new Date().toISOString().slice(0,10)}.xlsx`);
 });
-let artikelTemplatesData = {};
-let atGeselecteerd = null;
+// BC-Excel download SBU — formaat voor Business Central Price List import
+document.getElementById('btn-sbu-bc-download').addEventListener('click', async ()=>{
+  if(typeof XLSX==='undefined'){ alert('Excel-library nog niet geladen'); return; }
+
+  // Zorg dat BoM SBU data geladen is voor verkoopprijzen
+  if(!bomData.length){
+    const snap = await getDocs(collection(db,'bom_sbu'));
+    bomData = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+  }
+  if(!artikelen.length){
+    const snap = await getDocs(collection(db,'artikelen'));
+    artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
+  }
+
+  const sbus = getSbuArtikelen();
+
+  // Header conform BC format
+  const header = [
+    'Product Type','Product No.','Description','Variant Code','Work Type Code',
+    'Unit of Measure Code','Minimum Quantity','Unit Price','Allow Line Disc.','Allow Invoice Disc.'
+  ];
+
+  const rows = [header, ...sbus.map(a=>{
+    // Verkoopprijs = afgerond unitTotaal van BoM SBU
+    const bom = bomData.find(b=>b.sbuId===a.productId);
+    let unitPrice = '';
+    if(bom){
+      const tot = berekenBomTotalen(bom);
+      if(tot && tot.unitTotaal>0) unitPrice = Math.ceil(tot.unitTotaal);
+    }
+    return [
+      'Item',          // A: Product Type
+      a.productId||'', // B: Product No.
+      a.name||'',      // C: Description
+      '',              // D: Variant Code (leeg)
+      '',              // E: Work Type Code (leeg)
+      'ST',            // F: Unit of Measure Code
+      1,               // G: Minimum Quantity
+      unitPrice,       // H: Unit Price (verkoopprijs SBU)
+      false,           // I: Allow Line Disc.
+      false,           // J: Allow Invoice Disc.
+    ];
+  })];
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // Kolombreedte
+  ws['!cols'] = [
+    {wch:12},{wch:14},{wch:50},{wch:14},{wch:14},{wch:10},{wch:10},{wch:12},{wch:14},{wch:16}
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Lines');
+  XLSX.writeFile(wb, `BC-PriceList-SBU-${new Date().toISOString().slice(0,10)}.xlsx`);
+});
+
+
 let unsubArtikelTemplates;
 
 function startArtikelTemplatesListener(){  unsubArtikelTemplates = onSnapshot(collection(db,'artikel_templates'), snap=>{
