@@ -1145,7 +1145,7 @@ tr.row-selected td{background:var(--blue-light)}
       </div>
 
       <!-- ARTIKEL TEMPLATES PANEL -->
-      <div class="panel active" id="panel-artikel-templates">
+      <div class="panel" id="panel-artikel-templates">
         <div class="panel-title">Artikel Templates</div>
         <div class="panel-sub">Klik op een rij om deze te selecteren. Beheer de vaste velden per template-type.</div>
 
@@ -1914,6 +1914,7 @@ let pendingExcelBlocks = null;
 let aanvragen = [];
 let artikelen = [];
 let artikelTemplatesData = {};
+let atGeselecteerd = null;
 let chartInstance = null;
 
 // ============================================================
@@ -1933,6 +1934,12 @@ function toonApp(){
       }
     });
   });
+  // Open eerste pagina met data
+  const eersteNavItem = document.querySelector('.nav-item[onclick]');
+  if(eersteNavItem){
+    const match = eersteNavItem.getAttribute('onclick').match(/showPanel\('([^']+)'/);
+    if(match) showPanel(match[1], eersteNavItem);
+  }
 }
 
 function pasRolToe(){
