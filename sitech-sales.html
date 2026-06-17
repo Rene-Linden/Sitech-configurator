@@ -164,6 +164,125 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
 </div>
 
 <!-- MERK KIEZEN -->
+<!-- TYPE KEUZE SCHERM -->
+<div id="type-screen" style="display:none;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background:var(--bg)">
+  <div style="width:100%;max-width:660px">
+    <div style="text-align:center;margin-bottom:2rem">
+      <img src="sitech-logo.jpg" alt="Sitech" style="height:36px;width:auto;margin-bottom:1rem" />
+      <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Wat wil je configureren?</h2>
+      <p style="font-size:14px;color:var(--gray-text)">Kies het type apparatuur voor deze aanvraag</p>
+      <div id="type-user-badge" style="display:inline-block;margin-top:8px;background:var(--blue-light);color:var(--blue);padding:3px 14px;border-radius:20px;font-size:13px;font-weight:500"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div onclick="kiesApparaatType('machinebesturing')"
+        style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:2rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .15s,background .15s"
+        onmouseenter="this.style.borderColor='var(--blue)';this.style.background='var(--blue-light)'"
+        onmouseleave="this.style.borderColor='#e2e8f0';this.style.background='#fff'">
+        <div style="font-size:44px;margin-bottom:12px">🏗️</div>
+        <div style="font-size:16px;font-weight:700;color:var(--blue);margin-bottom:8px">Machinebesturing</div>
+        <div style="font-size:13px;color:var(--gray-text);line-height:1.6">Trimble Earthworks en andere machine control systemen. Selecteer merk en configureer per blok.</div>
+      </div>
+
+      <div onclick="kiesApparaatType('meetapparatuur')"
+        style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:2rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .15s,background .15s"
+        onmouseenter="this.style.borderColor='#16a34a';this.style.background='#f0fdf4'"
+        onmouseleave="this.style.borderColor='#e2e8f0';this.style.background='#fff'">
+        <div style="font-size:44px;margin-bottom:12px">📐</div>
+        <div style="font-size:16px;font-weight:700;color:#16a34a;margin-bottom:8px">Meet- en uitzetapparatuur</div>
+        <div style="font-size:13px;color:var(--gray-text);line-height:1.6">SPS totaalstations en meetapparatuur. Stel een SPS pakket samen op basis van de klantwens.</div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:1.5rem">
+      <button onclick="doLogout()" style="background:none;border:none;color:var(--gray-text);font-size:13px;cursor:pointer;text-decoration:underline;font-family:inherit">Uitloggen</button>
+    </div>
+  </div>
+</div>
+
+<!-- SPS SCHERM (sales versie) -->
+<div id="sps-sales-screen" style="display:none">
+  <div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50">
+    <div>
+      <div style="font-size:16px;font-weight:700;color:var(--blue)">Meet- en uitzetapparatuur</div>
+      <div id="sps-sales-user" style="font-size:12px;color:var(--gray-text)"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="terugNaarTypeKeuze()" style="background:none;border:1px solid #e2e8f0;color:var(--gray-text);padding:7px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit">← Terug</button>
+      <button onclick="doLogout()" style="background:none;border:1px solid #e2e8f0;color:var(--gray-text);padding:7px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit">Uitloggen</button>
+    </div>
+  </div>
+
+  <div style="padding:24px;max-width:880px;margin:0 auto">
+    <div style="margin-bottom:18px">
+      <label style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">SPS product</label>
+      <select id="sps-sales-sel" onchange="spsLaadSales()"
+        style="width:100%;max-width:480px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;background:#fff">
+        <option value="">— Kies een SPS product —</option>
+      </select>
+    </div>
+
+    <div id="sps-sales-inhoud" style="display:none">
+      <div id="sps-sales-hdr" style="background:#f8fafc;border-radius:10px;padding:10px 16px;margin-bottom:14px;font-size:13px;color:var(--gray-text)"></div>
+
+      <div style="overflow-x:auto;margin-bottom:18px">
+        <table style="width:100%;min-width:540px;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:#f1f5f9">
+              <th style="padding:9px 14px;text-align:left">Artikelnr.</th>
+              <th style="padding:9px 14px;text-align:left">Beschrijving</th>
+              <th style="padding:9px 14px;text-align:right;color:#16a34a">Verkoopprijs</th>
+              <th style="padding:9px 14px;text-align:center">Aantal</th>
+              <th style="padding:9px 14px;text-align:right;color:#16a34a">Subtotaal</th>
+              <th style="padding:9px 14px"></th>
+            </tr>
+          </thead>
+          <tbody id="sps-sales-tabel"></tbody>
+          <tfoot>
+            <tr style="background:#f1f5f9;border-top:2px solid #e2e8f0">
+              <td colspan="4" style="padding:12px 14px;font-weight:700">Totaal</td>
+              <td style="padding:12px 14px;text-align:right;font-weight:700;font-size:15px;color:#16a34a" id="sps-sales-totaal">€ 0,00</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.25rem;margin-bottom:18px;max-width:440px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px">Korting</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--gray-text);display:block;margin-bottom:4px">Bedrag (€)</label>
+            <input type="number" id="sps-sales-k-bedrag" min="0" step="0.01" placeholder="0,00"
+              oninput="spsKortingBedragSales()"
+              style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none" />
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--gray-text);display:block;margin-bottom:4px">Percentage (%)</label>
+            <input type="number" id="sps-sales-k-pct" min="0" max="100" step="0.1" placeholder="0"
+              oninput="spsKortingPctSales()"
+              style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none" />
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px">
+          <span style="font-size:13px;color:var(--gray-text)">Korting</span>
+          <span id="sps-sales-k-toon" style="font-weight:600;color:#dc2626">— € 0,00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px;background:var(--blue-light);border-radius:8px">
+          <span style="font-weight:700;color:var(--blue)">Netto totaal</span>
+          <span id="sps-sales-netto" style="font-size:17px;font-weight:800;color:var(--blue)">€ 0,00</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn-primary" onclick="spsSalesOrder()">✉ Aanvraag versturen</button>
+        <button onclick="spsResetSales()" style="background:none;border:1px solid #e2e8f0;color:var(--gray-text);padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;font-family:inherit">Opnieuw beginnen</button>
+        <span id="sps-sales-status" style="font-size:13px;color:#16a34a"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="merk-screen">
   <div class="merk-card">
     <img src="sitech-logo.jpg" alt="Sitech" style="height:36px;width:auto;margin-bottom:1.25rem" />
@@ -383,15 +502,147 @@ window.doLogin = function(){
   currentUser=user;
   document.getElementById('user-badge').textContent=user.naam||user.login;
   document.getElementById('login-screen').style.display='none';
-  showMerkKeuze();
+  // Toon type-keuze scherm
+  document.getElementById('type-user-badge').textContent=user.naam||user.login;
+  document.getElementById('type-screen').style.display='flex';
 };
+
+window.kiesApparaatType = function(type){
+  document.getElementById('type-screen').style.display='none';
+  if(type==='machinebesturing'){
+    showMerkKeuze();
+  } else {
+    document.getElementById('sps-sales-user').textContent=currentUser?.naam||'';
+    document.getElementById('sps-sales-screen').style.display='block';
+    laadSpsSales();
+  }
+};
+
+window.terugNaarTypeKeuze = function(){
+  document.getElementById('sps-sales-screen').style.display='none';
+  document.getElementById('app-screen').style.display='none';
+  document.getElementById('merk-screen').style.display='none';
+  spsResetSales();
+  document.getElementById('type-screen').style.display='flex';
+};
+
 window.doLogout = function(){
   currentUser=null; currentMerk=null; selections={};
   document.getElementById('pw-user').value='';
   document.getElementById('pw-input').value='';
   document.getElementById('login-screen').style.display='flex';
-  document.getElementById('app-screen').style.display='none';
+  document.getElementById('type-screen').style.display='none';
   document.getElementById('merk-screen').style.display='none';
+  document.getElementById('app-screen').style.display='none';
+  document.getElementById('sps-sales-screen').style.display='none';
+};
+
+// ============================================================
+// SPS CONFIGURATOR — SALES VERSIE
+// ============================================================
+let bomSpsDataSales=[], artikelenSales=[], spsRegelsSales=[], spsGekozenSales=null;
+
+async function laadSpsSales(){
+  if(!bomSpsDataSales.length){
+    const snap=await getDocs(collection(db,'bom_sps'));
+    bomSpsDataSales=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.spsId||'').localeCompare(b.spsId||''));
+  }
+  if(!artikelenSales.length){
+    const snap=await getDocs(collection(db,'artikelen'));
+    artikelenSales=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }
+  const sel=document.getElementById('sps-sales-sel'); if(!sel) return;
+  sel.innerHTML='<option value="">— Kies een SPS product —</option>'+
+    bomSpsDataSales.map(b=>`<option value="${b.id}">${b.spsId} — ${b.naam||''}</option>`).join('');
+}
+
+function spsGetUPSales(artId){
+  const a=artikelenSales.find(x=>x.productId===artId); if(!a) return null;
+  const lp=parseFloat(a.listPrice||0); if(lp>0) return lp;
+  const c=parseFloat(a.standardCost||0),p=parseFloat(a.profitPct||'');
+  return c>0&&!isNaN(p)&&p>0?c*(1+p/100):null;
+}
+
+window.spsLaadSales=function(){
+  const id=document.getElementById('sps-sales-sel').value;
+  if(!id){document.getElementById('sps-sales-inhoud').style.display='none';return;}
+  const b=bomSpsDataSales.find(x=>x.id===id); if(!b) return;
+  spsGekozenSales=id; spsRegelsSales=(b.artikelen||[]).map(a=>({...a}));
+  document.getElementById('sps-sales-hdr').innerHTML=`<strong>${b.spsId}</strong> &nbsp;·&nbsp; ${b.naam||'—'}`;
+  document.getElementById('sps-sales-inhoud').style.display='block';
+  document.getElementById('sps-sales-k-bedrag').value='';
+  document.getElementById('sps-sales-k-pct').value='';
+  spsRenderSales();
+};
+
+function spsRenderSales(){
+  const tbody=document.getElementById('sps-sales-tabel'); if(!tbody) return;
+  let totaal=0;
+  tbody.innerHTML=spsRegelsSales.map((r,i)=>{
+    const art=artikelenSales.find(a=>a.productId===r.artikelId);
+    const naam=r.naam||(art?art.name:'')||r.artikelId;
+    const up=spsGetUPSales(r.artikelId);
+    const aant=parseFloat(r.aantal||1);
+    const sub=up!=null?up*aant:null;
+    if(sub) totaal+=sub;
+    return `<tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:9px 14px;font-family:monospace;font-size:12px;color:var(--blue)">${r.artikelId}</td>
+      <td style="padding:9px 14px;font-size:13px">${naam}</td>
+      <td style="padding:9px 14px;text-align:right;color:#16a34a">${up!=null?'€\u00a0'+up.toFixed(2):'—'}</td>
+      <td style="padding:9px 14px;text-align:center">
+        <input type="number" value="${aant}" min="1" onchange="spsAantalSales(${i},this.value)"
+          style="width:60px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;text-align:center;outline:none" />
+      </td>
+      <td style="padding:9px 14px;text-align:right;font-weight:600;color:#16a34a">${sub!=null?'€\u00a0'+sub.toFixed(2):'—'}</td>
+      <td style="padding:9px 14px;text-align:center">
+        <button onclick="spsDelSales(${i})"
+          style="background:#fef2f2;color:#dc2626;border:1px solid rgba(220,38,38,.2);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px">✕</button>
+      </td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--gray-text);padding:1rem">Geen artikelen</td></tr>';
+  document.getElementById('sps-sales-totaal').textContent='€\u00a0'+totaal.toFixed(2).replace('.',',');
+  spsHerberSales(totaal);
+}
+
+function spsTotaalSales(){
+  return spsRegelsSales.reduce((s,r)=>{const up=spsGetUPSales(r.artikelId);return s+(up!=null?up*parseFloat(r.aantal||1):0);},0);
+}
+function spsHerberSales(totaal){
+  const b=parseFloat(document.getElementById('sps-sales-k-bedrag')?.value||0);
+  const p=parseFloat(document.getElementById('sps-sales-k-pct')?.value||0);
+  const k=b>0?b:(p>0?totaal*(p/100):0);
+  const n=Math.max(0,totaal-k);
+  const fmt=v=>'€\u00a0'+v.toFixed(2).replace('.',',');
+  document.getElementById('sps-sales-k-toon').textContent='— '+fmt(k);
+  document.getElementById('sps-sales-netto').textContent=fmt(n);
+}
+window.spsAantalSales=(i,v)=>{spsRegelsSales[i].aantal=Math.max(1,parseInt(v)||1);spsRenderSales();};
+window.spsDelSales=(i)=>{spsRegelsSales.splice(i,1);spsRenderSales();};
+window.spsKortingBedragSales=()=>{document.getElementById('sps-sales-k-pct').value='';spsHerberSales(spsTotaalSales());};
+window.spsKortingPctSales=()=>{document.getElementById('sps-sales-k-bedrag').value='';spsHerberSales(spsTotaalSales());};
+window.spsResetSales=()=>{
+  spsGekozenSales=null; spsRegelsSales=[];
+  const sel=document.getElementById('sps-sales-sel'); if(sel) sel.value='';
+  const inh=document.getElementById('sps-sales-inhoud'); if(inh) inh.style.display='none';
+};
+window.spsSalesOrder=function(){
+  const b=bomSpsDataSales.find(x=>x.id===spsGekozenSales);
+  const tot=spsTotaalSales();
+  const kb=parseFloat(document.getElementById('sps-sales-k-bedrag')?.value||0);
+  const kp=parseFloat(document.getElementById('sps-sales-k-pct')?.value||0);
+  const k=kb>0?kb:(kp>0?tot*(kp/100):0);
+  const n=tot-k; const fmt=v=>'€ '+v.toFixed(2);
+  const lines=spsRegelsSales.map(r=>{
+    const a=artikelenSales.find(x=>x.productId===r.artikelId);
+    const nm=r.naam||(a?a.name:'')||r.artikelId;
+    const up=spsGetUPSales(r.artikelId);
+    return `• ${r.artikelId} | ${nm} | ${r.aantal}x | ${up!=null?fmt(up):'—'}`;
+  }).join('\n');
+  const medewerker=currentUser?.naam||'';
+  const body=`Meet- en uitzetapparatuur — Aanvraag\n${'='.repeat(40)}\nMedewerker: ${medewerker}\nDatum: ${new Date().toLocaleDateString('nl-NL')}\n\nSPS Product: ${b?.spsId} — ${b?.naam||''}\n\nARTIKELEN:\n${lines}\n\n${'─'.repeat(40)}\nTotaal bruto: ${fmt(tot)}\n${k>0?`Korting: — ${fmt(k)}\n`:''}Netto totaal: ${fmt(n)}`;
+  window.open(`mailto:?subject=Aanvraag SPS — ${medewerker}&body=${encodeURIComponent(body)}`);
+  const s=document.getElementById('sps-sales-status');
+  s.textContent='✓ Mail geopend'; setTimeout(()=>s.textContent='',4000);
 };
 
 // MERK KIEZEN
