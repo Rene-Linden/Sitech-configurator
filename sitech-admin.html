@@ -2023,8 +2023,17 @@ function startListeners(){
   // Sitech medewerkers alleen laden als pagina bezocht wordt (lazy)
   // Prijslijsten alleen laden als pagina bezocht wordt (lazy)
 
-  // Artikel templates als live listener (kleine collectie, nodig overal)
-  startArtikelTemplatesListener();
+  // Artikel templates: één keer laden bij opstarten (geen live listener nodig)
+  getDocs(collection(db,'artikel_templates')).then(snap=>{
+    if(!snap.empty){
+      snap.docs.forEach(d=>{
+        artikelTemplatesData[d.id]={id:d.id,...d.data()};
+        const idx=ARTIKEL_TEMPLATES.findIndex(x=>x.id===d.id);
+        if(idx>-1) Object.assign(ARTIKEL_TEMPLATES[idx],d.data());
+        else ARTIKEL_TEMPLATES.push({id:d.id,...d.data()});
+      });
+    }
+  });
 
   // SBU config en blok namen: background laden, niet-blokkerend
   setTimeout(()=>{
@@ -2047,14 +2056,79 @@ window.showPanel = function(name,el){
   if(!magZien(name)){ alert('U heeft geen toegang tot deze pagina.'); return; }
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('panel-'+name).classList.add('active');
+  document.getElementById('panel-'+name)?.classList.add('active');
   if(el) el.classList.add('active');
+
+  // Helper: laad artikelen als nog niet aanwezig
+  const laadArtikelen = () => artikelen.length
+    ? Promise.resolve()
+    : getDocs(collection(db,'artikelen')).then(s=>{ artikelen=s.docs.map(d=>({id:d.id,...d.data()})); });
+
+  // Helper: laad bomData als nog niet aanwezig
+  const laadBomSbu = () => bomData.length
+    ? Promise.resolve()
+    : getDocs(collection(db,'bom_sbu')).then(s=>{ bomData=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId)); });
+
+  // Helper: laad artikel templates als nog niet aanwezig
+  const laadTemplates = () => ARTIKEL_TEMPLATES.length
+    ? Promise.resolve()
+    : getDocs(collection(db,'artikel_templates')).then(snap=>{
+        snap.docs.forEach(d=>{
+          artikelTemplatesData[d.id]={id:d.id,...d.data()};
+          const idx=ARTIKEL_TEMPLATES.findIndex(x=>x.id===d.id);
+          if(idx>-1) Object.assign(ARTIKEL_TEMPLATES[idx],d.data());
+          else ARTIKEL_TEMPLATES.push({id:d.id,...d.data()});
+        });
+      });
+
+  if(name==='artikel-templates'){
+    laadTemplates().then(()=>renderArtikelTemplates());
+  }
+  if(name==='kostencalculatie'){
+    laadTemplates().then(()=>renderKostencalculatie());
+  }
+  if(name==='trimble-prijslijst'){ loadTrimbleArchief(); }
+  if(name==='artikelen'){
+    laadTemplates().then(()=>{ vulTemplateSelector(); toonTemplateInfo(); });
+    laadArtikelen().then(()=>{ renderArtikelen(); setTimeout(initStickyScroll,100); });
+  }
+  if(name==='assemblage'){
+    laadArtikelen().then(()=>{ renderAssemblage(); setTimeout(initStickyScroll,100); });
+  }
+  if(name==='bom-sbu'){ loadBomData(); }
+  if(name==='sbu'){
+    Promise.all([laadArtikelen(), laadBomSbu()]).then(()=>{
+      if(!resourcesData[0]?.kostprijs){
+        getDocs(collection(db,'resources')).then(s=>{ s.docs.forEach(d=>{ const i=resourcesData.findIndex(r=>r.id===d.id); if(i>-1) Object.assign(resourcesData[i],d.data()); }); vulSbuTemplateSelector(); renderSbu(); });
+      } else { vulSbuTemplateSelector(); renderSbu(); }
+    });
+  }
+  if(name==='bom-ewv'){ loadBomEwvData(); }
+  if(name==='ewv'){
+    laadArtikelen().then(()=>{ vulEwvTemplateSelector(); renderEwv(); });
+  }
+  if(name==='sbu-prijslijst'){
+    Promise.all([laadArtikelen(), laadBomSbu()]).then(()=>renderSbuPrijslijst());
+  }
+  if(name==='bom-sps'){ laadBomSps(); }
+  if(name==='configurator-sps'){
+    laadTemplates().then(()=>laadSpsCfg());
+  }
+  if(name==='merken'){ renderMerken(); }
+  if(name==='basis-config'){ loadBasisConfig(); }
+  if(name==='blokken'){ loadBlokken(); }
+  if(name==='sbu-config'){ loadSbuConfig(); }
   if(name==='prijslijsten'){
     if(!plHuidigMerk && merken.length){
-      plHuidigMerk = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||''))[0].id;
+      plHuidigMerk=[...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||''))[0].id;
     }
-    vulMerkSelectorPL();
-    renderPrijslijstNieuw();
+    if(!prijslijsten || !Object.keys(prijslijsten).length){
+      getDocs(collection(db,'prijslijsten')).then(snap=>{
+        prijslijsten={};
+        snap.docs.forEach(d=>{ prijslijsten[d.id]=d.data().blocks||[]; });
+        vulMerkSelectorPL(); renderPrijslijstNieuw();
+      });
+    } else { vulMerkSelectorPL(); renderPrijslijstNieuw(); }
   }
   if(name==='prijzen-oem'){ laadPrijzenOem(); }
   if(name==='aanvragen'){
@@ -2062,61 +2136,6 @@ window.showPanel = function(name,el){
     if(!aanvragen.length) getDocs(collection(db,'aanvragen')).then(s=>{ aanvragen=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>new Date(b.datum)-new Date(a.datum)); renderAanvragen(); });
     else renderAanvragen();
   }
-  if(name==='sbu-prijslijst'){
-    // Zorg dat data geladen is
-    const laden = [];
-    if(!artikelen.length) laden.push(getDocs(collection(db,'artikelen')).then(s=>{ artikelen=s.docs.map(d=>({id:d.id,...d.data()})); }));
-    if(!bomData.length)   laden.push(getDocs(collection(db,'bom_sbu')).then(s=>{ bomData=s.docs.map(d=>({id:d.id,...d.data()})); }));
-    Promise.all(laden).then(()=>renderSbuPrijslijst());
-  }
-  if(name==='artikel-templates'){
-    if(Object.keys(artikelTemplatesData).length){
-      renderArtikelTemplates();
-    } else {
-      getDocs(collection(db,'artikel_templates')).then(snap=>{
-        snap.docs.forEach(d=>{
-          artikelTemplatesData[d.id]={id:d.id,...d.data()};
-          const idx=ARTIKEL_TEMPLATES.findIndex(x=>x.id===d.id);
-          if(idx>-1) Object.assign(ARTIKEL_TEMPLATES[idx],d.data());
-          else ARTIKEL_TEMPLATES.push({id:d.id,...d.data()});
-        });
-        renderArtikelTemplates();
-      });
-    }
-  }
-  if(name==='trimble-prijslijst'){ loadTrimbleArchief(); }
-  if(name==='assemblage'){
-    getDocs(collection(db,'artikelen')).then(snap=>{
-      artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
-      renderAssemblage();
-      setTimeout(initStickyScroll,100);
-    });
-  }
-  if(name==='artikelen'){
-    vulTemplateSelector();
-    toonTemplateInfo();
-    getDocs(collection(db,'artikelen')).then(snap=>{
-      artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
-      renderArtikelen();
-      setTimeout(initStickyScroll, 100);
-    });
-  }
-  if(name==='bom-sbu'){ loadBomData(); }
-  if(name==='sbu'){
-    const loads = [getDocs(collection(db,'artikelen'))];
-    if(!bomData.length) loads.push(getDocs(collection(db,'bom_sbu')));
-    if(!resourcesData[0]?.kostprijs) loads.push(getDocs(collection(db,'resources')));
-    Promise.all(loads).then(snaps=>{
-      artikelen = snaps[0].docs.map(d=>({id:d.id,...d.data()}));
-      if(snaps[1]) bomData = snaps[1].docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
-      if(snaps[2]) snaps[2].docs.forEach(d=>{ const i=resourcesData.findIndex(r=>r.id===d.id); if(i>-1) Object.assign(resourcesData[i],d.data()); });
-      vulSbuTemplateSelector();
-      renderSbu();
-    });
-  }
-  if(name==='basis-config'){ loadBasisConfig(); }
-  if(name==='blokken'){ loadBlokken(); }
-  if(name==='sbu-config'){ loadSbuConfig(); }
   if(name==='resources'){ loadResources(); }
   if(name==='gebruikers'){
     if(!gebruikers.length) getDocs(collection(db,'gebruikers')).then(s=>{ gebruikers=s.docs.map(d=>({id:d.id,...d.data()})); renderGebruikers(); });
@@ -2127,15 +2146,6 @@ window.showPanel = function(name,el){
     if(!sitechMedewerkers.length) getDocs(collection(db,'sitech_medewerkers')).then(s=>{ sitechMedewerkers=s.docs.map(d=>({id:d.id,...d.data()})); renderSitech(); });
     else renderSitech();
   }
-  if(name==='bom-ewv'){ loadBomEwvData(); }
-  if(name==='ewv'){
-    vulEwvTemplateSelector();
-    getDocs(collection(db,'artikelen')).then(snap=>{
-      artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
-      renderEwv();
-    });
-  }
-  if(name==='artikel-templates'){ renderArtikelTemplates(); }
 };
 window.openModal  = id => document.getElementById(id).classList.add('open');
 window.closeModal = id => document.getElementById(id).classList.remove('open');
