@@ -175,10 +175,19 @@ tr.row-selected td{background:var(--blue-light)}
         <a class="nav-item" onclick="showPanel('blokken',this)">Blokken</a>
         <a class="nav-item" onclick="showPanel('basis-config',this)">Basis Configuratie</a>
         <a class="nav-item" onclick="showPanel('sbu-config',this)">SBU Configurator</a>
-        <a class="nav-item" onclick="showPanel('configurator-sps',this)">Configurator SPS</a>
         <a class="nav-item" onclick="showPanel('prijslijsten',this)">Prijslijsten</a>
         <a class="nav-item" onclick="showPanel('prijzen-oem',this)">Prijzen OEM</a>
         <a class="nav-item" onclick="showPanel('aanvragen',this)">Aanvragen</a>
+      </div>
+
+      <!-- CONFIGURATOR SPS -->
+      <div onclick="toggleSidebarSectie('sb-sps',this)"
+        style="padding:11px 16px 9px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;border-top:1px solid #e5e7eb;border-bottom:1px solid #f1f5f9">
+        <span>Configurator SPS</span>
+        <span id="sb-sps-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(-90deg)">▼</span>
+      </div>
+      <div id="sb-sps" style="display:none">
+        <a class="nav-item" onclick="showPanel('configurator-sps',this)">Configurator SPS</a>
       </div>
 
       <!-- INSTELLINGEN -->
@@ -3237,12 +3246,29 @@ function renderPrijslijst(){
 // ============================================================
 let plAanpassingen = {}; // { blokNr: [ {kleur, criterium, sbuId} ] }
 
+// pl_criterium opslag: { 'blokNr_sbuId': 'los'|'vast' }
+let plCriterium = {};
+
+async function laadPlCriterium(){
+  try{
+    const snap = await getDocs(collection(db,'pl_criterium'));
+    snap.docs.forEach(d=>{ plCriterium[d.id] = d.data().waarde||'los'; });
+  }catch(e){}
+}
+
+window.plSetCriterium = async function(blokNr, sbuId, waarde){
+  const key = blokNr+'_'+sbuId;
+  plCriterium[key] = waarde;
+  await setDoc(doc(db,'pl_criterium',key), { waarde });
+  renderPrijslijstNieuw();
+};
+
 async function renderPrijslijstNieuw(){
   const container = document.getElementById('prijslijst-editor');
   if(!container) return;
   container.innerHTML = '<div style="color:var(--gray-text);padding:1rem">Laden\u2026</div>';
 
-  // Zorg dat data geladen is
+  // Data laden
   if(!bomData.length || !Object.keys(sbuConfigData).length){
     const [bomSnap, cfgSnap, bnSnap, artSnap] = await Promise.all([
       getDocs(collection(db,'bom_sbu')),
@@ -3255,8 +3281,9 @@ async function renderPrijslijstNieuw(){
     bnSnap.docs.forEach(d=>{ blokNamen[d.id]=d.data().naam||''; });
     if(artSnap) artikelen = artSnap.docs.map(d=>({id:d.id,...d.data()}));
   }
+  if(!Object.keys(plCriterium).length) await laadPlCriterium();
 
-  // Blok volgorde ophalen
+  // Blok volgorde
   if(!blokVolgorde.length){
     try{
       const v = await getDocs(collection(db,'blok_volgorde'));
@@ -3264,66 +3291,89 @@ async function renderPrijslijstNieuw(){
     }catch(e){}
   }
 
-  // Bouw blokkenmap: blokNr → [sbuId, ...]  (blok 1 = Basis Configuratie, overslaan)
+  // Blokken opbouwen (blok 1 overslaan)
   const blokMap = {};
   Object.entries(sbuConfigData).forEach(([sbuId, cfg])=>{
     const nr = cfg.blok;
-    if(!nr || nr==='1') return; // blok 1 overslaan
+    if(!nr || nr==='1') return;
     if(!blokMap[nr]) blokMap[nr] = [];
     blokMap[nr].push(sbuId);
   });
 
   const alleBlokNrs = Object.keys(blokMap);
   if(!alleBlokNrs.length){
-    container.innerHTML = '<div style="color:var(--gray-text);padding:1rem">Geen blokken gevonden. Wijs SBU\'s toe aan blokken in de SBU Configurator.</div>';
+    container.innerHTML = '<div style="color:var(--gray-text);padding:1rem">Geen blokken gevonden. Wijs SBU\'s toe in de SBU Configurator.</div>';
     return;
   }
 
-  // Sorteer op blok volgorde
   const gesorteerd = blokVolgorde.filter(nr=>alleBlokNrs.includes(nr));
   alleBlokNrs.forEach(nr=>{ if(!gesorteerd.includes(nr)) gesorteerd.push(nr); });
 
   let html = '';
   gesorteerd.forEach(nr=>{
-    const naam = blokNamen[nr] || `Blok ${nr}`;
+    const blokNaam = blokNamen[nr] || `Blok ${nr}`;
     const sbuIds = blokMap[nr] || [];
 
     const rijen = sbuIds.map(sbuId=>{
       const bom = bomData.find(b=>b.sbuId===sbuId);
-      const naam_sbu = bom?.naam || sbuId;
+      const naamSbu = bom?.naam || sbuId;
       const tot = bom ? berekenBomTotalen(bom) : null;
       const verkoop = tot ? Math.ceil(tot.unitTotaal) : null;
       const std = tot ? tot.stdTotaal : null;
       const winst = (verkoop && std) ? ((verkoop-std)/verkoop*100) : null;
       const winstKleur = winst===null?'var(--gray-text)':winst>=20?'var(--green)':winst>=0?'var(--amber)':'var(--red)';
+      const key = nr+'_'+sbuId;
+      const criterium = plCriterium[key]||'los';
 
       return `<tr style="border-bottom:0.5px solid var(--gray-border)">
-        <td style="padding:9px 14px;font-weight:600;font-size:13px;color:var(--blue)">${sbuId}</td>
-        <td style="padding:9px 14px;font-size:13px">${naam_sbu}</td>
-        <td style="padding:9px 14px;text-align:right;font-size:12px;color:var(--gray-text)">${std?'€\u00a0'+std.toFixed(2):'—'}</td>
-        <td style="padding:9px 14px;text-align:right;font-size:13px;font-weight:600;color:var(--green)">${verkoop?'€\u00a0'+verkoop.toLocaleString('nl-NL'):'—'}</td>
-        <td style="padding:9px 14px;text-align:right;font-size:12px;font-weight:600;color:${winstKleur}">${winst!==null?winst.toFixed(1)+'%':'—'}</td>
+        <td style="padding:9px 14px;font-weight:600;font-size:12px;font-family:monospace;color:var(--blue);white-space:nowrap">${sbuId}</td>
+        <td style="padding:9px 14px;font-size:13px">${naamSbu}</td>
+        <td style="padding:9px 14px;text-align:right;font-size:12px;color:var(--gray-text);white-space:nowrap">${std?'€\u00a0'+std.toFixed(2):'—'}</td>
+        <td style="padding:9px 14px;text-align:right;font-size:13px;font-weight:700;color:var(--green);white-space:nowrap">${verkoop?'€\u00a0'+verkoop.toLocaleString('nl-NL'):'—'}</td>
+        <td style="padding:9px 14px;text-align:right;font-size:12px;font-weight:600;color:${winstKleur};white-space:nowrap">${winst!==null?winst.toFixed(1)+'%':'—'}</td>
+        <td style="padding:9px 14px;text-align:center;white-space:nowrap">
+          <div style="display:inline-flex;border:0.5px solid var(--gray-border);border-radius:8px;overflow:hidden;font-size:12px">
+            <button onclick="plSetCriterium('${nr}','${sbuId}','los')"
+              style="padding:4px 10px;border:none;cursor:pointer;font-size:11px;font-weight:600;
+              background:${criterium==='los'?'var(--amber)':'var(--white)'};
+              color:${criterium==='los'?'#fff':'var(--gray-text)'};
+              border-right:0.5px solid var(--gray-border)">Los</button>
+            <button onclick="plSetCriterium('${nr}','${sbuId}','vast')"
+              style="padding:4px 10px;border:none;cursor:pointer;font-size:11px;font-weight:600;
+              background:${criterium==='vast'?'var(--blue)':'var(--white)'};
+              color:${criterium==='vast'?'#fff':'var(--gray-text)'}">Vast</button>
+          </div>
+        </td>
       </tr>`;
     }).join('');
 
     html += `
-      <div style="margin-bottom:24px">
+      <div style="margin-bottom:28px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
           <span style="background:var(--blue);color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${nr}</span>
-          <span style="font-size:15px;font-weight:700">${naam}</span>
+          <span style="font-size:15px;font-weight:700">${blokNaam}</span>
           <span style="font-size:12px;color:var(--gray-text)">${sbuIds.length} SBU${sbuIds.length!==1?'s':''}</span>
         </div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed">
+          <colgroup>
+            <col style="width:130px">
+            <col>
+            <col style="width:130px">
+            <col style="width:130px">
+            <col style="width:90px">
+            <col style="width:110px">
+          </colgroup>
           <thead>
             <tr style="background:var(--gray-bg)">
-              <th style="padding:8px 14px;text-align:left;min-width:110px">SBU</th>
-              <th style="padding:8px 14px;text-align:left;min-width:260px">Naam</th>
-              <th style="padding:8px 14px;text-align:right;min-width:120px;color:var(--gray-text)">Kostprijs</th>
-              <th style="padding:8px 14px;text-align:right;min-width:120px;color:var(--green)">Verkoopprijs</th>
-              <th style="padding:8px 14px;text-align:right;min-width:90px">Winst %</th>
+              <th style="padding:8px 14px;text-align:left">SBU</th>
+              <th style="padding:8px 14px;text-align:left">Naam</th>
+              <th style="padding:8px 14px;text-align:right;color:var(--gray-text)">Kostprijs</th>
+              <th style="padding:8px 14px;text-align:right;color:var(--green)">Verkoopprijs</th>
+              <th style="padding:8px 14px;text-align:right">Winst %</th>
+              <th style="padding:8px 14px;text-align:center">Criterium</th>
             </tr>
           </thead>
-          <tbody>${rijen||'<tr><td colspan="5" style="padding:1rem;color:var(--gray-text)">Geen SBU\'s in dit blok</td></tr>'}</tbody>
+          <tbody>${rijen||'<tr><td colspan="6" style="padding:1rem;color:var(--gray-text)">Geen SBU\'s in dit blok</td></tr>'}</tbody>
         </table>
       </div>`;
   });
