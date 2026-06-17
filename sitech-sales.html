@@ -526,7 +526,7 @@ let currentUser=null, currentMerk=null, selections={};
 // Firestore data
 let bomData=[], sbuConfigData={}, blokNamenData={}, plCriteriumData={}, blokVolgordeData=[];
 let artikelenCache={}, bcData={};
-let resourceTarieven={welding:95, mounting:95, calibration:95};
+let resourceTarieven={ welding:{kostprijs:45,verkoopprijs:95}, mounting:{kostprijs:45,verkoopprijs:95}, calibration:{kostprijs:45,verkoopprijs:95} };
 
 async function loadData(){
   const [mS,sS] = await Promise.all([
@@ -557,10 +557,9 @@ async function laadConfigData(){
   pcSnap.docs.forEach(d=>{ plCriteriumData[d.id]=d.data().waarde||'beide'; });
   bcSnap.docs.forEach(d=>{ bcData[d.id]=d.data().rijen||[]; });
   artSnap.docs.forEach(d=>{ artikelenCache[d.data().productId||d.id]={...d.data(),id:d.id}; });
-  resSnap.docs.forEach(d=>{ if(d.id in resourceTarieven) Object.assign(resourceTarieven,{[d.id]:d.data()}); });
-  // Flatten resource tarieven
-  ['welding','mounting','calibration'].forEach(k=>{
-    if(typeof resourceTarieven[k]==='object') resourceTarieven[k]=resourceTarieven[k].verkoopprijs||95;
+  resSnap.docs.forEach(d=>{
+    const id=d.id.toLowerCase();
+    if(id in resourceTarieven) resourceTarieven[id]={kostprijs:d.data().kostprijs||45, verkoopprijs:d.data().verkoopprijs||95};
   });
   const vol0 = volSnap.docs[0];
   blokVolgordeData = vol0 ? vol0.data().volgorde||[] : [];
@@ -970,7 +969,7 @@ function renderHuidigBlok(){
             u+=up*parseFloat(a.aantal||1); h=true;
           });
           const w=parseFloat(bom.welding||0),m=parseFloat(bom.mounting||0),cl=parseFloat(bom.calibration||0);
-          u+=w*resourceTarieven.welding+m*resourceTarieven.mounting+cl*resourceTarieven.calibration;
+          u+=w*(resourceTarieven.welding?.verkoopprijs||95)+m*(resourceTarieven.mounting?.verkoopprijs||95)+cl*(resourceTarieven.calibration?.verkoopprijs||95);
           bom._cachedUnit = h?u:0;
         }
         tot+=bom._cachedUnit; ok=true;
@@ -1013,7 +1012,7 @@ function renderHuidigBlok(){
             u+=up*parseFloat(a.aantal||1); h=true;
           });
           const w=parseFloat(bom.welding||0),m=parseFloat(bom.mounting||0),cl=parseFloat(bom.calibration||0);
-          u+=w*resourceTarieven.welding+m*resourceTarieven.mounting+cl*resourceTarieven.calibration;
+          u+=w*(resourceTarieven.welding?.verkoopprijs||95)+m*(resourceTarieven.mounting?.verkoopprijs||95)+cl*(resourceTarieven.calibration?.verkoopprijs||95);
           bom._cachedUnit = h?u:0;
         }
         if(bom._cachedStd===undefined){
