@@ -6578,6 +6578,9 @@ window.blokOpslaan = async function(){
 
   closeModal('modal-blok-edit');
   renderBlokken();
+  // Sync prijslijst: reset bcData zodat de volgende render vers laadt
+  Object.keys(bcData).forEach(k=>delete bcData[k]);
+  if(document.getElementById('panel-prijslijsten')?.classList.contains('active')) renderPrijslijstNieuw();
   status.textContent = '✓ Opgeslagen';
   setTimeout(()=>status.textContent='',3000);
 };
@@ -6601,6 +6604,9 @@ window.blokVerwijderen = async function(nr){
   }
 
   renderBlokken();
+  // Sync prijslijst
+  Object.keys(bcData).forEach(k=>delete bcData[k]);
+  if(document.getElementById('panel-prijslijsten')?.classList.contains('active')) renderPrijslijstNieuw();
   showSaving('Blok verwijderd');
 };
 
@@ -6721,13 +6727,14 @@ window.sbuConfigToggle = async function(sbuId, merkId){
     btn.style.color = actief ? 'var(--green)' : 'var(--red)';
     btn.style.borderColor = actief ? 'rgba(59,109,17,.3)' : 'rgba(163,45,45,.3)';
   }
+  if(document.getElementById('panel-prijslijsten')?.classList.contains('active')) renderPrijslijstNieuw();
 };
 
 window.sbuConfigWijzig = async function(sbuId, field, value){
   if(!sbuConfigData[sbuId]) sbuConfigData[sbuId] = { blok:'', merken:{} };
   sbuConfigData[sbuId][field] = value;
-  // Direct opslaan naar Firestore
   await setDoc(doc(db,'sbu_config',sbuId), sbuConfigData[sbuId]);
+  if(document.getElementById('panel-prijslijsten')?.classList.contains('active')) renderPrijslijstNieuw();
 };
 
 window.saveSbuConfig = async function(){
@@ -6746,6 +6753,7 @@ window.saveSbuConfig = async function(){
   status.textContent = '✓ Opgeslagen';
   setTimeout(()=>status.textContent='', 3000);
   showSaving('SBU configuratie opgeslagen');
+  if(document.getElementById('panel-prijslijsten')?.classList.contains('active')) renderPrijslijstNieuw();
 };
 
 // ============================================================
