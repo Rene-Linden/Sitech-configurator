@@ -565,30 +565,6 @@ async function laadConfigData(){
   blokVolgordeData = vol0 ? vol0.data().volgorde||[] : [];
 }
 
-function berekenBcVerkoop(r){
-  const sbus=[r.sbu1,r.sbu2,r.sbu3,r.sbu4].filter(Boolean);
-  if(!sbus.length) return null;
-  let tot=0, ok=false;
-  sbus.forEach(sbuId=>{
-    const bom=bomData.find(b=>b.sbuId===sbuId); if(!bom) return;
-    let u=0; let h=false;
-    (bom.artikelen||[]).forEach(a=>{
-      const art=a.artikelId?{standardCost:0,listPrice:0,profitPct:0}:null;
-      // simplified: just sum unitTotaal from bom if available
-    });
-    // Use berekenBomTotalen-equivalent inline
-    const totBom=bereken(bom); if(totBom){ u=totBom; ok=true; }
-    tot+=u;
-  });
-  return ok?tot:null;
-}
-
-function bereken(bom){
-  // Simplified: return unitTotaal if cached
-  if(bom._unitTotaal) return bom._unitTotaal;
-  return null;
-}
-
 // Bouw gesorteerde blokkenlijst:
 // Blok 0 = Basis Configuratie (bc), blokken 2+ uit sbu_config
 function getBlokken(merkId, criterium){
@@ -821,19 +797,6 @@ window.selectMerk = function(id){
   currentMerk=merken.find(m=>m.id===id);
   document.getElementById('btn-start-config').disabled=false;
 };
-window.startConfig = function(){
-  if(!currentMerk) return;
-  document.getElementById('merk-screen').style.display='none';
-  document.getElementById('app-screen').style.display='block';
-  document.getElementById('merk-badge').textContent=currentMerk.naam;
-  selections={};
-  document.getElementById('f-am-name').value  = currentUser.naam||'';
-  document.getElementById('f-am-email').value = currentUser.email||'';
-  document.getElementById('f-am-phone').value = currentUser.tel||'';
-  document.getElementById('f-supplier').value = currentMerk.naam;
-  renderBlocks();
-  showStep('step1'); updateStepper(1);
-};
 window.changeMerk = function(){
   document.getElementById('app-screen').style.display='none';
   showMerkKeuze();
@@ -841,54 +804,52 @@ window.changeMerk = function(){
 
 window.startConfig = async function(){
   if(!currentMerk) return;
+  const btn=document.getElementById('btn-start-config');
+  if(btn){btn.disabled=true;btn.textContent='Laden…';}
+  // Laad data VOOR het tonen van app
+  if(!bomData.length) await laadConfigData();
+  // Bouw prijscache
+  bomData.forEach(bom=>{delete bom._cachedUnit;delete bom._cachedStd;});
+  const rVerk=id=>resourceTarieven[id]?.verkoopprijs||95;
+  const rKost=id=>resourceTarieven[id]?.kostprijs||45;
+  const artByProductId=id=>artikelenCache[id]||null;
+  const unitPriceVoorBom=art=>{
+    if(!art) return null;
+    const lp=parseFloat(art.listPrice||0); if(lp>0) return lp;
+    const cost=parseFloat(art.standardCost||0),pct=parseFloat(art.profitPct||'');
+    return cost>0&&!isNaN(pct)&&pct>0?cost*(1+pct/100):null;
+  };
+  bomData.forEach(bom=>{
+    let std=0,unit=0,heeftData=false;
+    (bom.artikelen||[]).forEach(a=>{
+      const art=artByProductId(a.artikelId); if(!art) return;
+      const stdCost=parseFloat(art.standardCost||0);
+      const up=unitPriceVoorBom(art);
+      const aantal=parseFloat(a.aantal||0); if(!aantal) return;
+      std+=stdCost*aantal; unit+=(up!==null?up:stdCost)*aantal; heeftData=true;
+    });
+    const w=parseFloat(bom.welding||0),m=parseFloat(bom.mounting||0),cl=parseFloat(bom.calibration||0);
+    if(w){std+=w*rKost('welding');unit+=w*rVerk('welding');heeftData=true;}
+    if(m){std+=m*rKost('mounting');unit+=m*rVerk('mounting');heeftData=true;}
+    if(cl){std+=cl*rKost('calibration');unit+=cl*rVerk('calibration');heeftData=true;}
+    bom._cachedUnit=heeftData?unit:0; bom._cachedStd=heeftData?std:0;
+  });
+  if(btn){btn.disabled=false;btn.textContent='Configuratie starten →';}
   document.getElementById('merk-screen').style.display='none';
   document.getElementById('app-screen').style.display='block';
   document.getElementById('merk-badge').textContent=currentMerk.naam;
   selections={};
-  document.getElementById('f-am-name').value  = currentUser.naam||'';
-  document.getElementById('f-am-email').value = currentUser.email||'';
-  document.getElementById('f-am-phone').value = currentUser.tel||'';
-  document.getElementById('f-supplier').value = currentMerk.naam;
-  // Laad configurator data als nog niet aanwezig
-  if(!bomData.length) await laadConfigData();
-  // Reset cache
-  bomData.forEach(bom=>{ delete bom._cachedUnit; delete bom._cachedStd; });
-
-  // Bereken met exact dezelfde logica als berekenBomTotalen in de admin
-  const rVerk = id => resourceTarieven[id]?.verkoopprijs || 95;
-  const rKost = id => resourceTarieven[id]?.kostprijs    || 45;
-
-  const artByProductId = id => artikelenCache[id] || null;
-
-  const unitPriceVoorBom = art => {
-    if(!art) return null;
-    const lp = parseFloat(art.listPrice||0);
-    if(lp>0) return lp;
-    const cost = parseFloat(art.standardCost||0);
-    const pct  = parseFloat(art.profitPct||'');
-    if(cost>0 && !isNaN(pct) && pct>0) return cost*(1+pct/100);
-    return null;
-  };
-
-  bomData.forEach(bom=>{
-    let std=0, unit=0, heeftData=false;
-    (bom.artikelen||[]).forEach(a=>{
-      const art = artByProductId(a.artikelId); if(!art) return;
-      const stdCost = parseFloat(art.standardCost||0);
-      const up      = unitPriceVoorBom(art);
-      const aantal  = parseFloat(a.aantal||0); if(!aantal) return;
-      std  += stdCost * aantal;
-      unit += (up!==null ? up : stdCost) * aantal; // zelfde fallback als admin
-      heeftData = true;
-    });
-    const w=parseFloat(bom.welding||0), m=parseFloat(bom.mounting||0), cl=parseFloat(bom.calibration||0);
-    if(w){ std+=w*rKost('welding');   unit+=w*rVerk('welding');   heeftData=true; }
-    if(m){ std+=m*rKost('mounting');  unit+=m*rVerk('mounting');  heeftData=true; }
-    if(cl){ std+=cl*rKost('calibration'); unit+=cl*rVerk('calibration'); heeftData=true; }
-    bom._cachedUnit = heeftData ? unit : 0;
-    bom._cachedStd  = heeftData ? std  : 0;
-  });
-  renderBlocks();
+  document.getElementById('f-am-name').value=currentUser.naam||'';
+  document.getElementById('f-am-email').value=currentUser.email||'';
+  document.getElementById('f-am-phone').value=currentUser.tel||'';
+  document.getElementById('f-supplier').value=currentMerk.naam;
+  // Toon criterium keuze scherm — GEEN renderBlocks() want die reset de tiles
+  currentCriterium=''; huidigBlokIdx=0; huidigeBlokkens=[];
+  document.getElementById('blok0-screen').style.display='';
+  document.getElementById('blok-screen').style.display='none';
+  document.getElementById('tile-los').classList.remove('selected');
+  document.getElementById('tile-vast').classList.remove('selected');
+  document.getElementById('btn-blok0-next').disabled=true;
   showStep('step1'); updateStepper(1);
 };
 
