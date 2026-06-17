@@ -2023,13 +2023,8 @@ function startListeners(){
   // Sitech medewerkers alleen laden als pagina bezocht wordt (lazy)
   // Prijslijsten alleen laden als pagina bezocht wordt (lazy)
 
-  // Artikel templates: laden bij opstarten
-  getDocs(collection(db,'artikel_templates')).then(snap=>{
-    if(!snap.empty){
-      snap.docs.forEach(d=>{ artikelTemplatesData[d.id]={id:d.id,...d.data()}; });
-      ARTIKEL_TEMPLATES = snap.docs.map(d=>({id:d.id,...d.data()}));
-    }
-  });
+  // Artikel templates: live listener met auto-seed als leeg
+  startArtikelTemplatesListener();
 
   // SBU config en blok namen: background laden, niet-blokkerend
   setTimeout(()=>{
@@ -2065,16 +2060,13 @@ window.showPanel = function(name,el){
     ? Promise.resolve()
     : getDocs(collection(db,'bom_sbu')).then(s=>{ bomData=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId)); });
 
-  // Helper: laad artikel templates vanuit Firestore (overschrijft hardcoded data)
+  // Helper: laad artikel templates vanuit Firestore als nog niet aanwezig
   const laadTemplates = () => Object.keys(artikelTemplatesData).length
     ? Promise.resolve()
     : getDocs(collection(db,'artikel_templates')).then(snap=>{
         if(!snap.empty){
-          snap.docs.forEach(d=>{
-            artikelTemplatesData[d.id]={id:d.id,...d.data()};
-          });
-          // Vervang hardcoded array volledig door Firestore data
           ARTIKEL_TEMPLATES = snap.docs.map(d=>({id:d.id,...d.data()}));
+          ARTIKEL_TEMPLATES.forEach(t=>{ artikelTemplatesData[t.id]=t; });
         }
       });
 
@@ -2108,9 +2100,7 @@ window.showPanel = function(name,el){
     Promise.all([laadArtikelen(), laadBomSbu()]).then(()=>renderSbuPrijslijst());
   }
   if(name==='bom-sps'){ laadBomSps(); }
-  if(name==='configurator-sps'){
-    laadTemplates().then(()=>laadSpsCfg());
-  }
+  if(name==='configurator-sps'){ laadSpsCfg(); }
   if(name==='merken'){ renderMerken(); }
   if(name==='basis-config'){ loadBasisConfig(); }
   if(name==='blokken'){ loadBlokken(); }
@@ -7487,18 +7477,18 @@ document.getElementById('btn-sbu-bc-download').addEventListener('click', async (
 
 let unsubArtikelTemplates;
 
-function startArtikelTemplatesListener(){  unsubArtikelTemplates = onSnapshot(collection(db,'artikel_templates'), snap=>{
+function startArtikelTemplatesListener(){
+  unsubArtikelTemplates = onSnapshot(collection(db,'artikel_templates'), snap=>{
     if(snap.empty){
       seedArtikelTemplates();
     } else {
-      snap.docs.forEach(d=>{ artikelTemplatesData[d.id]={id:d.id,...d.data()}; });
-      // Sync in-memory ARTIKEL_TEMPLATES
-      Object.values(artikelTemplatesData).forEach(t=>{
-        const idx = ARTIKEL_TEMPLATES.findIndex(x=>x.id===t.id);
-        if(idx>-1) Object.assign(ARTIKEL_TEMPLATES[idx],t);
-        else ARTIKEL_TEMPLATES.push(t);
-      });
-      renderArtikelTemplates();
+      // Vervang volledig door Firestore data
+      ARTIKEL_TEMPLATES = snap.docs.map(d=>({id:d.id,...d.data()}));
+      ARTIKEL_TEMPLATES.forEach(t=>{ artikelTemplatesData[t.id]=t; });
+      // Render als pagina open is
+      if(document.getElementById('panel-artikel-templates')?.classList.contains('active')){
+        renderArtikelTemplates();
+      }
     }
   });
 }
