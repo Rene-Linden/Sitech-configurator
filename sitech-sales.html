@@ -525,6 +525,8 @@ let merken=[], sitechMedewerkers=[];
 let currentUser=null, currentMerk=null, selections={};
 // Firestore data
 let bomData=[], sbuConfigData={}, blokNamenData={}, plCriteriumData={}, blokVolgordeData=[];
+let artikelenCache={}, bcData={};
+let resourceTarieven={welding:95, mounting:95, calibration:95};
 
 async function loadData(){
   const [mS,sS] = await Promise.all([
@@ -539,68 +541,113 @@ async function loadData(){
 loadData();
 
 async function laadConfigData(){
-  const [bomSnap, cfgSnap, bnSnap, pcSnap, volSnap] = await Promise.all([
+  const [bomSnap, cfgSnap, bnSnap, pcSnap, volSnap, bcSnap, artSnap, resSnap] = await Promise.all([
     getDocs(collection(db,'bom_sbu')),
     getDocs(collection(db,'sbu_config')),
     getDocs(collection(db,'blok_namen')),
     getDocs(collection(db,'pl_criterium')),
     getDocs(collection(db,'blok_volgorde')),
+    getDocs(collection(db,'basis_config')),
+    getDocs(collection(db,'artikelen')),
+    getDocs(collection(db,'resources')),
   ]);
   bomData = bomSnap.docs.map(d=>({id:d.id,...d.data()}));
   cfgSnap.docs.forEach(d=>{ sbuConfigData[d.id]=d.data(); });
   bnSnap.docs.forEach(d=>{ blokNamenData[d.id]={ naam:d.data().naam||'', type:d.data().type||'optioneel' }; });
   pcSnap.docs.forEach(d=>{ plCriteriumData[d.id]=d.data().waarde||'beide'; });
+  bcSnap.docs.forEach(d=>{ bcData[d.id]=d.data().rijen||[]; });
+  artSnap.docs.forEach(d=>{ artikelenCache[d.data().productId||d.id]={...d.data(),id:d.id}; });
+  resSnap.docs.forEach(d=>{ if(d.id in resourceTarieven) Object.assign(resourceTarieven,{[d.id]:d.data()}); });
+  // Flatten resource tarieven
+  ['welding','mounting','calibration'].forEach(k=>{
+    if(typeof resourceTarieven[k]==='object') resourceTarieven[k]=resourceTarieven[k].verkoopprijs||95;
+  });
   const vol0 = volSnap.docs[0];
   blokVolgordeData = vol0 ? vol0.data().volgorde||[] : [];
 }
 
-// Bouw gesorteerde lijst van blokken (excl. blok 1) gefilterd op merk en criterium
+function berekenBcVerkoop(r){
+  const sbus=[r.sbu1,r.sbu2,r.sbu3,r.sbu4].filter(Boolean);
+  if(!sbus.length) return null;
+  let tot=0, ok=false;
+  sbus.forEach(sbuId=>{
+    const bom=bomData.find(b=>b.sbuId===sbuId); if(!bom) return;
+    let u=0; let h=false;
+    (bom.artikelen||[]).forEach(a=>{
+      const art=a.artikelId?{standardCost:0,listPrice:0,profitPct:0}:null;
+      // simplified: just sum unitTotaal from bom if available
+    });
+    // Use berekenBomTotalen-equivalent inline
+    const totBom=bereken(bom); if(totBom){ u=totBom; ok=true; }
+    tot+=u;
+  });
+  return ok?tot:null;
+}
+
+function bereken(bom){
+  // Simplified: return unitTotaal if cached
+  if(bom._unitTotaal) return bom._unitTotaal;
+  return null;
+}
+
+// Bouw gesorteerde blokkenlijst:
+// Blok 0 = Basis Configuratie (bc), blokken 2+ uit sbu_config
 function getBlokken(merkId, criterium){
-  // Groepeer SBU's per blok
-  const blokMap = {};
-  Object.entries(sbuConfigData).forEach(([sbuId, cfg])=>{
-    const nr = cfg.blok;
-    if(!nr || nr==='1') return;
-    // Check of SBU actief is voor dit merk
-    const merkActief = cfg.merken && merkId in cfg.merken ? cfg.merken[merkId] : true;
+  const result = [];
+
+  // Blok 1: Basis Configuratie — filter op criterium en merk
+  const bcRijen = (bcData[merkId]||[]).filter(r=>{
+    if(!r.criterium) return true; // geen criterium = altijd tonen
+    if(r.criterium.toLowerCase()==='los' && criterium==='los') return true;
+    if(r.criterium.toLowerCase()==='vast' && criterium==='vast') return true;
+    if(r.criterium.toLowerCase()==='beide') return true;
+    return false;
+  });
+  if(bcRijen.length){
+    result.push({
+      nr:'1', naam:'Basis Configuratie', type:'verplicht',
+      isBc:true, rijen:bcRijen,
+    });
+  }
+
+  // Overige blokken uit SBU Configurator
+  const blokMap={};
+  Object.entries(sbuConfigData).forEach(([sbuId,cfg])=>{
+    const nr=cfg.blok;
+    if(!nr||nr==='1') return;
+    const merkActief=cfg.merken&&merkId in cfg.merken?cfg.merken[merkId]:true;
     if(!merkActief) return;
-    // Check criterium
-    const key = nr+'_'+sbuId;
-    const crit = plCriteriumData[key]||'beide';
-    if(crit!=='beide' && crit!==criterium) return;
+    const key=nr+'_'+sbuId;
+    const crit=plCriteriumData[key]||'beide';
+    if(crit!=='beide'&&crit!==criterium) return;
     if(!blokMap[nr]) blokMap[nr]=[];
     blokMap[nr].push(sbuId);
   });
 
-  const alleNrs = Object.keys(blokMap);
-  const gesorteerd = blokVolgordeData.filter(nr=>alleNrs.includes(nr));
+  const alleNrs=Object.keys(blokMap);
+  const gesorteerd=blokVolgordeData.filter(nr=>alleNrs.includes(nr));
   alleNrs.forEach(nr=>{ if(!gesorteerd.includes(nr)) gesorteerd.push(nr); });
 
-  return gesorteerd.map(nr=>({
-    nr,
-    naam: blokNamenData[nr]?.naam || `Blok ${nr}`,
-    type: blokNamenData[nr]?.type || 'optioneel',
-    sbuIds: blokMap[nr]||[],
-  }));
+  gesorteerd.forEach(nr=>{
+    result.push({
+      nr, naam:blokNamenData[nr]?.naam||`Blok ${nr}`,
+      type:blokNamenData[nr]?.type||'optioneel',
+      isBc:false, sbuIds:blokMap[nr]||[],
+    });
+  });
+
+  return result;
 }
 
-function getSbuInfo(sbuId){
-  const bom = bomData.find(b=>b.sbuId===sbuId);
-  const tot = bom ? berekenBomTotalen(bom) : null;
-  return {
-    sbuId,
-    naam: bom?.naam || sbuId,
-    kostprijs: tot?.stdTotaal || null,
-    verkoop:   tot ? Math.ceil(tot.unitTotaal) : null,
-  };
-}
-
-function berekenBomTotalen(bom){
-  // Vereenvoudigde berekening: unitTotaal = afgerond op basis van sbu data
-  // We nemen de waarde direct als we die hebben
-  if(bom.unitTotaal) return { stdTotaal: bom.stdTotaal||0, unitTotaal: bom.unitTotaal };
-  // Fallback: gebruik de kostprijs als indicator
-  return null;
+function getSbuVerkoop(sbuId){
+  const bom=bomData.find(b=>b.sbuId===sbuId); if(!bom) return null;
+  // Bereken uit BoM artikelen
+  let unit=0, ok=false;
+  (bom.artikelen||[]).forEach(a=>{
+    const id=a.artikelId; if(!id) return;
+    // We can't access artikelen here — use cached value from bom if available
+  });
+  return null; // prijzen worden in admin berekend; hier tonen we ze indien beschikbaar via bom
 }
 
 // AUTH
@@ -847,6 +894,9 @@ function renderHuidigBlok(){
   if(huidigBlokIdx>=huidigeBlokkens.length){ goStapOverzicht(); return; }
   const blok = huidigeBlokkens[huidigBlokIdx];
   const total = huidigeBlokkens.length;
+  const verplicht = blok.type==='verplicht';
+  const huidigeSel = selections[huidigBlokIdx];
+  const isLaatste  = huidigBlokIdx===huidigeBlokkens.length-1;
 
   document.getElementById('blok-progress-label').textContent=`Stap ${huidigBlokIdx+1} van ${total}`;
   document.getElementById('blok-progress-bar').style.width=Math.round((huidigBlokIdx/total)*100)+'%';
@@ -855,51 +905,162 @@ function renderHuidigBlok(){
     :'<span style="background:#FFFBEB;color:#D97706;padding:3px 10px;border-radius:20px;font-size:12px;border:0.5px solid #FCD34D">Vaste ontvangers</span>';
   document.getElementById('blok-nummer-badge').textContent=blok.nr;
   document.getElementById('blok-title-display').textContent=blok.naam;
-  const verplicht = blok.type==='verplicht';
   document.getElementById('blok-req-badge').innerHTML=verplicht
     ?'<span style="background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:12px">Verplicht</span>'
     :'<span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:12px">Optioneel</span>';
   document.getElementById('blok-instructie-display').style.display='none';
   document.getElementById('btn-blok-terug').textContent=huidigBlokIdx===0?'← Type wijzigen':'← Terug';
-
-  const huidigeSel = selections[huidigBlokIdx];
-  const container  = document.getElementById('blok-opties-container');
-  const isLaatste  = huidigBlokIdx===huidigeBlokkens.length-1;
   document.getElementById('btn-blok-volgende').textContent = isLaatste ? 'Overzicht →' : 'Volgende →';
   document.getElementById('btn-blok-volgende').disabled = verplicht && !huidigeSel;
 
-  const opties = blok.sbuIds.map(getSbuInfo);
-  if(!opties.length){
-    container.innerHTML='<div style="padding:1.5rem;text-align:center;color:var(--gray-text)">Geen opties beschikbaar.</div>';
-    document.getElementById('btn-blok-volgende').disabled=verplicht;
-    updateTotaal(); return;
+  const container = document.getElementById('blok-opties-container');
+  container.dataset.blok = huidigBlokIdx;
+
+  if(blok.isBc){
+    // BLOK 1: Basis Configuratie rijen
+    const rijen = blok.rijen||[];
+    if(!rijen.length){
+      container.innerHTML='<div style="padding:1.5rem;text-align:center;color:var(--gray-text)">Geen opties beschikbaar.</div>';
+      document.getElementById('btn-blok-volgende').disabled=verplicht;
+      updateTotaal(); return;
+    }
+    const kDot=kleur=>`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${kleur==='yellow'?'#D97706':kleur==='blue'?'#185FA5':'#94a3b8'};margin-right:6px;flex-shrink:0"></span>`;
+    container.innerHTML=
+      `<div class="optie-header"><span></span><span>Omschrijving</span><span style="text-align:right">Verkoopprijs</span><span style="text-align:right"></span></div>`+
+      rijen.map((r,oi)=>{
+        const g = huidigeSel && huidigeSel._bcIdx===oi;
+        // Verkoopprijs: som van SBU unit totalen
+        const sbus=[r.sbu1,r.sbu2,r.sbu3,r.sbu4].filter(Boolean);
+        let verkoopTot=0; let heeftPrijs=false;
+        sbus.forEach(sbuId=>{
+          const bom=bomData.find(b=>b.sbuId===sbuId); if(!bom) return;
+          // Bereken unitprijs via artikelen (simplified: gebruik cached of 0)
+          heeftPrijs=true;
+        });
+        const rowBg=!g&&r.kleur==='blue'?'background:#EFF6FF':!g&&r.kleur==='yellow'?'background:#FFFBEB':'';
+        return `<div class="optie-rij${g?' selected':''}" style="${rowBg}" data-oi="${oi}">
+          <div class="optie-radio"></div>
+          <div style="display:flex;align-items:center">
+            ${kDot(r.kleur||'')}
+            <div>
+              <div class="optie-naam">${r.type||''} — ${r.omschrijving||''}</div>
+              ${sbus.length?`<div style="font-size:11px;color:var(--gray-text)">${sbus.join(' + ')}</div>`:''}
+            </div>
+          </div>
+          <div class="optie-inkoop"></div>
+          <div class="optie-verkoop" style="font-size:13px;color:var(--green);font-weight:600" id="bc-prijs-${oi}">—</div>
+        </div>`;
+      }).join('');
+
+    // Bereken prijzen async via BoM totalen
+    rijen.forEach((r,oi)=>{
+      const sbus=[r.sbu1,r.sbu2,r.sbu3,r.sbu4].filter(Boolean);
+      let tot=0; let ok=false;
+      sbus.forEach(sbuId=>{
+        const bom=bomData.find(b=>b.sbuId===sbuId); if(!bom) return;
+        // Simpele berekening: als unitTotaal beschikbaar via eerder berekende waarde
+        // We slaan het op in bom._cachedUnit bij eerste berekening
+        if(bom._cachedUnit===undefined){
+          let u=0; let h=false;
+          (bom.artikelen||[]).forEach(a=>{
+            const art=artikelenCache[a.artikelId]; if(!art) return;
+            const lp=parseFloat(art.listPrice||0);
+            const c=parseFloat(art.standardCost||0),p=parseFloat(art.profitPct||'');
+            const up=lp>0?lp:(c>0&&!isNaN(p)&&p>0?c*(1+p/100):0);
+            u+=up*parseFloat(a.aantal||1); h=true;
+          });
+          const w=parseFloat(bom.welding||0),m=parseFloat(bom.mounting||0),cl=parseFloat(bom.calibration||0);
+          u+=w*resourceTarieven.welding+m*resourceTarieven.mounting+cl*resourceTarieven.calibration;
+          bom._cachedUnit = h?u:0;
+        }
+        tot+=bom._cachedUnit; ok=true;
+      });
+      const el=document.getElementById('bc-prijs-'+oi);
+      if(el&&ok&&tot>0) el.textContent='€\u00a0'+Math.ceil(tot).toLocaleString('nl-NL');
+    });
+
+    container.onclick=function(e){
+      const rij=e.target.closest('.optie-rij'); if(!rij) return;
+      const oi=parseInt(rij.dataset.oi);
+      const bi=parseInt(container.dataset.blok);
+      const r=blok.rijen[oi];
+      const sbus=[r.sbu1,r.sbu2,r.sbu3,r.sbu4].filter(Boolean);
+      let verkoop=0;
+      sbus.forEach(sbuId=>{ const bom=bomData.find(b=>b.sbuId===sbuId); if(bom&&bom._cachedUnit) verkoop+=bom._cachedUnit; });
+      selections[bi]={blokNr:blok.nr,blokNaam:blok.naam,naam:`${r.type} — ${r.omschrijving}`,sbuId:sbus.join('+'),kostprijs:null,verkoop:Math.ceil(verkoop)||null,_bcIdx:oi};
+      container.querySelectorAll('.optie-rij').forEach((rv,i)=>{
+        rv.classList.toggle('selected',i===oi);
+        if(i!==oi){ const ro=blok.rijen[i]; rv.style.background=ro.kleur==='blue'?'#EFF6FF':ro.kleur==='yellow'?'#FFFBEB':''; }
+        else rv.style.background='';
+      });
+      document.getElementById('btn-blok-volgende').disabled=false;
+      updateTotaal();
+    };
+
+  } else {
+    // OVERIGE BLOKKEN: SBU opties
+    const opties = (blok.sbuIds||[]).map(sbuId=>{
+      const bom=bomData.find(b=>b.sbuId===sbuId);
+      let verkoop=null, kostprijs=null;
+      if(bom){
+        if(bom._cachedUnit===undefined){
+          let u=0; let h=false;
+          (bom.artikelen||[]).forEach(a=>{
+            const art=artikelenCache[a.artikelId]; if(!art) return;
+            const lp=parseFloat(art.listPrice||0);
+            const c=parseFloat(art.standardCost||0),p=parseFloat(art.profitPct||'');
+            const up=lp>0?lp:(c>0&&!isNaN(p)&&p>0?c*(1+p/100):0);
+            u+=up*parseFloat(a.aantal||1); h=true;
+          });
+          const w=parseFloat(bom.welding||0),m=parseFloat(bom.mounting||0),cl=parseFloat(bom.calibration||0);
+          u+=w*resourceTarieven.welding+m*resourceTarieven.mounting+cl*resourceTarieven.calibration;
+          bom._cachedUnit = h?u:0;
+        }
+        if(bom._cachedStd===undefined){
+          let s=0;
+          (bom.artikelen||[]).forEach(a=>{
+            const art=artikelenCache[a.artikelId]; if(!art) return;
+            s+=parseFloat(art.standardCost||0)*parseFloat(a.aantal||1);
+          });
+          bom._cachedStd=s;
+        }
+        verkoop = bom._cachedUnit>0?Math.ceil(bom._cachedUnit):null;
+        kostprijs = bom._cachedStd>0?bom._cachedStd:null;
+      }
+      return {sbuId, naam:bom?.naam||sbuId, verkoop, kostprijs};
+    });
+
+    if(!opties.length){
+      container.innerHTML='<div style="padding:1.5rem;text-align:center;color:var(--gray-text)">Geen opties beschikbaar.</div>';
+      document.getElementById('btn-blok-volgende').disabled=verplicht;
+      updateTotaal(); return;
+    }
+
+    container.innerHTML=
+      `<div class="optie-header"><span></span><span>SBU</span><span style="text-align:right">Kostprijs</span><span style="text-align:right">Verkoopprijs</span></div>`+
+      opties.map((opt,oi)=>{
+        const g=huidigeSel&&huidigeSel.sbuId===opt.sbuId;
+        return `<div class="optie-rij${g?' selected':''}" data-oi="${oi}">
+          <div class="optie-radio"></div>
+          <div>
+            <div class="optie-naam">${opt.naam}</div>
+            <div style="font-size:12px;color:var(--gray-text)">${opt.sbuId}</div>
+          </div>
+          <div class="optie-inkoop">${opt.kostprijs!=null?'€\u00a0'+opt.kostprijs.toFixed(2):''}</div>
+          <div class="optie-verkoop">${opt.verkoop!=null?'€\u00a0'+opt.verkoop.toLocaleString('nl-NL'):''}</div>
+        </div>`;
+      }).join('');
+
+    container.onclick=function(e){
+      const rij=e.target.closest('.optie-rij'); if(!rij) return;
+      const oi=parseInt(rij.dataset.oi);
+      const bi=parseInt(container.dataset.blok);
+      selections[bi]={blokNr:blok.nr,blokNaam:blok.naam,...opties[oi]};
+      container.querySelectorAll('.optie-rij').forEach((r,i)=>r.classList.toggle('selected',i===oi));
+      document.getElementById('btn-blok-volgende').disabled=false;
+      updateTotaal();
+    };
   }
-
-  container.dataset.blok=huidigBlokIdx;
-  container.innerHTML=
-    `<div class="optie-header"><span></span><span>SBU</span><span style="text-align:right">Kostprijs</span><span style="text-align:right">Verkoopprijs</span></div>`+
-    opties.map((opt,oi)=>{
-      const g = huidigeSel && huidigeSel.sbuId===opt.sbuId;
-      return `<div class="optie-rij${g?' selected':''}" data-oi="${oi}">
-        <div class="optie-radio"></div>
-        <div>
-          <div class="optie-naam">${opt.naam}</div>
-          <div style="font-size:12px;color:var(--gray-text)">${opt.sbuId}</div>
-        </div>
-        <div class="optie-inkoop">${opt.kostprijs!=null?'€\u00a0'+opt.kostprijs.toFixed(2):''}</div>
-        <div class="optie-verkoop">${opt.verkoop!=null?'€\u00a0'+opt.verkoop.toLocaleString('nl-NL'):''}</div>
-      </div>`;
-    }).join('');
-
-  container.onclick=function(e){
-    const rij=e.target.closest('.optie-rij'); if(!rij) return;
-    const oi=parseInt(rij.dataset.oi);
-    const bi=parseInt(container.dataset.blok);
-    selections[bi]={blokNr:blok.nr, blokNaam:blok.naam, ...opties[oi]};
-    container.querySelectorAll('.optie-rij').forEach((r,i)=>r.classList.toggle('selected',i===oi));
-    document.getElementById('btn-blok-volgende').disabled=false;
-    updateTotaal();
-  };
   updateTotaal();
 }
 
