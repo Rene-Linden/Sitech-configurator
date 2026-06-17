@@ -887,6 +887,7 @@ tr.row-selected td{background:var(--blue-light)}
               <button class="btn btn-green" id="btn-bom-upload">Excel uploaden</button>
               <button class="btn btn-green" id="btn-bom-upload2" title="Upload tweede lijst — bestaande artikelen worden NIET overschreven">Excel uploaden (2e lijst)</button>
               <button class="btn btn-blue" onclick="openNieuwBom()">+ Nieuwe BoM</button>
+              <button class="btn" style="border-color:rgba(133,79,11,.3);color:var(--amber);background:var(--amber-light)" onclick="syncBomVerkoopprijzen()">↻ Sync verkoopprijzen</button>
               <input type="file" id="bom-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
               <input type="file" id="bom-upload-input2" accept=".xlsx,.xls,.csv" style="display:none" />
               <span id="bom-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
@@ -4657,6 +4658,9 @@ window.saveBomResources = async function(){
   b.welding     = document.getElementById('bom-res-welding').value.trim();
   b.mounting    = document.getElementById('bom-res-mounting').value.trim();
   b.calibration = document.getElementById('bom-res-calibration').value.trim();
+  // Sla ook berekende verkoopprijs op zodat sales die direct kan gebruiken
+  const tot = berekenBomTotalen(b);
+  if(tot) b._verkoopprijs = Math.ceil(tot.unitTotaal);
   await setDoc(doc(db,'bom_sbu',bomDetailId), b);
   // Update info tekst
   document.getElementById('bom-detail-info').innerHTML =
@@ -4967,8 +4971,29 @@ window.bomArtikelToevoegen = function(){
   if(document.getElementById('panel-sbu-prijslijst')?.classList.contains('active')) renderSbuPrijslijst();
 };
 
+// Sla berekende verkoopprijs op in elk bom_sbu document (voor gebruik in Sales)
+window.syncBomVerkoopprijzen = async function(){
+  const status = document.getElementById('bom-filter-count');
+  if(status) status.textContent = 'Bezig met synchroniseren…';
+  let count = 0;
+  for(let i=0; i<bomData.length; i+=500){
+    const batch = writeBatch(db);
+    bomData.slice(i,i+500).forEach(b=>{
+      const tot = berekenBomTotalen(b);
+      if(tot){
+        b._verkoopprijs = Math.ceil(tot.unitTotaal);
+        batch.set(doc(db,'bom_sbu',b.id), b);
+        count++;
+      }
+    });
+    await batch.commit();
+  }
+  if(status) status.textContent = `✓ ${count} SBU verkoopprijzen gesynchroniseerd`;
+  setTimeout(()=>{ if(status) status.textContent=`${bomData.length} SBU's`; }, 4000);
+  showSaving(`${count} verkoopprijzen gesynchroniseerd`);
+};
+
 window.openNieuwBom = function(){
-  document.getElementById('bom-edit-id').value = '';
   document.getElementById('bom-edit-sbu-id').value = '';
   document.getElementById('bom-edit-naam').value = '';
   document.getElementById('bom-edit-welding').value = '';
