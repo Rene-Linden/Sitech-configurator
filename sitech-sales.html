@@ -834,8 +834,12 @@ window.startConfig = async function(){
     if(cl){std+=cl*rKost('calibration');unit+=cl*rVerk('calibration');heeftData=true;}
     bom._cachedUnit=heeftData?unit:0; bom._cachedStd=heeftData?std:0;
     // Debug: log SBU prijzen
-    if(['SBU-0034','SBU-0114','SBU-0044','SBU-0012','SBU-0038','SBU-0026'].includes(bom.sbuId)){
-      console.log(`SBU ${bom.sbuId}: unit=${unit.toFixed(2)} std=${std.toFixed(2)} artikelen=${bom.artikelen?.length} w=${bom.welding} m=${bom.mounting} c=${bom.calibration}`);
+    if(['SBU-0034','SBU-0114','SBU-0044','SBU-0012','SBU-0038','SBU-0026','SBU-0040'].includes(bom.sbuId)){
+      const artDebug = (bom.artikelen||[]).slice(0,3).map(a=>{
+        const art=artByProductId(a.artikelId);
+        return `${a.artikelId}:lp=${art?.listPrice||0},sc=${art?.standardCost||0},pp=${art?.profitPct||0},up=${art?unitPriceVoorBom(art)?.toFixed(2):'NULL'}`;
+      });
+      console.log(`SBU ${bom.sbuId}: ceil(unit)=${Math.ceil(unit)} | eerste 3 artikelen: ${artDebug.join(' | ')}`);
     }
   });
   if(btn){btn.disabled=false;btn.textContent='Configuratie starten →';}
