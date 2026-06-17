@@ -2010,41 +2010,31 @@ document.addEventListener('DOMContentLoaded', ()=>{
 });
 
 function startListeners(){
+  // Alleen de kleinste, meest essentiële collecties als live listener
   unsubMerken = onSnapshot(collection(db,'merken'), snap => {
     merken = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderMerken(); renderMerkFilterOpties(); renderFilterMerkAanvragen();
+    renderMerken(); renderMerkFilterOpties();
+    if(typeof renderFilterMerkAanvragen==='function') renderFilterMerkAanvragen();
+    vulMerkSelectorPL();
   });
-  unsubGebruikers = onSnapshot(collection(db,'gebruikers'), snap => {
-    gebruikers = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderGebruikers();
-  });
-  unsubPrijslijsten = onSnapshot(collection(db,'prijslijsten'), snap => {
-    prijslijsten = {};
-    snap.docs.forEach(d=>{ prijslijsten[d.id] = d.data().blocks||[]; });
-    renderMerken();
-    renderMerkFilterOpties();
-    renderPrijslijst();
-  });
-  unsubSitech = onSnapshot(collection(db,'sitech_medewerkers'), snap => {
-    sitechMedewerkers = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderSitech();
-  });
-  unsubAanvragen = onSnapshot(collection(db,'aanvragen'), snap => {
-    aanvragen = snap.docs.map(d=>({id:d.id,...d.data()}))
-      .sort((a,b)=>new Date(b.datum)-new Date(a.datum));
-    renderAanvragen();
-  });
-  // Artikelen: niet als live listener (te grote collectie), laden bij paneel openen
-  // startArtikelTemplatesListener
+
+  // Gebruikers alleen laden als pagina bezocht wordt (lazy)
+  // Aanvragen alleen laden als pagina bezocht wordt (lazy)
+  // Sitech medewerkers alleen laden als pagina bezocht wordt (lazy)
+  // Prijslijsten alleen laden als pagina bezocht wordt (lazy)
+
+  // Artikel templates als live listener (kleine collectie, nodig overal)
   startArtikelTemplatesListener();
 
-  // SBU configuratie en blokken persistent laden bij opstarten
-  getDocs(collection(db,'sbu_config')).then(snap=>{
-    snap.docs.forEach(d=>{ sbuConfigData[d.id]=d.data(); });
-  });
-  getDocs(collection(db,'blok_namen')).then(snap=>{
-    snap.docs.forEach(d=>{ blokNamen[d.id]=d.data().naam||''; });
-  });
+  // SBU config en blok namen: background laden, niet-blokkerend
+  setTimeout(()=>{
+    getDocs(collection(db,'sbu_config')).then(snap=>{
+      snap.docs.forEach(d=>{ sbuConfigData[d.id]=d.data(); });
+    });
+    getDocs(collection(db,'blok_namen')).then(snap=>{
+      snap.docs.forEach(d=>{ blokNamen[d.id]=d.data().naam||''; });
+    });
+  }, 500);
 }
 
 function showSaving(msg='Opgeslagen'){
@@ -2067,7 +2057,11 @@ window.showPanel = function(name,el){
     renderPrijslijstNieuw();
   }
   if(name==='prijzen-oem'){ laadPrijzenOem(); }
-  if(name==='aanvragen'){ renderFilterMerkAanvragen(); renderAanvragen(); }
+  if(name==='aanvragen'){
+    renderFilterMerkAanvragen();
+    if(!aanvragen.length) getDocs(collection(db,'aanvragen')).then(s=>{ aanvragen=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>new Date(b.datum)-new Date(a.datum)); renderAanvragen(); });
+    else renderAanvragen();
+  }
   if(name==='sbu-prijslijst'){
     // Zorg dat data geladen is
     const laden = [];
@@ -2112,7 +2106,15 @@ window.showPanel = function(name,el){
   if(name==='blokken'){ loadBlokken(); }
   if(name==='sbu-config'){ loadSbuConfig(); }
   if(name==='resources'){ loadResources(); }
-  if(name==='gebruikers'){ laadBeheerAccounts(); }
+  if(name==='gebruikers'){
+    if(!gebruikers.length) getDocs(collection(db,'gebruikers')).then(s=>{ gebruikers=s.docs.map(d=>({id:d.id,...d.data()})); renderGebruikers(); });
+    else renderGebruikers();
+    laadBeheerAccounts();
+  }
+  if(name==='sitech'){
+    if(!sitechMedewerkers.length) getDocs(collection(db,'sitech_medewerkers')).then(s=>{ sitechMedewerkers=s.docs.map(d=>({id:d.id,...d.data()})); renderSitech(); });
+    else renderSitech();
+  }
   if(name==='bom-ewv'){ loadBomEwvData(); }
   if(name==='ewv'){
     vulEwvTemplateSelector();
