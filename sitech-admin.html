@@ -2069,9 +2069,21 @@ window.showPanel = function(name,el){
     if(!bomData.length)   laden.push(getDocs(collection(db,'bom_sbu')).then(s=>{ bomData=s.docs.map(d=>({id:d.id,...d.data()})); }));
     Promise.all(laden).then(()=>renderSbuPrijslijst());
   }
-  if(name==='configurator-sps'){ laadSpsCfg(); }
-  if(name==='bom-sps'){ laadBomSps(); }
-  if(name==='kostencalculatie'){ renderKostencalculatie(); }
+  if(name==='artikel-templates'){
+    if(Object.keys(artikelTemplatesData).length){
+      renderArtikelTemplates();
+    } else {
+      getDocs(collection(db,'artikel_templates')).then(snap=>{
+        snap.docs.forEach(d=>{
+          artikelTemplatesData[d.id]={id:d.id,...d.data()};
+          const idx=ARTIKEL_TEMPLATES.findIndex(x=>x.id===d.id);
+          if(idx>-1) Object.assign(ARTIKEL_TEMPLATES[idx],d.data());
+          else ARTIKEL_TEMPLATES.push({id:d.id,...d.data()});
+        });
+        renderArtikelTemplates();
+      });
+    }
+  }
   if(name==='trimble-prijslijst'){ loadTrimbleArchief(); }
   if(name==='assemblage'){
     getDocs(collection(db,'artikelen')).then(snap=>{
