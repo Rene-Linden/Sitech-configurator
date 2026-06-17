@@ -851,29 +851,42 @@ window.startConfig = async function(){
   document.getElementById('f-supplier').value = currentMerk.naam;
   // Laad configurator data als nog niet aanwezig
   if(!bomData.length) await laadConfigData();
-  // Bouw prijscache op na laden — reset eerst zodat er geen stale waarden zijn
+  // Reset cache
+  bomData.forEach(bom=>{ delete bom._cachedUnit; delete bom._cachedStd; });
+
+  // Bereken met exact dezelfde logica als berekenBomTotalen in de admin
+  const rVerk = id => resourceTarieven[id]?.verkoopprijs || 95;
+  const rKost = id => resourceTarieven[id]?.kostprijs    || 45;
+
+  const artByProductId = id => artikelenCache[id] || null;
+
+  const unitPriceVoorBom = art => {
+    if(!art) return null;
+    const lp = parseFloat(art.listPrice||0);
+    if(lp>0) return lp;
+    const cost = parseFloat(art.standardCost||0);
+    const pct  = parseFloat(art.profitPct||'');
+    if(cost>0 && !isNaN(pct) && pct>0) return cost*(1+pct/100);
+    return null;
+  };
+
   bomData.forEach(bom=>{
-    delete bom._cachedUnit;
-    delete bom._cachedStd;
-  });
-  // Pre-bereken alle BoM prijzen nu data geladen is
-  const rVerk = id=>(resourceTarieven[id]?.verkoopprijs||95);
-  const rKost = id=>(resourceTarieven[id]?.kostprijs||45);
-  bomData.forEach(bom=>{
-    let u=0, s=0, h=false;
+    let std=0, unit=0, heeftData=false;
     (bom.artikelen||[]).forEach(a=>{
-      const art=artikelenCache[a.artikelId]; if(!art) return;
-      const lp=parseFloat(art.listPrice||0);
-      const c=parseFloat(art.standardCost||0), p=parseFloat(art.profitPct||'');
-      const up=lp>0?lp:(c>0&&!isNaN(p)&&p>0?c*(1+p/100):0);
-      const aant=parseFloat(a.aantal||1);
-      u+=up*aant; s+=c*aant; h=true;
+      const art = artByProductId(a.artikelId); if(!art) return;
+      const stdCost = parseFloat(art.standardCost||0);
+      const up      = unitPriceVoorBom(art);
+      const aantal  = parseFloat(a.aantal||0); if(!aantal) return;
+      std  += stdCost * aantal;
+      unit += (up!==null ? up : stdCost) * aantal; // zelfde fallback als admin
+      heeftData = true;
     });
     const w=parseFloat(bom.welding||0), m=parseFloat(bom.mounting||0), cl=parseFloat(bom.calibration||0);
-    u+=w*rVerk('welding')+m*rVerk('mounting')+cl*rVerk('calibration');
-    s+=w*rKost('welding')+m*rKost('mounting')+cl*rKost('calibration');
-    bom._cachedUnit = u;
-    bom._cachedStd  = s;
+    if(w){ std+=w*rKost('welding');   unit+=w*rVerk('welding');   heeftData=true; }
+    if(m){ std+=m*rKost('mounting');  unit+=m*rVerk('mounting');  heeftData=true; }
+    if(cl){ std+=cl*rKost('calibration'); unit+=cl*rVerk('calibration'); heeftData=true; }
+    bom._cachedUnit = heeftData ? unit : 0;
+    bom._cachedStd  = heeftData ? std  : 0;
   });
   renderBlocks();
   showStep('step1'); updateStepper(1);
