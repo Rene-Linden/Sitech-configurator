@@ -2050,48 +2050,39 @@ window.showPanel = function(name,el){
   document.getElementById('panel-'+name)?.classList.add('active');
   if(el) el.classList.add('active');
 
-  // Helper: laad artikelen als nog niet aanwezig
-  const laadArtikelen = () => artikelen.length
+  // Helper: laad artikelen (altijd vers als leeg, anders cache)
+  const laadArtikelen = () => artikelen.length > 0
     ? Promise.resolve()
-    : getDocs(collection(db,'artikelen')).then(s=>{ artikelen=s.docs.map(d=>({id:d.id,...d.data()})); });
-
-  // Helper: laad bomData als nog niet aanwezig
-  const laadBomSbu = () => bomData.length
-    ? Promise.resolve()
-    : getDocs(collection(db,'bom_sbu')).then(s=>{ bomData=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId)); });
-
-  // Helper: laad artikel templates vanuit Firestore als nog niet aanwezig
-  const laadTemplates = () => Object.keys(artikelTemplatesData).length
-    ? Promise.resolve()
-    : getDocs(collection(db,'artikel_templates')).then(snap=>{
-        if(!snap.empty){
-          ARTIKEL_TEMPLATES = snap.docs.map(d=>({id:d.id,...d.data()}));
-          ARTIKEL_TEMPLATES.forEach(t=>{ artikelTemplatesData[t.id]=t; });
-        }
+    : getDocs(collection(db,'artikelen')).then(s=>{
+        if(s.size > 0) artikelen = s.docs.map(d=>({id:d.id,...d.data()}));
       });
 
+  // Helper: laad bomData
+  const laadBomSbu = () => bomData.length > 0
+    ? Promise.resolve()
+    : getDocs(collection(db,'bom_sbu')).then(s=>{
+        if(s.size > 0) bomData = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+      });
+
+  // Helper: laad templates (altijd fresh getDocs, geen cache)
+  const laadTemplates = () => getDocs(collection(db,'artikel_templates')).then(snap=>{
+    if(snap.size > 0){
+      ARTIKEL_TEMPLATES = snap.docs.map(d=>({id:d.id,...d.data()}));
+      ARTIKEL_TEMPLATES.forEach(t=>{ artikelTemplatesData[t.id]=t; });
+    }
+  });
+
   if(name==='artikel-templates'){
-    getDocs(collection(db,'artikel_templates')).then(snap=>{
-      if(!snap.empty){
-        ARTIKEL_TEMPLATES = snap.docs.map(d=>({id:d.id,...d.data()}));
-        ARTIKEL_TEMPLATES.forEach(t=>{ artikelTemplatesData[t.id]=t; });
-      }
-      renderArtikelTemplates();
-    });
+    laadTemplates().then(()=>renderArtikelTemplates());
   }
   if(name==='kostencalculatie'){
-    getDocs(collection(db,'artikel_templates')).then(snap=>{
-      if(!snap.empty){
-        ARTIKEL_TEMPLATES = snap.docs.map(d=>({id:d.id,...d.data()}));
-        ARTIKEL_TEMPLATES.forEach(t=>{ artikelTemplatesData[t.id]=t; });
-      }
-      renderKostencalculatie();
-    });
+    laadTemplates().then(()=>renderKostencalculatie());
   }
   if(name==='trimble-prijslijst'){ loadTrimbleArchief(); }
   if(name==='artikelen'){
-    laadTemplates().then(()=>{ vulTemplateSelector(); toonTemplateInfo(); });
-    laadArtikelen().then(()=>{ renderArtikelen(); setTimeout(initStickyScroll,100); });
+    Promise.all([laadTemplates(), getDocs(collection(db,'artikelen')).then(s=>{
+      if(s.size>0) artikelen=s.docs.map(d=>({id:d.id,...d.data()}));
+    })]).then(()=>{ vulTemplateSelector(); toonTemplateInfo(); renderArtikelen(); setTimeout(initStickyScroll,100); });
   }
   if(name==='assemblage'){
     laadArtikelen().then(()=>{ renderAssemblage(); setTimeout(initStickyScroll,100); });
