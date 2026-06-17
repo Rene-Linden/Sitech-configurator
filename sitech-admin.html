@@ -2071,10 +2071,22 @@ window.showPanel = function(name,el){
       });
 
   if(name==='artikel-templates'){
-    laadTemplates().then(()=>renderArtikelTemplates());
+    getDocs(collection(db,'artikel_templates')).then(snap=>{
+      if(!snap.empty){
+        ARTIKEL_TEMPLATES = snap.docs.map(d=>({id:d.id,...d.data()}));
+        ARTIKEL_TEMPLATES.forEach(t=>{ artikelTemplatesData[t.id]=t; });
+      }
+      renderArtikelTemplates();
+    });
   }
   if(name==='kostencalculatie'){
-    laadTemplates().then(()=>renderKostencalculatie());
+    getDocs(collection(db,'artikel_templates')).then(snap=>{
+      if(!snap.empty){
+        ARTIKEL_TEMPLATES = snap.docs.map(d=>({id:d.id,...d.data()}));
+        ARTIKEL_TEMPLATES.forEach(t=>{ artikelTemplatesData[t.id]=t; });
+      }
+      renderKostencalculatie();
+    });
   }
   if(name==='trimble-prijslijst'){ loadTrimbleArchief(); }
   if(name==='artikelen'){
@@ -7482,13 +7494,9 @@ function startArtikelTemplatesListener(){
     if(snap.empty){
       seedArtikelTemplates();
     } else {
-      // Vervang volledig door Firestore data
       ARTIKEL_TEMPLATES = snap.docs.map(d=>({id:d.id,...d.data()}));
       ARTIKEL_TEMPLATES.forEach(t=>{ artikelTemplatesData[t.id]=t; });
-      // Render als pagina open is
-      if(document.getElementById('panel-artikel-templates')?.classList.contains('active')){
-        renderArtikelTemplates();
-      }
+      renderArtikelTemplates();
     }
   });
 }
