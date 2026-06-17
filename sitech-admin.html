@@ -2023,15 +2023,11 @@ function startListeners(){
   // Sitech medewerkers alleen laden als pagina bezocht wordt (lazy)
   // Prijslijsten alleen laden als pagina bezocht wordt (lazy)
 
-  // Artikel templates: één keer laden bij opstarten (geen live listener nodig)
+  // Artikel templates: laden bij opstarten
   getDocs(collection(db,'artikel_templates')).then(snap=>{
     if(!snap.empty){
-      snap.docs.forEach(d=>{
-        artikelTemplatesData[d.id]={id:d.id,...d.data()};
-        const idx=ARTIKEL_TEMPLATES.findIndex(x=>x.id===d.id);
-        if(idx>-1) Object.assign(ARTIKEL_TEMPLATES[idx],d.data());
-        else ARTIKEL_TEMPLATES.push({id:d.id,...d.data()});
-      });
+      snap.docs.forEach(d=>{ artikelTemplatesData[d.id]={id:d.id,...d.data()}; });
+      ARTIKEL_TEMPLATES = snap.docs.map(d=>({id:d.id,...d.data()}));
     }
   });
 
@@ -2069,16 +2065,17 @@ window.showPanel = function(name,el){
     ? Promise.resolve()
     : getDocs(collection(db,'bom_sbu')).then(s=>{ bomData=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId)); });
 
-  // Helper: laad artikel templates als nog niet aanwezig
-  const laadTemplates = () => ARTIKEL_TEMPLATES.length
+  // Helper: laad artikel templates vanuit Firestore (overschrijft hardcoded data)
+  const laadTemplates = () => Object.keys(artikelTemplatesData).length
     ? Promise.resolve()
     : getDocs(collection(db,'artikel_templates')).then(snap=>{
-        snap.docs.forEach(d=>{
-          artikelTemplatesData[d.id]={id:d.id,...d.data()};
-          const idx=ARTIKEL_TEMPLATES.findIndex(x=>x.id===d.id);
-          if(idx>-1) Object.assign(ARTIKEL_TEMPLATES[idx],d.data());
-          else ARTIKEL_TEMPLATES.push({id:d.id,...d.data()});
-        });
+        if(!snap.empty){
+          snap.docs.forEach(d=>{
+            artikelTemplatesData[d.id]={id:d.id,...d.data()};
+          });
+          // Vervang hardcoded array volledig door Firestore data
+          ARTIKEL_TEMPLATES = snap.docs.map(d=>({id:d.id,...d.data()}));
+        }
       });
 
   if(name==='artikel-templates'){
@@ -3476,7 +3473,7 @@ document.getElementById('btn-pdf-download').addEventListener('click', ()=>{
 
 // ARTIKELEN MODULE
 // ============================================================
-const ARTIKEL_TEMPLATES = [
+let ARTIKEL_TEMPLATES = [
   { id:'INV-TRIM-STD',        naam:'INV-TRIM-STD',             omschrijving:'Trimble Inventory product',
     type:'Inventory', uom:'ST', costingMeth:'Standard', genPosting:'New', vatPosting:'VAT 21', invenPosting:'NEW',
     priceProfit:'Prijs= kosten+winst', subscriptie:'No Subscription', replen:'Purchase', assemblyPolicy:'',
