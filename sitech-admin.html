@@ -1521,7 +1521,7 @@ tr.row-selected td{background:var(--blue-light)}
 </div>
 
 <div class="modal-bg" id="modal-bom-detail">
-  <div class="modal" style="max-width:1300px;width:98vw;display:flex;flex-direction:column;max-height:90vh">
+  <div class="modal" style="max-width:1500px;width:99vw;display:flex;flex-direction:column;max-height:92vh">
     <div class="modal-header" style="flex-shrink:0">
       <h3 id="modal-bom-detail-title">Stuklijst</h3>
       <button class="modal-close" onclick="closeModal('modal-bom-detail')">×</button>
@@ -1569,6 +1569,7 @@ tr.row-selected td{background:var(--blue-light)}
               <th style="padding:8px 12px;min-width:90px;text-align:right;color:var(--green)">Unit Price</th>
               <th style="padding:8px 12px;min-width:100px;text-align:right;color:var(--green)">Totaal Unit</th>
               <th style="padding:8px 12px;min-width:100px;text-align:right;color:var(--green)">Afgerond ↑</th>
+              <th style="padding:8px 12px;min-width:130px;text-align:center">Activiteit</th>
               <th style="padding:8px 12px;min-width:70px"></th>
             </tr>
           </thead>
@@ -4888,6 +4889,15 @@ function renderBomDetailTabel(b){
       <td style="text-align:right;font-size:12px;color:var(--green)">${unitPrice!==null?'€\u00a0'+unitPrice.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:500;color:var(--green)">${totUnit2!==null?'€\u00a0'+totUnit2.toFixed(2):'—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:600;color:var(--green)">${afgerond!==null?'€\u00a0'+afgerond.toLocaleString('nl-NL'):'—'}</td>
+      <td style="text-align:center;padding:4px 8px">
+        <select onchange="bomRijUpdate(${i},'activiteit',this.value)"
+          style="padding:3px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:11px;outline:none;background:var(--white);color:var(--text);cursor:pointer">
+          <option value="" ${!a.activiteit?'selected':''}>—</option>
+          <option value="Lassen" ${a.activiteit==='Lassen'?'selected':''}>Lassen</option>
+          <option value="Montage" ${a.activiteit==='Montage'?'selected':''}>Montage</option>
+          <option value="Kalibreren" ${a.activiteit==='Kalibreren'?'selected':''}>Kalibreren</option>
+        </select>
+      </td>
       <td style="text-align:right;white-space:nowrap">
         ${editKnop}
         <button class="btn btn-sm btn-red" onclick="bomRijVerwijder(${i})">×</button>
