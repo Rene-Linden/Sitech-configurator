@@ -374,7 +374,7 @@ tr.row-selected td{background:var(--blue-light)}
         <div class="panel-sub">Beheer de merken waarvoor aanvragen worden gedaan.</div>
         <div style="margin-bottom:12px"><button class="btn btn-blue" onclick="openAddMerk()">+ Nieuw merk</button></div>
         <div class="card">
-          <table><thead><tr><th>Merknaam</th><th>Prijslijst</th><th>Gebruikers</th><th></th></tr></thead>
+          <table><thead><tr><th>Merknaam</th><th>Gebruikers</th><th></th></tr></thead>
           <tbody id="tbl-merken"><tr><td colspan="4" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden...</td></tr></tbody></table>
         </div>
       </div>
@@ -1140,6 +1140,7 @@ tr.row-selected td{background:var(--blue-light)}
                 <th style="padding:10px 14px;min-width:80px;text-align:center">Blok nr.</th>
                 <th style="padding:10px 14px;min-width:260px">Naam</th>
                 <th style="padding:10px 14px;min-width:80px;text-align:center">SBU's</th>
+                <th style="padding:10px 14px;min-width:140px;text-align:center">Type</th>
                 <th style="padding:10px 14px;min-width:120px"></th>
               </tr>
             </thead>
@@ -2045,7 +2046,7 @@ function startListeners(){
       snap.docs.forEach(d=>{ sbuConfigData[d.id]=d.data(); });
     });
     getDocs(collection(db,'blok_namen')).then(snap=>{
-      snap.docs.forEach(d=>{ blokNamen[d.id]=d.data().naam||''; });
+      snap.docs.forEach(d=>{ blokNamen[d.id]={ naam: d.data().naam||'', type: d.data().type||'optioneel' }; });
     });
   }, 500);
 }
@@ -2148,16 +2149,14 @@ window.closeModal = id => document.getElementById(id).classList.remove('open');
 function renderMerken(){
   document.getElementById('tbl-merken').innerHTML = merken.map(m=>{
     const u = gebruikers.filter(x=>x.merkId===m.id).length;
-    const b = (prijslijsten[m.id]||[]).length;
     return `<tr>
       <td><strong style="font-size:13px">${m.naam}</strong></td>
-      <td>${b?`<span class="badge-green">${b} blok${b!==1?'ken':''}</span>`:'<span class="badge-red">Geen prijslijst</span>'}</td>
       <td><span class="badge-blue">${u} gebruiker${u!==1?'s':''}</span></td>
       <td style="text-align:right">
         <button class="btn btn-sm" onclick="editMerk('${m.id}')">Bewerken</button>
         <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteMerk('${m.id}')">Verwijderen</button>
       </td></tr>`;
-  }).join('')||'<tr><td colspan="4" style="color:var(--gray-text);text-align:center;padding:1.5rem">Nog geen merken</td></tr>';
+  }).join('')||'<tr><td colspan="3" style="color:var(--gray-text);text-align:center;padding:1.5rem">Nog geen merken</td></tr>';
 }
 window.openAddMerk = ()=>{ document.getElementById('merk-edit-id').value=''; document.getElementById('merk-naam').value=''; document.getElementById('modal-merk-title').textContent='Nieuw merk'; openModal('modal-merk'); };
 window.editMerk = id=>{ const m=merken.find(x=>x.id===id); document.getElementById('merk-edit-id').value=id; document.getElementById('merk-naam').value=m.naam; document.getElementById('modal-merk-title').textContent='Merk bewerken'; openModal('modal-merk'); };
@@ -3311,7 +3310,7 @@ async function renderPrijslijstNieuw(){
 
   let html = '';
   gesorteerd.forEach(nr=>{
-    const blokNaam = blokNamen[nr] || `Blok ${nr}`;
+    const blokNaam = (blokNamen[nr]?.naam||blokNamen[nr]) || `Blok ${nr}`;
     const sbuIds = blokMap[nr] || [];
 
     const rijen = sbuIds.map(sbuId=>{
@@ -6297,7 +6296,7 @@ window.bcRijVerwijderen = async function(ri){
 // ============================================================
 // Blokken worden afgeleid uit sbuConfigData (blok-nummers per SBU)
 // en kunnen ook een naam hebben opgeslagen in 'blok_namen' collectie
-let blokNamen = {}; // { '1': 'Basis Configuratie', '2': 'Display', ... }
+let blokNamen = {}; // { '2': { naam: 'Display', type: 'verplicht' }, ... }
 
 async function loadBlokken(){
   const [namenSnap, configSnap, bomSnap, volgordeSnap] = await Promise.all([
@@ -6307,14 +6306,13 @@ async function loadBlokken(){
     getDocs(collection(db,'blok_volgorde')),
   ]);
   blokNamen = {};
-  namenSnap.docs.forEach(d=>{ blokNamen[d.id] = d.data().naam||''; });
+  namenSnap.docs.forEach(d=>{ blokNamen[d.id] = { naam: d.data().naam||'', type: d.data().type||'optioneel' }; });
   if(!Object.keys(sbuConfigData).length){
     configSnap.docs.forEach(d=>{ sbuConfigData[d.id]=d.data(); });
   }
   if(!bomData.length){
     bomData = bomSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
   }
-  // Laad volgorde
   const vol0 = volgordeSnap.docs[0];
   blokVolgorde = vol0 ? vol0.data().volgorde||[] : [];
   renderBlokken();
@@ -6362,7 +6360,8 @@ function renderBlokken(){
   }
 
   tbody.innerHTML = gesorteerd.map((nr,idx)=>{
-    const naam = blokNamen[nr]||'';
+    const naam = blokNamen[nr]?.naam||'';
+    const blokType = blokNamen[nr]?.type||'optioneel';
     const sbus = blokTelling[nr]||[];
     const isEerste = idx===0;
     const isLaatste = idx===gesorteerd.length-1;
@@ -6374,6 +6373,19 @@ function renderBlokken(){
       <td style="padding:10px 14px;text-align:center;font-weight:600;font-size:15px;color:var(--blue)">${nr}</td>
       <td style="padding:10px 14px;font-size:13px">${naam||`<span style="color:var(--gray-text);font-style:italic">Geen naam</span>`}</td>
       <td style="padding:10px 14px;text-align:center;font-size:12px;color:var(--gray-text)">${sbus.length}</td>
+      <td style="padding:10px 14px;text-align:center;white-space:nowrap">
+        <div style="display:inline-flex;border:0.5px solid var(--gray-border);border-radius:8px;overflow:hidden;font-size:12px">
+          <button onclick="blokSetType('${nr}','verplicht')"
+            style="padding:5px 12px;border:none;cursor:pointer;font-size:12px;font-weight:600;
+            background:${blokType==='verplicht'?'var(--blue)':'var(--white)'};
+            color:${blokType==='verplicht'?'#fff':'var(--gray-text)'};
+            border-right:0.5px solid var(--gray-border)">Verplicht</button>
+          <button onclick="blokSetType('${nr}','optioneel')"
+            style="padding:5px 12px;border:none;cursor:pointer;font-size:12px;font-weight:600;
+            background:${blokType==='optioneel'?'var(--green)':'var(--white)'};
+            color:${blokType==='optioneel'?'#fff':'var(--gray-text)'}">Optioneel</button>
+        </div>
+      </td>
       <td style="padding:10px 14px;text-align:right;white-space:nowrap">
         <button class="btn btn-sm" onclick="blokBewerken('${nr}')">Bewerken</button>
         <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="blokVerwijderen('${nr}')">Verwijderen</button>
@@ -6381,6 +6393,14 @@ function renderBlokken(){
     </tr>`;
   }).join('');
 }
+
+window.blokSetType = async function(nr, type){
+  if(!blokNamen[nr]) blokNamen[nr] = { naam:'', type:'optioneel' };
+  blokNamen[nr].type = type;
+  const naam = blokNamen[nr].naam||'';
+  await setDoc(doc(db,'blok_namen',nr), { naam, type });
+  renderBlokken();
+};
 
 window.blokOmhoog = async function(idx){
   const { gesorteerd } = getGesorteerdeBloknummers();
@@ -6429,9 +6449,10 @@ async function herNummerBlokken(nieuweVolgorde){
   });
   // Sla op met nieuwe nummers
   Object.entries(mapping).forEach(([oudNr, nieuwNr])=>{
-    const naam = blokNamen[oudNr]||'';
-    nieuweBlokNamen[nieuwNr] = naam;
-    batch2.set(doc(db,'blok_namen',nieuwNr), { naam });
+    const naam = blokNamen[oudNr]?.naam||'';
+    const type = blokNamen[oudNr]?.type||'optioneel';
+    nieuweBlokNamen[nieuwNr] = { naam, type };
+    batch2.set(doc(db,'blok_namen',nieuwNr), { naam, type });
   });
   await batch2.commit();
   blokNamen = nieuweBlokNamen;
@@ -6462,7 +6483,7 @@ window.blokNieuw = function(){
 window.blokBewerken = function(nr){
   document.getElementById('blok-edit-nr').value = nr;
   document.getElementById('blok-edit-nummer').value = nr;
-  document.getElementById('blok-edit-naam').value = blokNamen[nr]||'';
+  document.getElementById('blok-edit-naam').value = blokNamen[nr]?.naam||'';
   document.getElementById('modal-blok-edit-title').textContent = `Blok ${nr} bewerken`;
   openModal('modal-blok-edit');
 };
@@ -6477,8 +6498,8 @@ window.blokOpslaan = async function(){
   status.textContent = 'Opslaan…';
 
   // Sla naam op
-  await setDoc(doc(db,'blok_namen',nieuwNr), { naam });
-  blokNamen[nieuwNr] = naam;
+  await setDoc(doc(db,'blok_namen',nieuwNr), { naam, type: blokNamen[nieuwNr]?.type||blokNamen[oudNr]?.type||'optioneel' });
+  blokNamen[nieuwNr] = { naam, type: blokNamen[nieuwNr]?.type||blokNamen[oudNr]?.type||'optioneel' };
 
   // Als nummer gewijzigd: update sbuConfigData
   if(oudNr && oudNr!==nieuwNr){
