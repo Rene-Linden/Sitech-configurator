@@ -851,6 +851,30 @@ window.startConfig = async function(){
   document.getElementById('f-supplier').value = currentMerk.naam;
   // Laad configurator data als nog niet aanwezig
   if(!bomData.length) await laadConfigData();
+  // Bouw prijscache op na laden — reset eerst zodat er geen stale waarden zijn
+  bomData.forEach(bom=>{
+    delete bom._cachedUnit;
+    delete bom._cachedStd;
+  });
+  // Pre-bereken alle BoM prijzen nu data geladen is
+  const rVerk = id=>(resourceTarieven[id]?.verkoopprijs||95);
+  const rKost = id=>(resourceTarieven[id]?.kostprijs||45);
+  bomData.forEach(bom=>{
+    let u=0, s=0, h=false;
+    (bom.artikelen||[]).forEach(a=>{
+      const art=artikelenCache[a.artikelId]; if(!art) return;
+      const lp=parseFloat(art.listPrice||0);
+      const c=parseFloat(art.standardCost||0), p=parseFloat(art.profitPct||'');
+      const up=lp>0?lp:(c>0&&!isNaN(p)&&p>0?c*(1+p/100):0);
+      const aant=parseFloat(a.aantal||1);
+      u+=up*aant; s+=c*aant; h=true;
+    });
+    const w=parseFloat(bom.welding||0), m=parseFloat(bom.mounting||0), cl=parseFloat(bom.calibration||0);
+    u+=w*rVerk('welding')+m*rVerk('mounting')+cl*rVerk('calibration');
+    s+=w*rKost('welding')+m*rKost('mounting')+cl*rKost('calibration');
+    bom._cachedUnit = u;
+    bom._cachedStd  = s;
+  });
   renderBlocks();
   showStep('step1'); updateStepper(1);
 };
@@ -959,20 +983,7 @@ function renderHuidigBlok(){
         const bom=bomData.find(b=>b.sbuId===sbuId); if(!bom) return;
         // Simpele berekening: als unitTotaal beschikbaar via eerder berekende waarde
         // We slaan het op in bom._cachedUnit bij eerste berekening
-        if(bom._cachedUnit===undefined){
-          let u=0; let h=false;
-          (bom.artikelen||[]).forEach(a=>{
-            const art=artikelenCache[a.artikelId]; if(!art) return;
-            const lp=parseFloat(art.listPrice||0);
-            const c=parseFloat(art.standardCost||0),p=parseFloat(art.profitPct||'');
-            const up=lp>0?lp:(c>0&&!isNaN(p)&&p>0?c*(1+p/100):0);
-            u+=up*parseFloat(a.aantal||1); h=true;
-          });
-          const w=parseFloat(bom.welding||0),m=parseFloat(bom.mounting||0),cl=parseFloat(bom.calibration||0);
-          u+=w*(resourceTarieven.welding?.verkoopprijs||95)+m*(resourceTarieven.mounting?.verkoopprijs||95)+cl*(resourceTarieven.calibration?.verkoopprijs||95);
-          bom._cachedUnit = h?u:0;
-        }
-        tot+=bom._cachedUnit; ok=true;
+        if(bom._cachedUnit!==undefined){ tot+=bom._cachedUnit; ok=true; }
       });
       const el=document.getElementById('bc-prijs-'+oi);
       if(el&&ok&&tot>0) el.textContent='€\u00a0'+Math.ceil(tot).toLocaleString('nl-NL');
@@ -1002,28 +1013,7 @@ function renderHuidigBlok(){
       const bom=bomData.find(b=>b.sbuId===sbuId);
       let verkoop=null, kostprijs=null;
       if(bom){
-        if(bom._cachedUnit===undefined){
-          let u=0; let h=false;
-          (bom.artikelen||[]).forEach(a=>{
-            const art=artikelenCache[a.artikelId]; if(!art) return;
-            const lp=parseFloat(art.listPrice||0);
-            const c=parseFloat(art.standardCost||0),p=parseFloat(art.profitPct||'');
-            const up=lp>0?lp:(c>0&&!isNaN(p)&&p>0?c*(1+p/100):0);
-            u+=up*parseFloat(a.aantal||1); h=true;
-          });
-          const w=parseFloat(bom.welding||0),m=parseFloat(bom.mounting||0),cl=parseFloat(bom.calibration||0);
-          u+=w*(resourceTarieven.welding?.verkoopprijs||95)+m*(resourceTarieven.mounting?.verkoopprijs||95)+cl*(resourceTarieven.calibration?.verkoopprijs||95);
-          bom._cachedUnit = h?u:0;
-        }
-        if(bom._cachedStd===undefined){
-          let s=0;
-          (bom.artikelen||[]).forEach(a=>{
-            const art=artikelenCache[a.artikelId]; if(!art) return;
-            s+=parseFloat(art.standardCost||0)*parseFloat(a.aantal||1);
-          });
-          bom._cachedStd=s;
-        }
-        verkoop = bom._cachedUnit>0?Math.ceil(bom._cachedUnit):null;
+        verkoop   = bom._cachedUnit>0?Math.ceil(bom._cachedUnit):null;
         kostprijs = bom._cachedStd>0?bom._cachedStd:null;
       }
       return {sbuId, naam:bom?.naam||sbuId, verkoop, kostprijs};
