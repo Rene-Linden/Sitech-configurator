@@ -3322,7 +3322,7 @@ async function renderPrijslijstNieuw(){
       const winst = (verkoop && std) ? ((verkoop-std)/verkoop*100) : null;
       const winstKleur = winst===null?'var(--gray-text)':winst>=20?'var(--green)':winst>=0?'var(--amber)':'var(--red)';
       const key = nr+'_'+sbuId;
-      const criterium = plCriterium[key]||'los';
+      const criterium = plCriterium[key]||'beide';
 
       return `<tr style="border-bottom:0.5px solid var(--gray-border)">
         <td style="padding:9px 14px;font-weight:600;font-size:12px;font-family:monospace;color:var(--blue);white-space:nowrap">${sbuId}</td>
@@ -3331,16 +3331,21 @@ async function renderPrijslijstNieuw(){
         <td style="padding:9px 14px;text-align:right;font-size:13px;font-weight:700;color:var(--green);white-space:nowrap">${verkoop?'€\u00a0'+verkoop.toLocaleString('nl-NL'):'—'}</td>
         <td style="padding:9px 14px;text-align:right;font-size:12px;font-weight:600;color:${winstKleur};white-space:nowrap">${winst!==null?winst.toFixed(1)+'%':'—'}</td>
         <td style="padding:9px 14px;text-align:center;white-space:nowrap">
-          <div style="display:inline-flex;border:0.5px solid var(--gray-border);border-radius:8px;overflow:hidden;font-size:12px">
+          <div style="display:inline-flex;border:0.5px solid var(--gray-border);border-radius:8px;overflow:hidden;font-size:11px">
             <button onclick="plSetCriterium('${nr}','${sbuId}','los')"
-              style="padding:4px 10px;border:none;cursor:pointer;font-size:11px;font-weight:600;
+              style="padding:4px 9px;border:none;cursor:pointer;font-size:11px;font-weight:600;
               background:${criterium==='los'?'var(--amber)':'var(--white)'};
               color:${criterium==='los'?'#fff':'var(--gray-text)'};
               border-right:0.5px solid var(--gray-border)">Los</button>
             <button onclick="plSetCriterium('${nr}','${sbuId}','vast')"
-              style="padding:4px 10px;border:none;cursor:pointer;font-size:11px;font-weight:600;
+              style="padding:4px 9px;border:none;cursor:pointer;font-size:11px;font-weight:600;
               background:${criterium==='vast'?'var(--blue)':'var(--white)'};
-              color:${criterium==='vast'?'#fff':'var(--gray-text)'}">Vast</button>
+              color:${criterium==='vast'?'#fff':'var(--gray-text)'};
+              border-right:0.5px solid var(--gray-border)">Vast</button>
+            <button onclick="plSetCriterium('${nr}','${sbuId}','beide')"
+              style="padding:4px 9px;border:none;cursor:pointer;font-size:11px;font-weight:600;
+              background:${criterium==='beide'?'var(--green)':'var(--white)'};
+              color:${criterium==='beide'?'#fff':'var(--gray-text)'}">Beide</button>
           </div>
         </td>
       </tr>`;
