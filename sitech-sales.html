@@ -371,6 +371,52 @@ body{font-family:var(--font);background:var(--gray-bg);color:#1a1a1a;min-height:
     </div>
   </div>
 
+  <!-- STAP 1.5: OVERZICHT & KORTING -->
+  <div id="step-overzicht" class="content" style="display:none">
+    <div class="section-title">Prijsoverzicht</div>
+    <div class="section-sub">Overzicht van de configuratie met mogelijkheid tot korting.</div>
+
+    <div class="totaal-card" style="margin-bottom:1.25rem">
+      <div class="totaal-header">Geselecteerde producten <span class="internal-badge">Alleen intern</span></div>
+      <div class="prijzen-header"><span>Product</span><span style="text-align:right">Kostprijs</span><span style="text-align:right">Verkoopprijs</span></div>
+      <div id="overzicht-regels"></div>
+      <div class="prijzen-totaal totaal-inkoop-row"><span>Totaal kostprijs</span><span style="text-align:right" id="overzicht-inkoop">€ 0,00</span></div>
+      <div class="prijzen-totaal totaal-verkoop-row"><span>Totaal adviesverkoopprijs</span><span style="text-align:right;color:var(--green)" id="overzicht-verkoop">€ 0,00</span></div>
+    </div>
+
+    <!-- Korting -->
+    <div class="block-card" style="padding:1.25rem;margin-bottom:1.25rem">
+      <div style="font-size:14px;font-weight:600;margin-bottom:12px">Korting</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="font-size:12px;font-weight:500;color:var(--gray-text);display:block;margin-bottom:4px">Kortingsbedrag (€)</label>
+          <input type="number" id="ov-korting-bedrag" min="0" step="0.01" placeholder="0,00"
+            oninput="ovKortingBedrag()"
+            style="width:100%;padding:9px 10px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;outline:none" />
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:500;color:var(--gray-text);display:block;margin-bottom:4px">Kortingspercentage (%)</label>
+          <input type="number" id="ov-korting-pct" min="0" max="100" step="0.5" placeholder="0"
+            oninput="ovKortingPct()"
+            style="width:100%;padding:9px 10px;border:0.5px solid var(--gray-border);border-radius:8px;font-size:14px;outline:none" />
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;margin-bottom:8px">
+        <span style="font-size:14px;color:var(--gray-text)">Korting</span>
+        <span id="ov-korting-toon" style="font-size:14px;font-weight:600;color:#dc2626">— € 0,00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--blue-light);border-radius:10px;border:0.5px solid #93C5FD">
+        <span style="font-size:15px;font-weight:700;color:var(--blue)">Netto verkoopprijs</span>
+        <span id="ov-netto" style="font-size:22px;font-weight:800;color:var(--blue)">€ 0,00</span>
+      </div>
+    </div>
+
+    <div class="nav-bar">
+      <button class="btn-back" onclick="terugNaarBlokken()">← Terug</button>
+      <button class="btn-next" onclick="goStep2()">Klantgegevens →</button>
+    </div>
+  </div>
+
   <!-- STAP 2 -->
   <div id="step2" class="content" style="display:none">
     <div class="section-title">Gegevens</div>
@@ -475,22 +521,87 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
-let merken=[], sitechMedewerkers=[], prijslijsten={};
+let merken=[], sitechMedewerkers=[];
 let currentUser=null, currentMerk=null, selections={};
+// Firestore data
+let bomData=[], sbuConfigData={}, blokNamenData={}, plCriteriumData={}, blokVolgordeData=[];
 
 async function loadData(){
-  const [mS,sS,pS] = await Promise.all([
+  const [mS,sS] = await Promise.all([
     getDocs(collection(db,'merken')),
     getDocs(collection(db,'sitech_medewerkers')),
-    getDocs(collection(db,'prijslijsten')),
   ]);
-  merken              = mS.docs.map(d=>({id:d.id,...d.data()}));
-  sitechMedewerkers   = sS.docs.map(d=>({id:d.id,...d.data()}));
-  pS.docs.forEach(d=>{ prijslijsten[d.id]=d.data().blocks||[]; });
+  merken            = mS.docs.map(d=>({id:d.id,...d.data()}));
+  sitechMedewerkers = sS.docs.map(d=>({id:d.id,...d.data()}));
   document.getElementById('loading-screen').style.display='none';
   document.getElementById('login-screen').style.display='flex';
 }
 loadData();
+
+async function laadConfigData(){
+  const [bomSnap, cfgSnap, bnSnap, pcSnap, volSnap] = await Promise.all([
+    getDocs(collection(db,'bom_sbu')),
+    getDocs(collection(db,'sbu_config')),
+    getDocs(collection(db,'blok_namen')),
+    getDocs(collection(db,'pl_criterium')),
+    getDocs(collection(db,'blok_volgorde')),
+  ]);
+  bomData = bomSnap.docs.map(d=>({id:d.id,...d.data()}));
+  cfgSnap.docs.forEach(d=>{ sbuConfigData[d.id]=d.data(); });
+  bnSnap.docs.forEach(d=>{ blokNamenData[d.id]={ naam:d.data().naam||'', type:d.data().type||'optioneel' }; });
+  pcSnap.docs.forEach(d=>{ plCriteriumData[d.id]=d.data().waarde||'beide'; });
+  const vol0 = volSnap.docs[0];
+  blokVolgordeData = vol0 ? vol0.data().volgorde||[] : [];
+}
+
+// Bouw gesorteerde lijst van blokken (excl. blok 1) gefilterd op merk en criterium
+function getBlokken(merkId, criterium){
+  // Groepeer SBU's per blok
+  const blokMap = {};
+  Object.entries(sbuConfigData).forEach(([sbuId, cfg])=>{
+    const nr = cfg.blok;
+    if(!nr || nr==='1') return;
+    // Check of SBU actief is voor dit merk
+    const merkActief = cfg.merken && merkId in cfg.merken ? cfg.merken[merkId] : true;
+    if(!merkActief) return;
+    // Check criterium
+    const key = nr+'_'+sbuId;
+    const crit = plCriteriumData[key]||'beide';
+    if(crit!=='beide' && crit!==criterium) return;
+    if(!blokMap[nr]) blokMap[nr]=[];
+    blokMap[nr].push(sbuId);
+  });
+
+  const alleNrs = Object.keys(blokMap);
+  const gesorteerd = blokVolgordeData.filter(nr=>alleNrs.includes(nr));
+  alleNrs.forEach(nr=>{ if(!gesorteerd.includes(nr)) gesorteerd.push(nr); });
+
+  return gesorteerd.map(nr=>({
+    nr,
+    naam: blokNamenData[nr]?.naam || `Blok ${nr}`,
+    type: blokNamenData[nr]?.type || 'optioneel',
+    sbuIds: blokMap[nr]||[],
+  }));
+}
+
+function getSbuInfo(sbuId){
+  const bom = bomData.find(b=>b.sbuId===sbuId);
+  const tot = bom ? berekenBomTotalen(bom) : null;
+  return {
+    sbuId,
+    naam: bom?.naam || sbuId,
+    kostprijs: tot?.stdTotaal || null,
+    verkoop:   tot ? Math.ceil(tot.unitTotaal) : null,
+  };
+}
+
+function berekenBomTotalen(bom){
+  // Vereenvoudigde berekening: unitTotaal = afgerond op basis van sbu data
+  // We nemen de waarde direct als we die hebben
+  if(bom.unitTotaal) return { stdTotaal: bom.stdTotaal||0, unitTotaal: bom.unitTotaal };
+  // Fallback: gebruik de kostprijs als indicator
+  return null;
+}
 
 // AUTH
 window.doLogin = function(){
@@ -682,151 +793,243 @@ window.changeMerk = function(){
   showMerkKeuze();
 };
 
+window.startConfig = async function(){
+  if(!currentMerk) return;
+  document.getElementById('merk-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+  document.getElementById('merk-badge').textContent=currentMerk.naam;
+  selections={};
+  document.getElementById('f-am-name').value  = currentUser.naam||'';
+  document.getElementById('f-am-email').value = currentUser.email||'';
+  document.getElementById('f-am-phone').value = currentUser.tel||'';
+  document.getElementById('f-supplier').value = currentMerk.naam;
+  // Laad configurator data als nog niet aanwezig
+  if(!bomData.length) await laadConfigData();
+  renderBlocks();
+  showStep('step1'); updateStepper(1);
+};
+
 // BLOCKS
-let currentCriterium='', huidigBlokIdx=0;
-function getBlocks(){ return currentMerk?(prijslijsten[currentMerk.id]||[]):[]; }
-function getVisibleOptions(b){ return b.options.filter(o=>!o.criterium||o.criterium===currentCriterium); }
+let currentCriterium='', huidigBlokIdx=0, huidigeBlokkens=[];
+
 function renderBlocks(){
-  currentCriterium=''; huidigBlokIdx=0;
+  currentCriterium=''; huidigBlokIdx=0; huidigeBlokkens=[];
   document.getElementById('blok0-screen').style.display='';
   document.getElementById('blok-screen').style.display='none';
   document.getElementById('tile-los').classList.remove('selected');
   document.getElementById('tile-vast').classList.remove('selected');
   document.getElementById('btn-blok0-next').disabled=true;
 }
+
 window.selectCriterium=function(c){
   currentCriterium=c;
   document.getElementById('tile-los').classList.toggle('selected',c==='los');
   document.getElementById('tile-vast').classList.toggle('selected',c==='vast');
   document.getElementById('btn-blok0-next').disabled=false;
 };
+
 window.startBlokken=function(){
+  huidigeBlokkens = getBlokken(currentMerk.id, currentCriterium);
   huidigBlokIdx=0;
   document.getElementById('blok0-screen').style.display='none';
   document.getElementById('blok-screen').style.display='';
-  renderHuidigBlok();
+  if(!huidigeBlokkens.length){
+    document.getElementById('blok-opties-container').innerHTML=
+      '<div style="padding:2rem;text-align:center;color:var(--gray-text)">Geen configuratie beschikbaar voor dit merk en installatietype.</div>';
+    document.getElementById('btn-blok-volgende').textContent='Klantgegevens →';
+    document.getElementById('btn-blok-volgende').disabled=false;
+  } else {
+    renderHuidigBlok();
+  }
 };
+
 function renderHuidigBlok(){
-  const blocks=getBlocks();
-  if(!blocks.length||huidigBlokIdx>=blocks.length){goStep2();return;}
-  const b=blocks[huidigBlokIdx];
-  const visibleOpts=getVisibleOptions(b);
-  const total=blocks.length;
-  document.getElementById('blok-progress-label').textContent=`Blok ${huidigBlokIdx+1} van ${total}`;
+  if(huidigBlokIdx>=huidigeBlokkens.length){ goStapOverzicht(); return; }
+  const blok = huidigeBlokkens[huidigBlokIdx];
+  const total = huidigeBlokkens.length;
+
+  document.getElementById('blok-progress-label').textContent=`Stap ${huidigBlokIdx+1} van ${total}`;
   document.getElementById('blok-progress-bar').style.width=Math.round((huidigBlokIdx/total)*100)+'%';
   document.getElementById('blok-criterium-badge').innerHTML=currentCriterium==='los'
     ?'<span style="background:#EFF6FF;color:#185FA5;padding:3px 10px;border-radius:20px;font-size:12px;border:0.5px solid #93C5FD">Losse ontvangers</span>'
     :'<span style="background:#FFFBEB;color:#D97706;padding:3px 10px;border-radius:20px;font-size:12px;border:0.5px solid #FCD34D">Vaste ontvangers</span>';
-  document.getElementById('blok-nummer-badge').textContent=huidigBlokIdx+1;
-  document.getElementById('blok-title-display').textContent=b.title;
-  document.getElementById('blok-req-badge').textContent=b.required?'Verplicht':'Optioneel';
-  const instrEl=document.getElementById('blok-instructie-display');
-  if(b.instructie){instrEl.textContent=b.instructie;instrEl.style.display='';}else instrEl.style.display='none';
+  document.getElementById('blok-nummer-badge').textContent=blok.nr;
+  document.getElementById('blok-title-display').textContent=blok.naam;
+  const verplicht = blok.type==='verplicht';
+  document.getElementById('blok-req-badge').innerHTML=verplicht
+    ?'<span style="background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:12px">Verplicht</span>'
+    :'<span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:12px">Optioneel</span>';
+  document.getElementById('blok-instructie-display').style.display='none';
   document.getElementById('btn-blok-terug').textContent=huidigBlokIdx===0?'← Type wijzigen':'← Terug';
-  const huidigeSel=selections[huidigBlokIdx];
-  const isBlok1=String(b.blokNr||'')==='1'||huidigBlokIdx===0;
-  const container=document.getElementById('blok-opties-container');
-  if(!visibleOpts.length){
-    container.innerHTML='<div style="padding:1.5rem;text-align:center;color:var(--gray-text);font-size:14px">Geen opties voor dit installatietype.</div>';
-    document.getElementById('btn-blok-volgende').disabled=b.required;return;
+
+  const huidigeSel = selections[huidigBlokIdx];
+  const container  = document.getElementById('blok-opties-container');
+  const isLaatste  = huidigBlokIdx===huidigeBlokkens.length-1;
+  document.getElementById('btn-blok-volgende').textContent = isLaatste ? 'Overzicht →' : 'Volgende →';
+  document.getElementById('btn-blok-volgende').disabled = verplicht && !huidigeSel;
+
+  const opties = blok.sbuIds.map(getSbuInfo);
+  if(!opties.length){
+    container.innerHTML='<div style="padding:1.5rem;text-align:center;color:var(--gray-text)">Geen opties beschikbaar.</div>';
+    document.getElementById('btn-blok-volgende').disabled=verplicht;
+    updateTotaal(); return;
   }
-  container.dataset.opts=JSON.stringify(visibleOpts);
+
   container.dataset.blok=huidigBlokIdx;
   container.innerHTML=
-    `<div class="optie-header"><span></span><span>Omschrijving</span><span style="text-align:right">Inkoop</span><span style="text-align:right">Adviesprijs</span></div>`+
-    visibleOpts.map((opt,oi)=>{
-      const g=huidigeSel&&huidigeSel.option.name===opt.name;
-      const bg=!g&&isBlok1&&opt.color==='blue'?'background:#EFF6FF':!g&&isBlok1&&opt.color==='yellow'?'background:#FFFBEB':'';
-      const dot=isBlok1&&opt.color==='blue'?'<span style="width:8px;height:8px;border-radius:50%;background:#185FA5;flex-shrink:0;margin-right:4px;display:inline-block"></span>':isBlok1&&opt.color==='yellow'?'<span style="width:8px;height:8px;border-radius:50%;background:#D97706;flex-shrink:0;margin-right:4px;display:inline-block"></span>':'';
-      return `<div class="optie-rij${g?' selected':''}" style="${bg}" data-oi="${oi}">
+    `<div class="optie-header"><span></span><span>SBU</span><span style="text-align:right">Kostprijs</span><span style="text-align:right">Verkoopprijs</span></div>`+
+    opties.map((opt,oi)=>{
+      const g = huidigeSel && huidigeSel.sbuId===opt.sbuId;
+      return `<div class="optie-rij${g?' selected':''}" data-oi="${oi}">
         <div class="optie-radio"></div>
-        <div style="display:flex;align-items:center;gap:10px">
-          ${opt.fotoUrl?`<img src="${opt.fotoUrl}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:0.5px solid var(--gray-border);flex-shrink:0">`:''}
-          <div><div class="optie-naam" style="display:flex;align-items:center">${dot}${opt.name}</div>${opt.artikelnr?`<div style="font-size:12px;color:var(--gray-text)">Art: ${opt.artikelnr}</div>`:''}</div>
+        <div>
+          <div class="optie-naam">${opt.naam}</div>
+          <div style="font-size:12px;color:var(--gray-text)">${opt.sbuId}</div>
         </div>
-        <div class="optie-inkoop">${opt.inkoop?'€\u00a0'+parseFloat(opt.inkoop).toFixed(2):''}</div>
-        <div class="optie-verkoop">${opt.price?'€\u00a0'+parseFloat(opt.price).toFixed(2):''}</div>
+        <div class="optie-inkoop">${opt.kostprijs!=null?'€\u00a0'+opt.kostprijs.toFixed(2):''}</div>
+        <div class="optie-verkoop">${opt.verkoop!=null?'€\u00a0'+opt.verkoop.toLocaleString('nl-NL'):''}</div>
       </div>`;
     }).join('');
+
   container.onclick=function(e){
-    const rij=e.target.closest('.optie-rij');if(!rij)return;
+    const rij=e.target.closest('.optie-rij'); if(!rij) return;
     const oi=parseInt(rij.dataset.oi);
-    const opts=JSON.parse(container.dataset.opts);
     const bi=parseInt(container.dataset.blok);
-    selections[bi]={block:getBlocks()[bi].title,option:opts[oi]};
-    container.querySelectorAll('.optie-rij').forEach((r,i)=>{
-      r.classList.toggle('selected',i===oi);
-      if(i!==oi){const o=opts[i];r.style.background=isBlok1&&o.color==='blue'?'#EFF6FF':isBlok1&&o.color==='yellow'?'#FFFBEB':'';}
-      else r.style.background='';
-    });
+    selections[bi]={blokNr:blok.nr, blokNaam:blok.naam, ...opties[oi]};
+    container.querySelectorAll('.optie-rij').forEach((r,i)=>r.classList.toggle('selected',i===oi));
     document.getElementById('btn-blok-volgende').disabled=false;
     updateTotaal();
   };
-  document.getElementById('btn-blok-volgende').disabled=b.required&&!huidigeSel;
-  document.getElementById('btn-blok-volgende').textContent=huidigBlokIdx===blocks.length-1?'Klantgegevens →':'Volgende →';
   updateTotaal();
 }
+
 window.blokTerug=function(){
   if(huidigBlokIdx===0){document.getElementById('blok-screen').style.display='none';document.getElementById('blok0-screen').style.display='';}
   else{huidigBlokIdx--;renderHuidigBlok();}
 };
 window.blokVolgende=function(){
-  const blocks=getBlocks();huidigBlokIdx++;
-  if(huidigBlokIdx>=blocks.length) goStep2();else renderHuidigBlok();
+  huidigBlokIdx++;
+  if(huidigBlokIdx>=huidigeBlokkens.length) goStapOverzicht();
+  else renderHuidigBlok();
 };
+
 function updateTotaal(){
-  const blocks=getBlocks();let ti=0,tv=0;const regels=[];
-  blocks.forEach((b,bi)=>{const s=selections[bi];if(s){const i=parseFloat(s.option.inkoop||0),v=parseFloat(s.option.price||0);ti+=i;tv+=v;regels.push({nr:bi+1,blok:b.title,naam:s.option.name,inkoop:i,verkoop:v});}});
+  let ti=0,tv=0; const regels=[];
+  huidigeBlokkens.forEach((_,bi)=>{
+    const s=selections[bi];
+    if(s){ const k=s.kostprijs||0,v=s.verkoop||0; ti+=k; tv+=v;
+      regels.push({nr:bi+1,blokNaam:s.blokNaam,naam:s.naam,kostprijs:k,verkoop:v}); }
+  });
   const card=document.getElementById('totaal-card');
-  if(!regels.length){card.style.display='none';return}
+  if(!regels.length){card.style.display='none';return;}
   card.style.display='block';
-  document.getElementById('totaal-regels').innerHTML=regels.map(r=>`<div class="prijzen-row"><span class="p-label"><strong style="color:#1a1a1a">${r.nr} ${r.blok}:</strong> ${r.naam}</span><span class="p-inkoop">${r.inkoop?'€\u00a0'+r.inkoop.toFixed(2):''}</span><span class="p-verkoop">${r.verkoop?'€\u00a0'+r.verkoop.toFixed(2):''}</span></div>`).join('');
+  document.getElementById('totaal-regels').innerHTML=regels.map(r=>
+    `<div class="prijzen-row"><span class="p-label"><strong>${r.nr} ${r.blokNaam}:</strong> ${r.naam}</span><span class="p-inkoop">${r.kostprijs?'€\u00a0'+r.kostprijs.toFixed(2):''}</span><span class="p-verkoop">${r.verkoop?'€\u00a0'+r.verkoop.toLocaleString('nl-NL'):''}</span></div>`).join('');
   document.getElementById('totaal-inkoop').textContent='€\u00a0'+ti.toFixed(2).replace('.',',');
   document.getElementById('totaal-verkoop').textContent='€\u00a0'+tv.toFixed(2).replace('.',',');
 }
 
-// STEPS
-function showStep(id){ ['step1','step2','step3','step-success'].forEach(s=>{ document.getElementById(s).style.display=s===id?'':'none'; }); }
+function goStapOverzicht(){
+  let ti=0, tv=0; const regels=[];
+  huidigeBlokkens.forEach((_,bi)=>{
+    const s=selections[bi];
+    if(s){ ti+=s.kostprijs||0; tv+=s.verkoop||0;
+      regels.push({nr:bi+1, blokNaam:s.blokNaam, naam:s.naam, kostprijs:s.kostprijs||0, verkoop:s.verkoop||0}); }
+  });
+  document.getElementById('overzicht-regels').innerHTML = regels.map(r=>
+    `<div class="prijzen-row"><span class="p-label"><strong>${r.nr} ${r.blokNaam}:</strong> ${r.naam}</span><span class="p-inkoop">${r.kostprijs?'€\u00a0'+r.kostprijs.toFixed(2):''}</span><span class="p-verkoop">${r.verkoop?'€\u00a0'+r.verkoop.toLocaleString('nl-NL'):''}</span></div>`).join('');
+  document.getElementById('overzicht-inkoop').textContent='€\u00a0'+ti.toFixed(2).replace('.',',');
+  document.getElementById('overzicht-verkoop').textContent='€\u00a0'+tv.toLocaleString('nl-NL');
+  document.getElementById('ov-korting-bedrag').value='';
+  document.getElementById('ov-korting-pct').value='';
+  document.getElementById('ov-korting-toon').textContent='— € 0,00';
+  document.getElementById('ov-netto').textContent='€\u00a0'+tv.toLocaleString('nl-NL');
+  showStep('step-overzicht'); updateStepper(2);
+}
+
+window.terugNaarBlokken=function(){
+  huidigBlokIdx = huidigeBlokkens.length-1;
+  showStep('step1'); updateStepper(1);
+  document.getElementById('blok0-screen').style.display='none';
+  document.getElementById('blok-screen').style.display='';
+  renderHuidigBlok();
+};
+
+function getOvTotaalVerkoop(){
+  return huidigeBlokkens.reduce((s,_,bi)=>s+(selections[bi]?.verkoop||0),0);
+}
+function ovHerbereken(){
+  const tv=getOvTotaalVerkoop();
+  const b=parseFloat(document.getElementById('ov-korting-bedrag')?.value||0);
+  const p=parseFloat(document.getElementById('ov-korting-pct')?.value||0);
+  const k=b>0?b:(p>0?tv*(p/100):0);
+  const n=Math.max(0,tv-k);
+  const fmt=v=>'€\u00a0'+Math.ceil(v).toLocaleString('nl-NL');
+  document.getElementById('ov-korting-toon').textContent='— '+fmt(k);
+  document.getElementById('ov-netto').textContent=fmt(n);
+}
+window.ovKortingBedrag=()=>{document.getElementById('ov-korting-pct').value='';ovHerbereken();};
+window.ovKortingPct=()=>{document.getElementById('ov-korting-bedrag').value='';ovHerbereken();};
+function showStep(id){ ['step1','step-overzicht','step2','step3','step-success'].forEach(s=>{ const el=document.getElementById(s); if(el) el.style.display=s===id?'':'none'; }); }
 function updateStepper(a){ [1,2,3].forEach(n=>{ document.getElementById('dot'+n).className='step-dot'+(n===a?' active':n<a?' done':''); document.getElementById('lbl'+n).className='step-label'+(n===a?' active':''); }); }
 function getDateValue(){ const d=document.getElementById('f-date-d').value,m=document.getElementById('f-date-m').value,y=document.getElementById('f-date-y').value; return d&&m&&y?`${d}-${m}-${y}`:''; }
 
-window.goStep2=function(){ showStep('step2'); updateStepper(2); };
+window.goStep2=function(){ showStep('step2'); updateStepper(3); };
 window.goStep1=()=>{showStep('step1');updateStepper(1)};
-window.goStep2back=()=>{showStep('step2');updateStepper(2)};
+window.goStep2back=()=>{showStep('step2');updateStepper(3)};
 window.goStep3=function(){
   const req=[['f-am-name','Naam verkoper'],['f-am-email','E-mail verkoper'],['f-company','Bedrijfsnaam klant'],['f-contact','Contactpersoon'],['f-email','E-mailadres klant']];
   for(const [id,lbl] of req){ if(!document.getElementById(id).value.trim()){alert(`Vul het verplichte veld in: "${lbl}"`);document.getElementById(id).focus();return;} }
   buildSummary(); showStep('step3'); updateStepper(3);
 };
 function buildSummary(){
-  const blocks=getBlocks();
-  document.getElementById('summary-products').innerHTML=blocks.map((b,bi)=>{ const s=selections[bi]; return `<div class="summary-row"><span class="label">${b.title}</span><span class="value ${s?'':'none'}">${s?s.option.name:'Geen keuze'}</span></div>`; }).join('');
+  // Producten
+  document.getElementById('summary-products').innerHTML=huidigeBlokkens.map((blok,bi)=>{
+    const s=selections[bi];
+    return `<div class="summary-row"><span class="label">${blok.naam}</span><span class="value ${s?'':'none'}">${s?s.naam:'Geen keuze'}</span></div>`;
+  }).join('');
+
+  // Klantgegevens
   const verkoopFields=[['Verkoper','f-am-name'],['E-mail','f-am-email'],['Telefoon','f-am-phone'],['Leverancier','f-supplier']];
   const klantFields=[['Bedrijfsnaam','f-company'],['Contactpersoon','f-contact'],['E-mailadres','f-email'],['Telefoon','f-phone'],['Referentie','f-ref'],['Opmerkingen','f-notes']];
-  const renderF=fields=>fields.map(([l,id])=>{ const v=document.getElementById(id).value.trim(); return v?`<div class="summary-row"><span class="label">${l}</span><span class="value">${v}</span></div>`:''; }).join('');
+  const renderF=fields=>fields.map(([l,id])=>{ const v=document.getElementById(id)?.value?.trim(); return v?`<div class="summary-row"><span class="label">${l}</span><span class="value">${v}</span></div>`:''; }).join('');
   const dateVal=getDateValue();
   document.getElementById('summary-customer').innerHTML=
     '<div style="font-size:12px;font-weight:500;color:var(--gray-text);padding:10px 16px 4px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border)">Sitech verkoper</div>'+
     renderF(verkoopFields)+
     '<div style="font-size:12px;font-weight:500;color:var(--gray-text);padding:10px 16px 4px;background:var(--gray-bg);border-bottom:0.5px solid var(--gray-border);border-top:0.5px solid var(--gray-border)">Eindklant</div>'+
     renderF(klantFields)+(dateVal?`<div class="summary-row"><span class="label">Leverdatum</span><span class="value">${dateVal}</span></div>`:'');
+
+  // Prijzen inclusief korting
   let ti=0,tv=0;
-  const pRows=blocks.map((b,bi)=>{ const s=selections[bi]; if(!s)return''; const i=parseFloat(s.option.inkoop||0),v=parseFloat(s.option.price||0); ti+=i;tv+=v; return `<div class="prijzen-row"><span class="p-label"><strong style="color:#1a1a1a">${bi+1} ${b.title}:</strong> ${s.option.name}</span><span class="p-inkoop">${i?'€\u00a0'+i.toFixed(2):''}</span><span class="p-verkoop">${v?'€\u00a0'+v.toFixed(2):''}</span></div>`; }).join('');
+  const pRows=huidigeBlokkens.map((blok,bi)=>{
+    const s=selections[bi]; if(!s) return '';
+    ti+=(s.kostprijs||0); tv+=(s.verkoop||0);
+    return `<div class="prijzen-row"><span class="p-label"><strong>${bi+1} ${s.blokNaam}:</strong> ${s.naam}</span><span class="p-inkoop">${s.kostprijs?'€\u00a0'+s.kostprijs.toFixed(2):''}</span><span class="p-verkoop">${s.verkoop?'€\u00a0'+s.verkoop.toLocaleString('nl-NL'):''}</span></div>`;
+  }).join('');
+  const kb=parseFloat(document.getElementById('ov-korting-bedrag')?.value||0);
+  const kp=parseFloat(document.getElementById('ov-korting-pct')?.value||0);
+  const korting=kb>0?kb:(kp>0?tv*(kp/100):0);
+  const netto=Math.max(0,tv-korting);
   document.getElementById('summary-prijzen').innerHTML=
-    '<div class="prijzen-header"><span>Product</span><span style="text-align:right">Inkoop</span><span style="text-align:right">Adviesprijs</span></div>'+pRows+
-    `<div class="prijzen-totaal totaal-inkoop-row"><span>Totaal inkoop</span><span style="text-align:right">€\u00a0${ti.toFixed(2)}</span></div>`+
-    `<div class="prijzen-totaal totaal-verkoop-row"><span>Totaal verkoopadvies</span><span style="text-align:right;color:var(--green)">€\u00a0${tv.toFixed(2)}</span></div>`;
+    '<div class="prijzen-header"><span>Product</span><span style="text-align:right">Kostprijs</span><span style="text-align:right">Verkoopprijs</span></div>'+pRows+
+    `<div class="prijzen-totaal totaal-inkoop-row"><span>Totaal kostprijs</span><span style="text-align:right">€\u00a0${ti.toFixed(2)}</span></div>`+
+    `<div class="prijzen-totaal totaal-verkoop-row"><span>Advies verkoopprijs</span><span style="text-align:right;color:var(--green)">€\u00a0${tv.toLocaleString('nl-NL')}</span></div>`+
+    (korting>0?`<div class="prijzen-totaal" style="color:#dc2626"><span>Korting</span><span style="text-align:right">— €\u00a0${Math.ceil(korting).toLocaleString('nl-NL')}</span></div>`:'')+ 
+    `<div class="prijzen-totaal totaal-verkoop-row" style="font-size:15px"><span>Netto verkoopprijs</span><span style="text-align:right;color:var(--blue)">€\u00a0${Math.ceil(netto).toLocaleString('nl-NL')}</span></div>`;
 }
 
 window.submitForm=async function(){
   const btn=document.getElementById('btn-submit');
   btn.disabled=true; btn.textContent='Versturen…';
-  emailjs.init({publicKey:EMAILJS_PUBLIC_KEY});
   const klantEmail=document.getElementById('f-email').value.trim();
-  const blocks=getBlocks();
-  const productsKlant=blocks.map((b,bi)=>{ const s=selections[bi]; return s?`${b.title}: ${s.option.name}`:`${b.title}: geen keuze`; }).join('\n');
-  const productsSitech=blocks.map((b,bi)=>{ const s=selections[bi]; if(!s)return`${b.title}: geen keuze`; const i=parseFloat(s.option.inkoop||0),v=parseFloat(s.option.price||0); const sbu=[s.option.sbu1,s.option.sbu2,s.option.sbu3,s.option.sbu4].filter(Boolean); const sbuStr=sbu.length?` | SBU: ${sbu.join(', ')}`:''; return `${b.title}: ${s.option.name}${s.option.artikelnr?' ['+s.option.artikelnr+']':''} | Inkoop: €${i.toFixed(2)} | Advies: €${v.toFixed(2)}${sbuStr}`; }).join('\n');
-  let ti=0,tv=0; blocks.forEach((_,bi)=>{ const s=selections[bi]; if(s){ti+=parseFloat(s.option.inkoop||0);tv+=parseFloat(s.option.price||0);} });
+  const kb=parseFloat(document.getElementById('ov-korting-bedrag')?.value||0);
+  const kp=parseFloat(document.getElementById('ov-korting-pct')?.value||0);
+  let ti=0,tv=0;
+  const productsKlant=huidigeBlokkens.map((blok,bi)=>{ const s=selections[bi]; return s?`${blok.naam}: ${s.naam}`:`${blok.naam}: geen keuze`; }).join('\n');
+  const productsSitech=huidigeBlokkens.map((blok,bi)=>{ const s=selections[bi]; if(!s) return`${blok.naam}: geen keuze`; ti+=(s.kostprijs||0); tv+=(s.verkoop||0); return `${blok.naam}: ${s.naam} [${s.sbuId}] | Kost: €${(s.kostprijs||0).toFixed(2)} | Verkoop: €${(s.verkoop||0).toLocaleString('nl-NL')}`; }).join('\n');
+  const korting=kb>0?kb:(kp>0?tv*(kp/100):0);
+  const netto=Math.max(0,tv-korting);
   const params={
     supplier: document.getElementById('f-supplier').value.trim(),
     am_name:  document.getElementById('f-am-name').value.trim(),
@@ -840,11 +1043,20 @@ window.submitForm=async function(){
     date:     getDateValue(),
     notes:    document.getElementById('f-notes').value.trim(),
     user_brand: currentMerk?currentMerk.naam:'',
+    criterium: currentCriterium,
   };
-  try{ await addDoc(collection(db,'aanvragen'),{...params,datum:new Date().toISOString(),merkId:currentMerk?.id||'',merkNaam:currentMerk?.naam||'',products:productsKlant,products_detail:productsSitech,totaal_inkoop:'€ '+ti.toFixed(2),totaal_verkoop:'€ '+tv.toFixed(2)}); }catch(e){console.warn(e);}
+  try{
+    await addDoc(collection(db,'aanvragen'),{...params,
+      datum:new Date().toISOString(),merkId:currentMerk?.id||'',merkNaam:currentMerk?.naam||'',
+      products:productsKlant,products_detail:productsSitech,
+      totaal_kostprijs:'€ '+ti.toFixed(2),totaal_verkoop:'€ '+tv.toLocaleString('nl-NL'),
+      korting:'€ '+Math.ceil(korting).toLocaleString('nl-NL'),netto:'€ '+Math.ceil(netto).toLocaleString('nl-NL'),
+    });
+  }catch(e){console.warn(e);}
+  emailjs.init({publicKey:EMAILJS_PUBLIC_KEY});
   Promise.all([
     emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_KLANT,{...params,products:productsKlant,to_email:klantEmail}),
-    emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_SITECH,{...params,products:productsSitech,totaal_inkoop:'€ '+ti.toFixed(2),totaal_verkoop:'€ '+tv.toFixed(2),to_email:SITECH_VERKOPER_EMAIL}),
+    emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_SITECH,{...params,products:productsSitech,totaal_kostprijs:'€ '+ti.toFixed(2),totaal_verkoop:'€ '+tv.toLocaleString('nl-NL'),korting_bedrag:'€ '+Math.ceil(korting).toLocaleString('nl-NL'),netto_prijs:'€ '+Math.ceil(netto).toLocaleString('nl-NL'),to_email:SITECH_VERKOPER_EMAIL}),
   ]).then(()=>{ document.getElementById('success-email').textContent=klantEmail; showStep('step-success'); updateStepper(4); })
   .catch(err=>{ console.error(err); alert('Fout bij verzenden.\n\n'+JSON.stringify(err)); btn.disabled=false; btn.textContent='Aanvraag verzenden'; });
 };
