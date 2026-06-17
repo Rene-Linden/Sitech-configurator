@@ -6265,98 +6265,48 @@ window.bcRijBomBekijken = function(ri){
   if(!rij) return;
   const sbus = [rij.sbu1,rij.sbu2,rij.sbu3,rij.sbu4].filter(Boolean);
   document.getElementById('modal-bc-bom-title').textContent =
-    `BoM — ${rij.type||''} ${rij.omschrijving||''} ${rij.criterium?'('+rij.criterium+')':''}`;
+    `${rij.type||''} — ${rij.omschrijving||''}${rij.criterium?' ('+rij.criterium+')':''}`;
 
-  const fmt  = v => v!=null ? '€\u00a0'+parseFloat(v).toFixed(2) : '—';
   const fmtC = v => v!=null ? '€\u00a0'+Math.ceil(v).toLocaleString('nl-NL') : '—';
+  const fmt2 = v => v!=null ? '€\u00a0'+parseFloat(v).toFixed(2) : '—';
 
-  let totalKost=0, totalVerk=0;
+  let totalVerk=0, totalKost=0;
 
-  const secties = sbus.map(sbuId=>{
+  const rijen = sbus.map(sbuId=>{
     const bom = bomData.find(b=>b.sbuId===sbuId);
-    if(!bom) return `<div style="padding:10px 16px;color:var(--gray-text);font-size:13px">${sbuId} — niet gevonden in BoM SBU</div>`;
-
-    const tot = berekenBomTotalen(bom);
-    if(tot){ totalKost+=tot.stdTotaal; totalVerk+=Math.ceil(tot.unitTotaal); }
-
-    // Stuklijst regels
-    const regels = (bom.artikelen||[]).map(a=>{
-      const art = getArtikelByProductId(a.artikelId);
-      const naam = art?.name || a.naam || a.artikelId;
-      const stdCost = art ? parseFloat(art.standardCost||0) : null;
-      const up = art ? berekenArtikelUnitPriceVoorBom(art) : null;
-      const aantal = parseFloat(a.aantal||1);
-      const totStd  = stdCost!=null ? stdCost*aantal : null;
-      const totUnit = up!=null ? up*aantal : null;
-      return `<tr style="border-bottom:0.5px solid #f1f5f9">
-        <td style="padding:7px 12px;font-size:12px;font-family:monospace;color:var(--blue)">${a.artikelId}</td>
-        <td style="padding:7px 12px;font-size:12px">${naam}</td>
-        <td style="padding:7px 12px;text-align:center;font-size:12px">${aantal}</td>
-        <td style="padding:7px 12px;text-align:right;font-size:12px;color:var(--gray-text)">${stdCost!=null?fmt(stdCost):'—'}</td>
-        <td style="padding:7px 12px;text-align:right;font-size:12px;color:var(--blue);font-weight:500">${totStd!=null?fmt(totStd):'—'}</td>
-        <td style="padding:7px 12px;text-align:right;font-size:12px;color:var(--gray-text)">${up!=null?fmt(up):'—'}</td>
-        <td style="padding:7px 12px;text-align:right;font-size:12px;color:var(--green);font-weight:500">${totUnit!=null?fmt(totUnit):'—'}</td>
-      </tr>`;
-    }).join('');
-
-    // Resources
-    const w=parseFloat(bom.welding||0),m=parseFloat(bom.mounting||0),c=parseFloat(bom.calibration||0);
-    const resRegels = [[w,'Welding'],[m,'Mounting'],[c,'Calibration']].filter(([u])=>u>0).map(([u,naam])=>{
-      const kp=getResourceKostprijs(naam.toLowerCase());
-      const vp=getResourceVerkoopprijs(naam.toLowerCase());
-      return `<tr style="border-bottom:0.5px solid #f1f5f9;background:#fffbf0">
-        <td style="padding:7px 12px;font-size:12px;color:var(--amber)">—</td>
-        <td style="padding:7px 12px;font-size:12px;color:var(--amber)">${naam} (${u} uur)</td>
-        <td style="padding:7px 12px;text-align:center;font-size:12px">${u}</td>
-        <td style="padding:7px 12px;text-align:right;font-size:12px;color:var(--gray-text)">${fmt(kp)}</td>
-        <td style="padding:7px 12px;text-align:right;font-size:12px;color:var(--blue);font-weight:500">${fmt(kp*u)}</td>
-        <td style="padding:7px 12px;text-align:right;font-size:12px;color:var(--gray-text)">${fmt(vp)}</td>
-        <td style="padding:7px 12px;text-align:right;font-size:12px;color:var(--green);font-weight:500">${fmt(vp*u)}</td>
-      </tr>`;
-    }).join('');
-
-    const sbuVerk = tot ? Math.ceil(tot.unitTotaal) : null;
-
-    return `
-      <div style="border-bottom:2px solid var(--gray-border)">
-        <div style="padding:10px 16px;background:var(--gray-bg);display:flex;align-items:center;gap:10px">
-          <span style="font-weight:700;color:var(--blue);font-size:14px">${sbuId}</span>
-          <span style="font-size:13px;color:var(--gray-text)">${bom.naam||''}</span>
-          <span style="margin-left:auto;font-size:13px;font-weight:700;color:var(--green)">${sbuVerk!=null?fmtC(sbuVerk):'—'}</span>
-        </div>
-        <table style="width:100%;border-collapse:collapse">
-          <thead>
-            <tr style="background:#f8fafc">
-              <th style="padding:7px 12px;text-align:left;font-size:11px;color:var(--gray-text);min-width:120px">Artikel ID</th>
-              <th style="padding:7px 12px;text-align:left;font-size:11px;color:var(--gray-text);min-width:200px">Naam</th>
-              <th style="padding:7px 12px;text-align:center;font-size:11px;color:var(--gray-text)">Aantal</th>
-              <th style="padding:7px 12px;text-align:right;font-size:11px;color:var(--blue)">Std. Cost</th>
-              <th style="padding:7px 12px;text-align:right;font-size:11px;color:var(--blue)">Totaal Std.</th>
-              <th style="padding:7px 12px;text-align:right;font-size:11px;color:var(--green)">Unit Price</th>
-              <th style="padding:7px 12px;text-align:right;font-size:11px;color:var(--green)">Totaal Unit</th>
-            </tr>
-          </thead>
-          <tbody>${regels}${resRegels}</tbody>
-          ${tot?`<tfoot><tr style="background:var(--gray-bg);font-weight:600">
-            <td colspan="3" style="padding:8px 12px;font-size:13px">SBU Totaal</td>
-            <td colspan="2" style="padding:8px 12px;text-align:right;color:var(--blue)">${fmt(tot.stdTotaal)}</td>
-            <td colspan="2" style="padding:8px 12px;text-align:right;color:var(--green);font-size:14px">${fmtC(tot.unitTotaal)}</td>
-          </tr></tfoot>`:''}
-        </table>
-      </div>`;
+    const naam = bom?.naam || sbuId;
+    const tot = bom ? berekenBomTotalen(bom) : null;
+    const verkoop = tot ? Math.ceil(tot.unitTotaal) : null;
+    const kost    = tot ? tot.stdTotaal : null;
+    if(verkoop) totalVerk += verkoop;
+    if(kost)    totalKost += kost;
+    return `<tr style="border-bottom:0.5px solid var(--gray-border)">
+      <td style="padding:11px 16px;font-weight:600;font-size:13px;color:var(--blue)">${sbuId}</td>
+      <td style="padding:11px 16px;font-size:13px">${naam}</td>
+      <td style="padding:11px 16px;text-align:right;font-size:12px;color:var(--gray-text)">${kost!=null?fmt2(kost):'—'}</td>
+      <td style="padding:11px 16px;text-align:right;font-size:15px;font-weight:700;color:var(--green)">${verkoop!=null?fmtC(verkoop):'—'}</td>
+    </tr>`;
   }).join('');
 
-  // Totaal alle SBU's
-  const totaalBalk = `
-    <div style="padding:14px 16px;background:var(--blue-light);border-top:2px solid var(--blue);display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:14px;font-weight:700;color:var(--blue)">Totaal ${rij.type||''} ${rij.omschrijving||''}</div>
-      <div style="display:flex;gap:24px;align-items:center">
-        <div style="text-align:right"><div style="font-size:11px;color:var(--blue);opacity:.7">Kostprijs</div><div style="font-size:15px;font-weight:700;color:var(--blue)">${fmt(totalKost)}</div></div>
-        <div style="text-align:right"><div style="font-size:11px;color:var(--green)">Verkoopprijs (afgerond)</div><div style="font-size:20px;font-weight:800;color:var(--green)">${fmtC(totalVerk)}</div></div>
-      </div>
-    </div>`;
-
-  document.getElementById('bc-bom-inhoud').innerHTML = secties + totaalBalk;
+  document.getElementById('bc-bom-inhoud').innerHTML = `
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="background:var(--gray-bg)">
+          <th style="padding:10px 16px;text-align:left;min-width:120px">SBU</th>
+          <th style="padding:10px 16px;text-align:left">Naam</th>
+          <th style="padding:10px 16px;text-align:right;color:var(--gray-text);min-width:130px">Kostprijs</th>
+          <th style="padding:10px 16px;text-align:right;color:var(--green);min-width:140px">Verkoopprijs</th>
+        </tr>
+      </thead>
+      <tbody>${rijen}</tbody>
+      <tfoot>
+        <tr style="background:var(--blue-light);border-top:2px solid var(--blue)">
+          <td colspan="2" style="padding:12px 16px;font-size:14px;font-weight:700;color:var(--blue)">Totaal</td>
+          <td style="padding:12px 16px;text-align:right;font-size:13px;color:var(--gray-text)">${fmt2(totalKost)}</td>
+          <td style="padding:12px 16px;text-align:right;font-size:18px;font-weight:800;color:var(--blue)">${fmtC(totalVerk)}</td>
+        </tr>
+      </tfoot>
+    </table>`;
   openModal('modal-bc-bom');
 };
 
