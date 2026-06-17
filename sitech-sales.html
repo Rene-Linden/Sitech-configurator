@@ -833,6 +833,10 @@ window.startConfig = async function(){
     if(m){std+=m*rKost('mounting');unit+=m*rVerk('mounting');heeftData=true;}
     if(cl){std+=cl*rKost('calibration');unit+=cl*rVerk('calibration');heeftData=true;}
     bom._cachedUnit=heeftData?unit:0; bom._cachedStd=heeftData?std:0;
+    // Debug: log SBU prijzen
+    if(['SBU-0034','SBU-0114','SBU-0044','SBU-0012','SBU-0038','SBU-0026'].includes(bom.sbuId)){
+      console.log(`SBU ${bom.sbuId}: unit=${unit.toFixed(2)} std=${std.toFixed(2)} artikelen=${bom.artikelen?.length} w=${bom.welding} m=${bom.mounting} c=${bom.calibration}`);
+    }
   });
   if(btn){btn.disabled=false;btn.textContent='Configuratie starten →';}
   document.getElementById('merk-screen').style.display='none';
@@ -960,7 +964,8 @@ function renderHuidigBlok(){
         if(bom._cachedUnit!==undefined){ tot+=bom._cachedUnit; ok=true; }
       });
       const el=document.getElementById('bc-prijs-'+oi);
-      if(el&&ok&&tot>0) el.textContent='€\u00a0'+Math.ceil(tot).toLocaleString('nl-NL');
+      if(el&&ok&&tot>0){ el.textContent='€\u00a0'+Math.ceil(tot).toLocaleString('nl-NL'); }
+      console.log(`BC rij ${oi}: sbus=${sbus.join(',')} tot=${tot.toFixed(2)} ceil=${Math.ceil(tot)}`);
     });
 
     container.onclick=function(e){
