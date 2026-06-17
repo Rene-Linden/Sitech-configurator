@@ -6219,7 +6219,7 @@ function berekenBcVerkoopSBUs(r){
     const bom = bomData.find(b=>b.sbuId===sbuId);
     if(!bom) return;
     const tot = berekenBomTotalen(bom);
-    if(tot){ totaal += tot.unitTotaal; heeftData = true; }
+    if(tot){ totaal += Math.ceil(tot.unitTotaal); heeftData = true; } // ceil per SBU
   });
   return heeftData ? totaal : null;
 }
@@ -6277,7 +6277,7 @@ window.bcRijBomBekijken = function(ri){
     if(!bom) return `<div style="padding:10px 16px;color:var(--gray-text);font-size:13px">${sbuId} — niet gevonden in BoM SBU</div>`;
 
     const tot = berekenBomTotalen(bom);
-    if(tot){ totalKost+=tot.stdTotaal; totalVerk+=tot.unitTotaal; }
+    if(tot){ totalKost+=tot.stdTotaal; totalVerk+=Math.ceil(tot.unitTotaal); }
 
     // Stuklijst regels
     const regels = (bom.artikelen||[]).map(a=>{

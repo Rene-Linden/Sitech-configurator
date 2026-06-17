@@ -966,8 +966,8 @@ function renderHuidigBlok(){
       sbus.forEach(sbuId=>{
         const bom=bomData.find(b=>b.sbuId===sbuId); if(!bom) return;
         // Simpele berekening: als unitTotaal beschikbaar via eerder berekende waarde
-        // We slaan het op in bom._cachedUnit bij eerste berekening
-        if(bom._cachedUnit!==undefined){ tot+=bom._cachedUnit; ok=true; }
+        // Gebruik afgerond bedrag per SBU (zelfde als kolom Afgerond ↑ in admin)
+        if(bom._cachedUnit!==undefined){ tot+=Math.ceil(bom._cachedUnit); ok=true; }
       });
       const el=document.getElementById('bc-prijs-'+oi);
       if(el&&ok&&tot>0){ el.textContent='€\u00a0'+Math.ceil(tot).toLocaleString('nl-NL'); }
@@ -981,7 +981,7 @@ function renderHuidigBlok(){
       const r=blok.rijen[oi];
       const sbus=[r.sbu1,r.sbu2,r.sbu3,r.sbu4].filter(Boolean);
       let verkoop=0;
-      sbus.forEach(sbuId=>{ const bom=bomData.find(b=>b.sbuId===sbuId); if(bom&&bom._cachedUnit) verkoop+=bom._cachedUnit; });
+      sbus.forEach(sbuId=>{ const bom=bomData.find(b=>b.sbuId===sbuId); if(bom&&bom._cachedUnit) verkoop+=Math.ceil(bom._cachedUnit); });
       selections[bi]={blokNr:blok.nr,blokNaam:blok.naam,naam:`${r.type} — ${r.omschrijving}`,sbuId:sbus.join('+'),kostprijs:null,verkoop:Math.ceil(verkoop)||null,_bcIdx:oi};
       container.querySelectorAll('.optie-rij').forEach((rv,i)=>{
         rv.classList.toggle('selected',i===oi);
