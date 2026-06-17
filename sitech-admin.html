@@ -172,10 +172,10 @@ tr.row-selected td{background:var(--blue-light)}
       </div>
       <div id="sb-config" style="display:none">
         <a class="nav-item" onclick="showPanel('merken',this)">Merken</a>
-        <a class="nav-item" onclick="showPanel('configurator-sps',this)">Configurator SPS</a>
+        <a class="nav-item" onclick="showPanel('blokken',this)">Blokken</a>
         <a class="nav-item" onclick="showPanel('basis-config',this)">Basis Configuratie</a>
         <a class="nav-item" onclick="showPanel('sbu-config',this)">SBU Configurator</a>
-        <a class="nav-item" onclick="showPanel('blokken',this)">Blokken</a>
+        <a class="nav-item" onclick="showPanel('configurator-sps',this)">Configurator SPS</a>
         <a class="nav-item" onclick="showPanel('prijslijsten',this)">Prijslijsten</a>
         <a class="nav-item" onclick="showPanel('prijzen-oem',this)">Prijzen OEM</a>
         <a class="nav-item" onclick="showPanel('aanvragen',this)">Aanvragen</a>
@@ -437,16 +437,13 @@ tr.row-selected td{background:var(--blue-light)}
 
       <div class="panel" id="panel-prijslijsten">
         <div class="panel-title">Prijslijsten</div>
-        <div class="panel-sub">Per merk automatisch opgebouwd vanuit Basis Configuratie (blok 1) en SBU Configurator (overige blokken).</div>
+        <div class="panel-sub">Automatisch opgebouwd vanuit de blokken in SBU Configurator. Blok 1 (Basis Configuratie) staat niet in de prijslijst.</div>
 
-        <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-blue" onclick="genereerPrijslijst()">↻ Prijslijst vernieuwen</button>
+        <div style="margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-blue" onclick="renderPrijslijstNieuw()">↻ Vernieuwen</button>
           <button class="btn" id="btn-pdf-download" style="border-color:rgba(133,79,11,.3);color:var(--amber);background:var(--amber-light)">PDF downloaden</button>
           <span id="pl-status" style="font-size:13px;color:var(--gray-text)"></span>
         </div>
-
-        <!-- Merk tabs -->
-        <div id="pl-merk-tabs" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap"></div>
 
         <div id="prijslijst-editor"></div>
       </div>
@@ -2023,7 +2020,6 @@ function startListeners(){
     merken = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderMerken(); renderMerkFilterOpties();
     if(typeof renderFilterMerkAanvragen==='function') renderFilterMerkAanvragen();
-    vulMerkSelectorPL();
   });
 
   // Gebruikers alleen laden als pagina bezocht wordt (lazy)
@@ -2116,18 +2112,7 @@ window.showPanel = function(name,el){
   if(name==='basis-config'){ loadBasisConfig(); }
   if(name==='blokken'){ loadBlokken(); }
   if(name==='sbu-config'){ loadSbuConfig(); }
-  if(name==='prijslijsten'){
-    if(!plHuidigMerk && merken.length){
-      plHuidigMerk=[...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||''))[0].id;
-    }
-    if(!prijslijsten || !Object.keys(prijslijsten).length){
-      getDocs(collection(db,'prijslijsten')).then(snap=>{
-        prijslijsten={};
-        snap.docs.forEach(d=>{ prijslijsten[d.id]=d.data().blocks||[]; });
-        vulMerkSelectorPL(); renderPrijslijstNieuw();
-      });
-    } else { vulMerkSelectorPL(); renderPrijslijstNieuw(); }
-  }
+  if(name==='prijslijsten'){ renderPrijslijstNieuw(); }
   if(name==='prijzen-oem'){ laadPrijzenOem(); }
   if(name==='aanvragen'){
     renderFilterMerkAanvragen();
@@ -3247,227 +3232,112 @@ function renderPrijslijst(){
   renderPrijslijstNieuw();
 }
 
-let plHuidigMerk = null;
-
-function vulMerkSelectorPL(){
-  const tabs = document.getElementById('pl-merk-tabs');
-  if(!tabs) return;
-  tabs.innerHTML = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||'')).map(m=>`
-    <button onclick="plSelecteerMerk('${m.id}')"
-      style="padding:7px 16px;border-radius:20px;border:0.5px solid ${plHuidigMerk===m.id?'var(--blue)':'var(--gray-border)'};background:${plHuidigMerk===m.id?'var(--blue)':'var(--white)'};color:${plHuidigMerk===m.id?'#fff':'#1a1a1a'};font-size:13px;cursor:pointer;font-weight:${plHuidigMerk===m.id?'500':'400'}">
-      ${m.naam||m.id}
-    </button>`).join('');
-}
-
-window.plSelecteerMerk = function(id){
-  plHuidigMerk = id;
-  vulMerkSelectorPL();
-  renderPrijslijstNieuw();
-};
-
-async function laadPlData(){
-  const [bomSnap,artSnap,cfgSnap,bcSnap,bnSnap,resSnap] = await Promise.all([
-    getDocs(collection(db,'bom_sbu')),
-    getDocs(collection(db,'artikelen')),
-    getDocs(collection(db,'sbu_config')),
-    getDocs(collection(db,'basis_config')),
-    getDocs(collection(db,'blok_namen')),
-    getDocs(collection(db,'resources')),
-  ]);
-  bomData = bomSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
-  artikelen = artSnap.docs.map(d=>({id:d.id,...d.data()}));
-  cfgSnap.docs.forEach(d=>{ sbuConfigData[d.id]=d.data(); });
-  bcSnap.docs.forEach(d=>{ bcData[d.id]=d.data().rijen||[]; });
-  bnSnap.docs.forEach(d=>{ blokNamen[d.id]=d.data().naam||''; });
-  resSnap.docs.forEach(d=>{ const i=resourcesData.findIndex(r=>r.id===d.id); if(i>-1) Object.assign(resourcesData[i],d.data()); });
-  const atSnap = await getDocs(collection(db,'artikel_templates'));
-  atSnap.docs.forEach(d=>{ const i=ARTIKEL_TEMPLATES.findIndex(x=>x.id===d.id); if(i>-1) Object.assign(ARTIKEL_TEMPLATES[i],d.data()); else ARTIKEL_TEMPLATES.push({id:d.id,...d.data()}); });
-}
+// ============================================================
+// PRIJSLIJSTEN MODULE — blokken gebaseerd (geen merken)
+// ============================================================
+let plAanpassingen = {}; // { blokNr: [ {kleur, criterium, sbuId} ] }
 
 async function renderPrijslijstNieuw(){
   const container = document.getElementById('prijslijst-editor');
   if(!container) return;
-  const merkId = plHuidigMerk;
-  if(!merkId){ container.innerHTML='<div style="color:var(--gray-text);padding:1rem">Selecteer een merk.</div>'; return; }
-  container.innerHTML='<div style="color:var(--gray-text);padding:1rem">Laden\u2026</div>';
+  container.innerHTML = '<div style="color:var(--gray-text);padding:1rem">Laden\u2026</div>';
 
   // Zorg dat data geladen is
-  if(!bomData.length || !Object.keys(sbuConfigData).length || !Object.keys(bcData).length){
-    await laadPlData();
+  if(!bomData.length || !Object.keys(sbuConfigData).length){
+    const [bomSnap, cfgSnap, bnSnap, artSnap] = await Promise.all([
+      getDocs(collection(db,'bom_sbu')),
+      getDocs(collection(db,'sbu_config')),
+      getDocs(collection(db,'blok_namen')),
+      artikelen.length ? Promise.resolve(null) : getDocs(collection(db,'artikelen')),
+    ]);
+    bomData = bomSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.sbuId.localeCompare(b.sbuId));
+    cfgSnap.docs.forEach(d=>{ sbuConfigData[d.id]=d.data(); });
+    bnSnap.docs.forEach(d=>{ blokNamen[d.id]=d.data().naam||''; });
+    if(artSnap) artikelen = artSnap.docs.map(d=>({id:d.id,...d.data()}));
   }
 
-  const bcRijen = bcData[merkId]||[];
+  // Blok volgorde ophalen
+  if(!blokVolgorde.length){
+    try{
+      const v = await getDocs(collection(db,'blok_volgorde'));
+      const v0 = v.docs[0]; if(v0) blokVolgorde = v0.data().volgorde||[];
+    }catch(e){}
+  }
 
-  // Overige blokken: SBU's gefilterd op merk
+  // Bouw blokkenmap: blokNr → [sbuId, ...]  (blok 1 = Basis Configuratie, overslaan)
   const blokMap = {};
-  Object.entries(sbuConfigData).forEach(([sbuId,cfg])=>{
+  Object.entries(sbuConfigData).forEach(([sbuId, cfg])=>{
     const nr = cfg.blok;
-    if(!nr || nr==='1') return;
-    const actief = cfg.merken && merkId in cfg.merken ? cfg.merken[merkId] : true;
-    if(!actief) return;
-    if(!blokMap[nr]) blokMap[nr]=[];
+    if(!nr || nr==='1') return; // blok 1 overslaan
+    if(!blokMap[nr]) blokMap[nr] = [];
     blokMap[nr].push(sbuId);
   });
-  // Bepaal blok-volgorde — gebruik blokVolgorde als beschikbaar, anders numeriek
-  let volgordeSnap;
-  if(!blokVolgorde.length){
-    try { volgordeSnap = await getDocs(collection(db,'blok_volgorde')); const v=volgordeSnap.docs[0]; if(v) blokVolgorde=v.data().volgorde||[]; } catch(e){}
+
+  const alleBlokNrs = Object.keys(blokMap);
+  if(!alleBlokNrs.length){
+    container.innerHTML = '<div style="color:var(--gray-text);padding:1rem">Geen blokken gevonden. Wijs SBU\'s toe aan blokken in de SBU Configurator.</div>';
+    return;
   }
-  const alleBlokNrs = Object.keys(blokMap).filter(nr=>nr!=='1');
-  const gesorteerdeBlokNrs = blokVolgorde.filter(nr=>alleBlokNrs.includes(nr));
-  alleBlokNrs.forEach(nr=>{ if(!gesorteerdeBlokNrs.includes(nr)) gesorteerdeBlokNrs.push(nr); });
+
+  // Sorteer op blok volgorde
+  const gesorteerd = blokVolgorde.filter(nr=>alleBlokNrs.includes(nr));
+  alleBlokNrs.forEach(nr=>{ if(!gesorteerd.includes(nr)) gesorteerd.push(nr); });
 
   let html = '';
+  gesorteerd.forEach(nr=>{
+    const naam = blokNamen[nr] || `Blok ${nr}`;
+    const sbuIds = blokMap[nr] || [];
 
-  // Laad aanpassingen eerst
-  await laadPlAanpassingen(merkId);
-
-  // Blok 1: Basis Configuratie per merk
-  if(bcRijen.length>0){
-    let opties1 = bcRijen.map(r=>({
-      naam:`${r.type} \u2014 ${r.omschrijving}`,
-      artikelnr:r.artikelnr,
-      kleur:r.kleur,
-      criterium:r.criterium,
-      verkoop:berekenBcVerkoopSBUs(r),
-    }));
-    opties1 = pasPlAanpassingenToe(merkId,'1',opties1);
-    html += renderPlBlok('1','Basis Configuratie',opties1);
-  }
-
-  // Overige blokken in de ingestelde volgorde
-  gesorteerdeBlokNrs.forEach(nr=>{
-    const naam = blokNamen[nr]||`Blok ${nr}`;
-    let opties = blokMap[nr].map(sbuId=>{
+    const rijen = sbuIds.map(sbuId=>{
       const bom = bomData.find(b=>b.sbuId===sbuId);
+      const naam_sbu = bom?.naam || sbuId;
       const tot = bom ? berekenBomTotalen(bom) : null;
-      return { naam: bom?`${bom.sbuId} \u2014 ${bom.naam}`:sbuId, artikelnr:sbuId, verkoop:tot?tot.unitTotaal:null, kleur:'', criterium:'' };
-    });
-    opties = pasPlAanpassingenToe(merkId, nr, opties);
-    html += renderPlBlok(nr, naam, opties);
+      const verkoop = tot ? Math.ceil(tot.unitTotaal) : null;
+      const std = tot ? tot.stdTotaal : null;
+      const winst = (verkoop && std) ? ((verkoop-std)/verkoop*100) : null;
+      const winstKleur = winst===null?'var(--gray-text)':winst>=20?'var(--green)':winst>=0?'var(--amber)':'var(--red)';
+
+      return `<tr style="border-bottom:0.5px solid var(--gray-border)">
+        <td style="padding:9px 14px;font-weight:600;font-size:13px;color:var(--blue)">${sbuId}</td>
+        <td style="padding:9px 14px;font-size:13px">${naam_sbu}</td>
+        <td style="padding:9px 14px;text-align:right;font-size:12px;color:var(--gray-text)">${std?'€\u00a0'+std.toFixed(2):'—'}</td>
+        <td style="padding:9px 14px;text-align:right;font-size:13px;font-weight:600;color:var(--green)">${verkoop?'€\u00a0'+verkoop.toLocaleString('nl-NL'):'—'}</td>
+        <td style="padding:9px 14px;text-align:right;font-size:12px;font-weight:600;color:${winstKleur}">${winst!==null?winst.toFixed(1)+'%':'—'}</td>
+      </tr>`;
+    }).join('');
+
+    html += `
+      <div style="margin-bottom:24px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="background:var(--blue);color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${nr}</span>
+          <span style="font-size:15px;font-weight:700">${naam}</span>
+          <span style="font-size:12px;color:var(--gray-text)">${sbuIds.length} SBU${sbuIds.length!==1?'s':''}</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:var(--gray-bg)">
+              <th style="padding:8px 14px;text-align:left;min-width:110px">SBU</th>
+              <th style="padding:8px 14px;text-align:left;min-width:260px">Naam</th>
+              <th style="padding:8px 14px;text-align:right;min-width:120px;color:var(--gray-text)">Kostprijs</th>
+              <th style="padding:8px 14px;text-align:right;min-width:120px;color:var(--green)">Verkoopprijs</th>
+              <th style="padding:8px 14px;text-align:right;min-width:90px">Winst %</th>
+            </tr>
+          </thead>
+          <tbody>${rijen||'<tr><td colspan="5" style="padding:1rem;color:var(--gray-text)">Geen SBU\'s in dit blok</td></tr>'}</tbody>
+        </table>
+      </div>`;
   });
 
-  if(!html) html='<div style="color:var(--gray-text);padding:1rem">Geen blokken gevonden. Controleer Basis Configuratie en SBU Configurator.</div>';
   container.innerHTML = html;
 }
-
-function renderPlBlok(nr, naam, opties, bron){
-  // bron = 'bc' (basis config) of 'sbu' (configurator)
-  const rijHtml = opties.map((o,ri)=>{
-    // Rij-achtergrond op basis van kleur
-    const rowBg = o.kleur==='yellow'?'background:#FFFBEB':o.kleur==='blue'?'background:#EFF6FF':'';
-    const kleurKnop = (kleur)=>{
-      const actief = o.kleur===kleur;
-      if(kleur==='yellow') return `<button onclick="plWijzigKleur('${nr}',${ri},'yellow')"
-        style="width:22px;height:22px;background:#FDE68A;border:${actief?'2px solid #D97706':'1px solid #ccc'};border-radius:3px;cursor:pointer;${actief?'box-shadow:0 0 0 2px rgba(217,119,6,.3)':''}"></button>`;
-      if(kleur==='blue') return `<button onclick="plWijzigKleur('${nr}',${ri},'blue')"
-        style="width:22px;height:22px;background:#BFDBFE;border:${actief?'2px solid #185FA5':'1px solid #ccc'};border-radius:3px;cursor:pointer;${actief?'box-shadow:0 0 0 2px rgba(24,95,165,.3)':''}"></button>`;
-      return `<button onclick="plWijzigKleur('${nr}',${ri},'')"
-        style="width:22px;height:22px;background:#fff;border:${actief?'2px solid #888':'1px solid #ccc'};border-radius:3px;cursor:pointer;font-size:10px;color:#888">&times;</button>`;
-    };
-    const critHtml = `<select onchange="plWijzigCriterium('${nr}',${ri},this.value)"
-      style="padding:3px 6px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;outline:none;background:var(--white)">
-      <option value="" ${!o.criterium?'selected':''}>—</option>
-      <option value="Vast" ${o.criterium==='Vast'?'selected':''}>Vast</option>
-      <option value="Los" ${o.criterium==='Los'?'selected':''}>Los</option>
-    </select>`;
-    return `<tr style="${rowBg}">
-      <td style="padding:8px 14px;font-size:13px;font-weight:500">${o.naam||'—'}</td>
-      <td style="padding:8px 14px;font-family:monospace;font-size:12px;color:var(--blue)">${o.artikelnr||'—'}</td>
-      <td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600;color:var(--blue)">${o.verkoop!=null?'\u20ac\u00a0'+o.verkoop.toFixed(2):'—'}</td>
-      <td style="padding:8px 14px;text-align:center">
-        <div style="display:flex;align-items:center;justify-content:center;gap:4px">
-          ${kleurKnop('yellow')}${kleurKnop('blue')}${kleurKnop('')}
-        </div>
-      </td>
-      <td style="padding:8px 14px;text-align:center">${critHtml}</td>
-    </tr>`;
-  }).join('');
-
-  return `<div data-blok="${nr}" style="background:var(--white);border:0.5px solid var(--gray-border);border-radius:10px;margin-bottom:14px;overflow:hidden">
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:0.5px solid var(--gray-border);background:var(--gray-bg)">
-      <span style="background:var(--blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0">${nr}</span>
-      <strong style="font-size:14px;flex:1">${naam}</strong>
-      <span style="font-size:12px;color:var(--gray-text)">${opties.length} optie${opties.length!==1?'s':''}</span>
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <thead><tr style="background:#fafafa;border-bottom:0.5px solid var(--gray-border)">
-        <th style="padding:8px 14px;font-weight:600;font-size:12px;color:var(--gray-text);min-width:260px">Omschrijving</th>
-        <th style="padding:8px 14px;font-weight:600;font-size:12px;color:var(--gray-text);min-width:120px">Artikelnr.</th>
-        <th style="padding:8px 14px;text-align:right;font-weight:600;font-size:12px;color:var(--blue);min-width:120px">Verkoopadvies</th>
-        <th style="padding:8px 14px;text-align:center;font-weight:600;font-size:12px;color:var(--gray-text);min-width:110px">Kleur</th>
-        <th style="padding:8px 14px;text-align:center;font-weight:600;font-size:12px;color:var(--gray-text);min-width:110px">Criterium</th>
-      </tr></thead>
-      <tbody id="plblok-${nr}">${rijHtml}</tbody>
-    </table>
-  </div>`;
-}
-
-// Opslag van prijslijst aanpassingen (kleur/criterium) per merk
-let plAanpassingen = {}; // { merkId: { blokNr: [ {kleur, criterium} ] } }
-
-async function laadPlAanpassingen(merkId){
-  if(!plAanpassingen[merkId]){
-    try {
-      const snap = await getDocs(collection(db,'pl_aanpassingen'));
-      snap.docs.forEach(d=>{ plAanpassingen[d.id] = d.data().blokken||{}; });
-    } catch(e){}
-    if(!plAanpassingen[merkId]) plAanpassingen[merkId]={};
-  }
-}
-
-// Pas opties aan met opgeslagen aanpassingen
-function pasPlAanpassingenToe(merkId, nr, opties){
-  const aanp = plAanpassingen[merkId]?.[nr]||[];
-  return opties.map((o,i)=>({...o, ...(aanp[i]||{})}));
-}
-
-window.plWijzigKleur = async function(nr, ri, kleur){
-  const merkId = plHuidigMerk;
-  if(!plAanpassingen[merkId]) plAanpassingen[merkId]={};
-  if(!plAanpassingen[merkId][nr]) plAanpassingen[merkId][nr]=[];
-  if(!plAanpassingen[merkId][nr][ri]) plAanpassingen[merkId][nr][ri]={};
-  plAanpassingen[merkId][nr][ri].kleur = kleur;
-  await setDoc(doc(db,'pl_aanpassingen',merkId),{blokken:plAanpassingen[merkId]});
-  renderPrijslijstNieuw();
-};
-
-window.plWijzigCriterium = async function(nr, ri, criterium){
-  const merkId = plHuidigMerk;
-  if(!plAanpassingen[merkId]) plAanpassingen[merkId]={};
-  if(!plAanpassingen[merkId][nr]) plAanpassingen[merkId][nr]=[];
-  if(!plAanpassingen[merkId][nr][ri]) plAanpassingen[merkId][nr][ri]={};
-  plAanpassingen[merkId][nr][ri].criterium = criterium;
-  await setDoc(doc(db,'pl_aanpassingen',merkId),{blokken:plAanpassingen[merkId]});
-};
-
-window.genereerPrijslijst = async function(){
-  if(!plHuidigMerk && merken.length){
-    plHuidigMerk = [...merken].sort((a,b)=>(a.naam||'').localeCompare(b.naam||''))[0].id;
-  }
-  if(!plHuidigMerk){ alert('Geen merken beschikbaar'); return; }
-  const status = document.getElementById('pl-status');
-  status.textContent='Genereren\u2026';
-  bomData=[];
-  artikelen=[];
-  Object.keys(sbuConfigData).forEach(k=>delete sbuConfigData[k]);
-  Object.keys(bcData).forEach(k=>delete bcData[k]);
-  Object.keys(blokNamen).forEach(k=>delete blokNamen[k]);
-  await renderPrijslijstNieuw();
-  status.textContent='\u2713 Gegenereerd';
-  setTimeout(()=>status.textContent='',3000);
-};
 
 document.getElementById('filter-merk-aanvragen').addEventListener('change', ()=>renderAanvragen());
 document.getElementById('filter-periode').addEventListener('change', ()=>renderAanvragen());
 
 document.getElementById('btn-pdf-download').addEventListener('click', ()=>{
-  const merkId = plHuidigMerk;
-  if(!merkId){ alert('Selecteer eerst een merk'); return; }
-  const merk = merken.find(m=>m.id===merkId);
   const datum = new Date().toLocaleDateString('nl-NL');
   const editor = document.getElementById('prijslijst-editor').innerHTML;
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Prijslijst ${merk?.naam||''}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:12px;padding:28px;color:#1a1a1a}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#f7f7f6;padding:6px 10px;text-align:left;color:#5F5E5A;font-weight:600;border-bottom:1px solid #ddd}td{padding:6px 10px;border-bottom:0.5px solid #eee}.footer{margin-top:24px;font-size:10px;color:#888;text-align:center;border-top:1px solid #ddd;padding-top:10px}@media print{body{padding:14px}}</style></head><body><h1 style="font-size:18px;color:#185FA5;margin-bottom:4px">Prijslijst</h1><div style="margin-bottom:20px;font-size:13px">${merk?.naam||''} &mdash; ${datum}</div>${editor}<div class="footer">Sitech &mdash; gegenereerd op ${datum} &mdash; Vertrouwelijk</div><script>window.onload=()=>window.print()<\/script></body></html>`;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Prijslijst</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:12px;padding:28px;color:#1a1a1a}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#f7f7f6;padding:6px 10px;text-align:left;color:#5F5E5A;font-weight:600;border-bottom:1px solid #ddd}td{padding:6px 10px;border-bottom:0.5px solid #eee}.footer{margin-top:24px;font-size:10px;color:#888;text-align:center;border-top:1px solid #ddd;padding-top:10px}@media print{body{padding:14px}}</style></head><body><h1 style="font-size:18px;color:#185FA5;margin-bottom:4px">Prijslijst</h1><div style="margin-bottom:20px;font-size:13px">${datum}</div>${editor}<div class="footer">Sitech &mdash; gegenereerd op ${datum} &mdash; Vertrouwelijk</div><script>window.onload=()=>window.print()<\/script></body></html>`;
   const win=window.open(URL.createObjectURL(new Blob([html],{type:'text/html'})),'_blank');
   if(!win) alert('Sta pop-ups toe.');
 });
