@@ -1228,16 +1228,18 @@ tr.row-selected td{background:var(--blue-light)}
       </div>
       <div class="form-row cols2">
         <div class="fg"><label>Omschrijving</label><input type="text" id="at-omschrijving" /></div>
+        <div class="fg"><label>Nr. Serie <span style="font-size:11px;color:var(--gray-text);font-weight:400">(max. 20 tekens)</span></label><input type="text" id="at-nrSerie" maxlength="20" placeholder="bijv. ST-00001" /></div>
+      </div>
+      <div class="form-row cols2">
         <div class="fg"><label>Type</label><input type="text" id="at-type" /></div>
-      </div>
-      <div class="form-row cols2">
         <div class="fg"><label>UoM</label><input type="text" id="at-uom" /></div>
-        <div class="fg"><label>Costing Method</label><input type="text" id="at-costingMeth" /></div>
       </div>
       <div class="form-row cols2">
+        <div class="fg"><label>Costing Method</label><input type="text" id="at-costingMeth" /></div>
         <div class="fg"><label>Gen. Posting Group</label><input type="text" id="at-genPosting" /></div>
-        <div class="fg"><label>VAT Posting Group</label><input type="text" id="at-vatPosting" /></div>
       </div>
+      <div class="form-row cols2">
+        <div class="fg"><label>VAT Posting Group</label><input type="text" id="at-vatPosting" /></div>
       <div class="form-row cols2">
         <div class="fg"><label>Inven. Posting Group</label><input type="text" id="at-invenPosting" /></div>
         <div class="fg"><label>Price/Profit</label><input type="text" id="at-priceProfit" /></div>
@@ -7583,14 +7585,7 @@ function renderArtikelTemplates(){
       onmouseenter="if('${t.id}'!==atGeselecteerd)this.style.background='var(--gray-bg)'"
       onmouseleave="if('${t.id}'!==atGeselecteerd)this.style.background=''">
       <td><strong style="font-size:12px">${t.id}</strong>${t.naam&&t.naam!==t.id?`<div style="font-size:11px;color:var(--gray-text)">${t.naam}</div>`:''}</td>
-      <td onclick="event.stopPropagation()" style="padding:4px 8px">
-        <input type="text" value="${t.nrSerie||''}" maxlength="20" placeholder="—"
-          style="width:100%;padding:4px 7px;border:0.5px solid transparent;border-radius:6px;font-size:12px;outline:none;background:transparent;cursor:text"
-          onfocus="this.style.border='0.5px solid var(--blue)';this.style.background='var(--white)'"
-          onblur="this.style.border='0.5px solid transparent';this.style.background='transparent';atSaveNrSerie('${t.id}',this.value)"
-          onkeydown="if(event.key==='Enter')this.blur()"
-          title="Maximaal 20 tekens" />
-      </td>
+      <td style="font-size:12px;color:var(--gray-text)">${t.nrSerie||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${t.omschrijving||'—'}</td>
       <td style="font-size:12px">${t.type||'—'}</td>
       <td style="font-size:12px;text-align:center">${t.uom||'—'}</td>
@@ -7657,6 +7652,7 @@ function vulAtModal(t, isNieuw){
   document.getElementById('at-naam-display').style.background = isNieuw ? '' : 'var(--gray-bg)';
   document.getElementById('at-naam-display').style.color = isNieuw ? '' : 'var(--gray-text)';
   document.getElementById('at-omschrijving').value     = t.omschrijving||'';
+  document.getElementById('at-nrSerie').value          = t.nrSerie||'';
   document.getElementById('at-type').value             = t.type||'';
   document.getElementById('at-uom').value              = t.uom||'';
   document.getElementById('at-costingMeth').value      = t.costingMeth||'';
@@ -7704,6 +7700,7 @@ window.saveArtikelTemplate = async function(){
   const updated = {
     id, naam,
     omschrijving:     document.getElementById('at-omschrijving').value.trim(),
+    nrSerie:          document.getElementById('at-nrSerie').value.trim().slice(0,20),
     type:             document.getElementById('at-type').value.trim(),
     uom:              document.getElementById('at-uom').value.trim(),
     costingMeth:      document.getElementById('at-costingMeth').value.trim(),
