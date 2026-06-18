@@ -1176,6 +1176,7 @@ tr.row-selected td{background:var(--blue-light)}
               <thead>
                 <tr style="background:var(--gray-bg)">
                   <th style="min-width:180px">Template ID</th>
+                  <th style="min-width:140px">Nr. Serie</th>
                   <th style="min-width:200px">Omschrijving</th>
                   <th style="min-width:130px">Type</th>
                   <th style="min-width:60px">UoM</th>
@@ -1196,7 +1197,7 @@ tr.row-selected td{background:var(--blue-light)}
                 </tr>
               </thead>
               <tbody id="tbl-at-body">
-                <tr><td colspan="15" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
+                <tr><td colspan="16" style="text-align:center;color:var(--gray-text);padding:1.5rem">Laden…</td></tr>
               </tbody>
             </table>
           </div>
@@ -7582,6 +7583,14 @@ function renderArtikelTemplates(){
       onmouseenter="if('${t.id}'!==atGeselecteerd)this.style.background='var(--gray-bg)'"
       onmouseleave="if('${t.id}'!==atGeselecteerd)this.style.background=''">
       <td><strong style="font-size:12px">${t.id}</strong>${t.naam&&t.naam!==t.id?`<div style="font-size:11px;color:var(--gray-text)">${t.naam}</div>`:''}</td>
+      <td onclick="event.stopPropagation()" style="padding:4px 8px">
+        <input type="text" value="${t.nrSerie||''}" maxlength="20" placeholder="—"
+          style="width:100%;padding:4px 7px;border:0.5px solid transparent;border-radius:6px;font-size:12px;outline:none;background:transparent;cursor:text"
+          onfocus="this.style.border='0.5px solid var(--blue)';this.style.background='var(--white)'"
+          onblur="this.style.border='0.5px solid transparent';this.style.background='transparent';atSaveNrSerie('${t.id}',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()"
+          title="Maximaal 20 tekens" />
+      </td>
       <td style="font-size:12px;color:var(--gray-text)">${t.omschrijving||'—'}</td>
       <td style="font-size:12px">${t.type||'—'}</td>
       <td style="font-size:12px;text-align:center">${t.uom||'—'}</td>
@@ -7606,10 +7615,21 @@ function renderArtikelTemplates(){
         <input type="checkbox" data-id="${t.id}" data-field="isEWV" ${t.isEWV?'checked':''} onchange="toggleTemplateFlag(event)" />
       </td>
     </tr>`).join('') ||
-    '<tr><td colspan="15" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen templates</td></tr>';
+    '<tr><td colspan="16" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen templates</td></tr>';
 }
 
-window.editHuidigeTemplate   = ()=>{ if(atGeselecteerd) editArtikelTemplate(atGeselecteerd); };
+window.atSaveNrSerie = async function(id, waarde){
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===id);
+  if(!t) return;
+  const val = waarde.slice(0,20).trim();
+  if(t.nrSerie===val) return; // geen wijziging
+  t.nrSerie = val;
+  artikelTemplatesData[id] = t;
+  await setDoc(doc(db,'artikel_templates',id), t);
+  showSaving('Nr. Serie opgeslagen');
+};
+
+window.editHuidigeTemplate = ()=>{ if(atGeselecteerd) editArtikelTemplate(atGeselecteerd); };
 window.deleteHuidigeTemplate = ()=>{ if(atGeselecteerd) deleteArtikelTemplate(atGeselecteerd); };
 
 window.selecteerTemplate = function(id){
