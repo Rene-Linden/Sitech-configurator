@@ -146,6 +146,7 @@ tr.row-selected td{background:var(--blue-light)}
         <a class="nav-item" onclick="showPanel('kostencalculatie',this)">Kostencalculatie</a>
         <a class="nav-item" onclick="showPanel('trimble-prijslijst',this)">Artikel Prijslijst</a>
         <a class="nav-item" onclick="showPanel('artikelen',this)">Artikelen</a>
+        <a class="nav-item" onclick="showPanel('artikel-koppeling',this)">Tabel Artikeldetails</a>
       </div>
 
       <!-- BEHEER BUNDELS -->
@@ -706,6 +707,30 @@ tr.row-selected td{background:var(--blue-light)}
           <table id="tbl-artikelen" style="min-width:4000px;table-layout:auto;border-collapse:collapse">
             <thead id="tbl-artikelen-head" style="position:sticky;top:0;z-index:20"></thead>
             <tbody id="tbl-artikelen-body"><tr><td colspan="30" style="text-align:center;color:var(--gray-text);padding:1.5rem">Selecteer een template om artikelen te zien</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ARTIKEL KOPPELING PANEL -->
+      <div class="panel" id="panel-artikel-koppeling">
+        <div class="panel-title">Tabel Artikeldetails</div>
+        <div class="panel-sub">Koppel de velden van de artikelen in deze applicatie aan de BC-importkolommen. De koppeling wordt gebruikt bij het exporteren van artikelen naar Business Central.</div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <button class="btn btn-blue" onclick="akOpslaanAlle()">Koppeling opslaan</button>
+          <button class="btn" onclick="akReset()" style="color:var(--gray-text)">Reset alles</button>
+          <span id="ak-status" style="font-size:13px;color:var(--green)"></span>
+        </div>
+
+        <div style="overflow-x:auto">
+          <table style="width:100%;min-width:700px;border-collapse:collapse;font-size:13px">
+            <thead style="position:sticky;top:0;z-index:5;background:var(--gray-bg)">
+              <tr>
+                <th style="padding:9px 14px;text-align:left;min-width:280px;width:50%">BC-kolom (Business Central)</th>
+                <th style="padding:9px 14px;text-align:left;min-width:280px;width:50%">Veld in Artikelen (deze app)</th>
+              </tr>
+            </thead>
+            <tbody id="tbl-ak-body"></tbody>
           </table>
         </div>
       </div>
@@ -2109,6 +2134,9 @@ window.showPanel = function(name,el){
     }
   });
 
+  if(name==='artikel-koppeling'){
+    laadArtikelKoppeling().then(()=>renderArtikelKoppeling());
+  }
   if(name==='artikel-templates'){
     laadTemplates().then(()=>renderArtikelTemplates());
   }
@@ -2729,6 +2757,164 @@ const ROL_KLEUREN = {
 };
 
 let beheerAccountsCache = [];
+
+// ============================================================
+// TABEL ARTIKELDETAILS MODULE
+// ============================================================
+
+// Alle BC-kolommen uit de Excel (Item Card - Selectietabel)
+const BC_KOLOMMEN = [
+  "No.","Description","Include in Service Item BOM","Description 2","Blocked","Type",
+  "Base Unit of Measure","Last Date Modified","GTIN","Item Category Code","Manufacturer Code",
+  "Service Item Group","Used Parts Tax Mandatory","Automatic Ext. Texts","Common Item No.",
+  "Purchasing Code","Variant Mandatory if Exists","Statistics Group","No. 2","Alternative Item No.",
+  "Legacy No.","Currency Code","Available on Rent Location","Category","Subcategory","Series Code",
+  "Model","Manufacturer Name","Category Name","Subcategory Name","Series Name","Model Name",
+  "Shelf No.","Created From Catalog Item","Search Description","Inventory","Qty. on Purch. Order",
+  "Qty. on Prod. Order","Qty. on Component Lines","Qty. on Sales Order","Qty. on Service Order",
+  "Qty. on Project Order","Qty. on Assembly Order","Qty. on Asm. Component","Qty. on Blanket Sales Order",
+  "Qty. on Blanket Purch. Order","Stockout Warning","Prevent Negative Inventory","Net Weight",
+  "Gross Weight","Unit Volume","Unit Length","Unit Width","Unit Height","Over-Receipt Code",
+  "Trans. Ord. Receipt (Qty.)","Trans. Ord. Shipment (Qty.)","Qty. in Transit","Rent Class",
+  "Rent Class Code","Object Category Code","Rent Component","Available Qty. for Rent",
+  "Available for Rent","Component Sales Price","Replacement Price","Costing Method","Standard Cost",
+  "Unit Cost","Indirect Cost %","Last Direct Cost","Net Invoiced Qty.","Cost is Adjusted",
+  "Excluded from Cost Adjustment","Cost is Posted to G/L","Inventory Value Zero",
+  "Gen. Prod. Posting Group","VAT Prod. Posting Group","Tax Group Code",
+  "Withholding Tax Prod. Post. Group","Inventory Posting Group","Default Deferral Template Code",
+  "Tariff No.","Country/Region of Origin Code","Exclude from Intrastat Report",
+  "Supplementary Unit of Measure","No Payment Discount","Unit Price","Price Includes VAT",
+  "Price/Profit Calculation","Profit %","Allow Invoice Disc.","Item Disc. Group",
+  "Sales Unit of Measure","Subscription Option","Sales Blocked","Service Blocked",
+  "Application Wksh. User ID","VAT Bus. Posting Gr. (Price)","Lead Time Calculation",
+  "Vendor No.","Vendor Item No.","Purch. Unit of Measure","Purchasing Blocked",
+  "Usage Data Supplier Reference Exists","Manufacturing Policy","Routing No.",
+  "Production BOM No.","Rounding Precision","Flushing Method","Overhead Rate","Scrap %",
+  "Lot Size","Allow Whse. Overpick","Production Blocked","Assembly Policy","Assembly BOM",
+  "Reordering Policy","Reserve","Order Tracking Policy","Stockkeeping Unit Exists",
+  "Dampener Period","Dampener Quantity","Critical","Safety Lead Time","Safety Stock Quantity",
+  "Include Inventory","Lot Accumulation Period","Rescheduling Period","Reorder Point",
+  "Reorder Quantity","Maximum Inventory","Overflow Level","Time Bucket","Minimum Order Quantity",
+  "Maximum Order Quantity","Order Multiple","Item Tracking Code","Serial Nos.","Lot Nos.",
+  "Expiration Calculation","Warehouse Class Code","Special Equipment Code","Put-away Template Code",
+  "Put-away Unit of Measure Code","Phys Invt Counting Period Code","Last Phys. Invt. Date",
+  "Last Counting Period Update","Next Counting Start Date","Next Counting End Date",
+  "Identifier Code","Use Cross-Docking","GHG Credit","Carbon Credit Per UOM",
+  "Sustainability Certificate No.","Sustainability Certificate Name","Default Sust. Account",
+  "Default CO2 Emission","Default CH4 Emission","Default N2O Emission","CO2e per Unit",
+  "Item of Concern","Recyclability Percentage","Energy Efficiency Rating","End-of-Life Information",
+  "Source of Emission Data","Emission Verified","CBAM Compliance","EPR Category",
+  "Material Composition No.","Total EPR Weight","EPR Fees Per Unit",
+  "End-of-Life Disposal Requirements","Carbon Tracking Method","Product Classification Type",
+  "Product Classification Code","Product Classification Name","Global Dimension 1 Code",
+  "Global Dimension 2 Code","Shortcut Dimension 3 Code","Shortcut Dimension 4 Code",
+  "Shortcut Dimension 5 Code","Shortcut Dimension 6 Code","Shortcut Dimension 7 Code",
+  "Shortcut Dimension 8 Code"
+];
+
+function getArtikelVelden(){
+  return [
+    { key:'',                 label:'— Niet koppelen —' },
+    { key:'productId',        label:'Product ID' },
+    { key:'name',             label:'Name' },
+    { key:'defaultVendor',    label:'Default Vendor' },
+    { key:'productIdVendor',  label:'Product ID Vendor' },
+    { key:'productGroup',     label:'Product Group' },
+    { key:'fsProductType',    label:'FS Product Type' },
+    { key:'standardCost',     label:'Standard Cost' },
+    { key:'listPrice',        label:'List Price' },
+    { key:'profitPct',        label:'Profit (%)' },
+    { key:'serialNumber',     label:'Serial Nr.' },
+    { key:'ledgerTurnover',   label:'Ledger Turnover' },
+    { key:'productPostingGroup', label:'Product Posting Group' },
+    { key:'manufacturer',     label:'Manufacturer' },
+    { key:'category',         label:'Category' },
+    { key:'model',            label:'Model' },
+    { key:'vendorNo',         label:'Vendor No.' },
+    { key:'reorderingPolicy', label:'Reordering Policy' },
+    { key:'templateId',       label:'Template ID' },
+    { key:'t.type',           label:'Type (template)' },
+    { key:'t.uom',            label:'UoM (template)' },
+    { key:'t.costingMeth',    label:'Costing Method (template)' },
+    { key:'t.genPosting',     label:'Gen. Posting Group (template)' },
+    { key:'t.vatPosting',     label:'VAT Posting Group (template)' },
+    { key:'t.invenPosting',   label:'Inven. Posting Group (template)' },
+    { key:'t.priceProfit',    label:'Price/Profit (template)' },
+    { key:'t.subscriptie',    label:'Subscriptie (template)' },
+    { key:'t.replen',         label:'Replen. System (template)' },
+    { key:'t.assemblyPolicy', label:'Assembly Policy (template)' },
+    { key:'t.itemTracking',   label:'Item Tracking (template)' },
+    { key:'t.serNos',         label:'Ser. Nos. (template)' },
+    { key:'t.nrSerie',        label:'Nr. Serie (template)' },
+  ];
+}
+
+let akKoppeling = {};
+
+async function laadArtikelKoppeling(){
+  try{
+    const snap = await getDocs(collection(db,'artikel_koppeling'));
+    akKoppeling = {};
+    snap.docs.forEach(d=>{ akKoppeling[d.data().bcKolom||d.id] = d.data().veld||''; });
+  }catch(e){ akKoppeling = {}; }
+}
+
+function renderArtikelKoppeling(){
+  const tbody = document.getElementById('tbl-ak-body');
+  if(!tbody) return;
+  const velden = getArtikelVelden();
+  tbody.innerHTML = BC_KOLOMMEN.map((bcKol,i)=>{
+    const gekoppeld = akKoppeling[bcKol]||'';
+    const heeftKoppeling = gekoppeld !== '';
+    return `<tr style="border-bottom:0.5px solid #f1f5f9;${i%2===0?'':'background:#fafafa'}">
+      <td style="padding:8px 14px;font-size:13px;font-weight:500;color:var(--text)">${bcKol}</td>
+      <td style="padding:5px 10px">
+        <select data-bc="${bcKol.replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"
+          style="width:100%;padding:6px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px;outline:none;
+          background:${heeftKoppeling?'var(--blue-light)':'var(--white)'};
+          color:${heeftKoppeling?'var(--blue)':'var(--gray-text)'};
+          font-weight:${heeftKoppeling?'500':'400'}"
+          onchange="akWijzigKoppeling(this)">
+          ${velden.map(v=>`<option value="${v.key}" ${v.key===gekoppeld?'selected':''}>${v.label}</option>`).join('')}
+        </select>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+window.akWijzigKoppeling = function(sel){
+  const bc = sel.getAttribute('data-bc');
+  const val = sel.value;
+  akKoppeling[bc] = val;
+  sel.style.background = val ? 'var(--blue-light)' : 'var(--white)';
+  sel.style.color       = val ? 'var(--blue)'      : 'var(--gray-text)';
+  sel.style.fontWeight  = val ? '500'               : '400';
+};
+
+window.akOpslaanAlle = async function(){
+  const status = document.getElementById('ak-status');
+  status.textContent = 'Opslaan…';
+  // Batch schrijven (max 500 per batch)
+  const entries = BC_KOLOMMEN.map(bcKol=>({
+    safeId: bcKol.replace(/[^a-zA-Z0-9]/g,'_').slice(0,100),
+    bcKolom: bcKol,
+    veld: akKoppeling[bcKol]||'',
+  }));
+  for(let i=0;i<entries.length;i+=400){
+    const batch=writeBatch(db);
+    entries.slice(i,i+400).forEach(e=>batch.set(doc(db,'artikel_koppeling',e.safeId),{bcKolom:e.bcKolom,veld:e.veld}));
+    await batch.commit();
+  }
+  status.textContent = `✓ ${entries.filter(e=>e.veld).length} koppelingen opgeslagen`;
+  setTimeout(()=>status.textContent='',3000);
+  showSaving('Artikelkoppeling opgeslagen');
+};
+
+window.akReset = function(){
+  if(!confirm('Alle koppelingen verwijderen?')) return;
+  akKoppeling = {};
+  renderArtikelKoppeling();
+};
 
 async function laadBeheerAccounts(){
   const snap = await getDocs(collection(db,'beheer_accounts'));
