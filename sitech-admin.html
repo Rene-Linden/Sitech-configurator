@@ -2830,6 +2830,8 @@ function getArtikelVelden(){
     { key:'manufacturer',     label:'Manufacturer' },
     { key:'category',         label:'Category' },
     { key:'model',            label:'Model' },
+    { key:'itemCategoryCode', label:'Item Category Code' },
+    { key:'shelf',            label:'Shelf' },
     { key:'vendorNo',         label:'Vendor No.' },
     { key:'reorderingPolicy', label:'Reordering Policy' },
     { key:'serviceArtikel',   label:'Opnemen in Service Artikel' },
@@ -3695,6 +3697,8 @@ const ARTIKEL_VAR_VELDEN = [
   { id:'manufacturer',       label:'Manufacturer',               placeholder:'Fabrikant' },
   { id:'category',           label:'Category',                   placeholder:'Categorie' },
   { id:'model',              label:'Model',                      placeholder:'Model' },
+  { id:'itemCategoryCode',   label:'Item Category Code',         placeholder:'bijv. HARDWARE' },
+  { id:'shelf',              label:'Shelf',                      placeholder:'bijv. A-01' },
   { id:'profitPct',          label:'Profit (%)',                 placeholder:'bijv. 30' },
   { id:'vendorNo',           label:'Vendor No.',                 placeholder:'Leveranciersnummer' },
   { id:'reorderingPolicy',   label:'Reordering Policy',          placeholder:'bijv. Fixed Reorder Qty' },
@@ -3827,9 +3831,11 @@ function renderArtikelenTbody(){
       <td style="font-size:12px;color:var(--gray-text)">${a.productPostingGroup||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04);border-left:2px solid rgba(133,79,11,.2)">${t.type||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.uom||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.itemCategoryCode||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.manufacturer||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.category||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.model||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.shelf||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.costingMeth||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.genPosting||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.vatPosting||'—'}</td>
@@ -4065,9 +4071,11 @@ function renderArtikelen(){
     <th style="min-width:160px">Product Posting Grp ${makeColFilter('posting','Posting Group','select',postings)}</th>
     <th style="min-width:130px;background:var(--amber-light);color:var(--amber);border-left:2px solid rgba(133,79,11,.2)">Type</th>
     <th style="min-width:70px;background:var(--amber-light);color:var(--amber)">UoM</th>
+    <th style="min-width:160px">Item Category Code</th>
     <th style="min-width:140px">Manufacturer</th>
     <th style="min-width:140px">Category</th>
     <th style="min-width:140px">Model</th>
+    <th style="min-width:120px">Shelf</th>
     <th style="min-width:140px;background:var(--amber-light);color:var(--amber)">Costing Method</th>
     <th style="min-width:160px;background:var(--amber-light);color:var(--amber)">Gen. Posting Group</th>
     <th style="min-width:90px;background:var(--amber-light);color:var(--amber)">VAT</th>
@@ -4114,9 +4122,11 @@ function renderArtikelen(){
       <td style="font-size:12px;color:var(--gray-text)">${a.productPostingGroup||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04);border-left:2px solid rgba(133,79,11,.2)">${t.type||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.uom||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.itemCategoryCode||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.manufacturer||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.category||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.model||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.shelf||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.costingMeth||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.genPosting||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.vatPosting||'—'}</td>
@@ -4477,7 +4487,7 @@ document.getElementById('btn-artikel-download').addEventListener('click', async(
       a.serialNumber||'', a.agreementProduct||'', a.mainProduct||'',
       a.ledgerTurnover||'', a.productPostingGroup||'',
       a.isArtikel?'Ja':'Nee', a.isSBU?'Ja':'Nee', a.isEWV?'Ja':'Nee',
-      tmpl.type||'', tmpl.uom||'', a.manufacturer||'', a.category||'', a.model||'',
+      tmpl.type||'', tmpl.uom||'', a.itemCategoryCode||'', a.manufacturer||'', a.category||'', a.model||'', a.shelf||'',
       tmpl.costingMeth||'', tmpl.genPosting||'', tmpl.vatPosting||'', tmpl.invenPosting||'',
       tmpl.priceProfit||'', unitPrice, a.profitPct||'',
       tmpl.subscriptie||'', tmpl.replen||'', a.vendorNo||'', tmpl.assemblyPolicy||'',
