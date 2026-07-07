@@ -2832,6 +2832,7 @@ function getArtikelVelden(){
     { key:'model',            label:'Model' },
     { key:'vendorNo',         label:'Vendor No.' },
     { key:'reorderingPolicy', label:'Reordering Policy' },
+    { key:'serviceArtikel',   label:'Opnemen in Service Artikel' },
     { key:'templateId',       label:'Template ID' },
     { key:'t.type',           label:'Type (template)' },
     { key:'t.uom',            label:'UoM (template)' },
@@ -3866,8 +3867,17 @@ function renderArtikelenTbody(){
   });
 }
 
+window.artikelToggleServiceArtikel = async function(id){
+  const a = artikelen.find(x=>x.id===id); if(!a) return;
+  const volgorde = ['', 'ja', 'nee'];
+  const huidig = a.serviceArtikel||'';
+  const nieuw = volgorde[(volgorde.indexOf(huidig)+1)%3];
+  a.serviceArtikel = nieuw;
+  await updateDoc(doc(db,'artikelen',id), { serviceArtikel: nieuw });
+  renderArtikelen();
+};
+
 window.openKopierenModal = function(){
-  const ids = [...artikelSelectie];
   if(!ids.length){ alert('Selecteer eerst artikelen'); return; }
 
   // Vul template selector
@@ -4043,6 +4053,7 @@ function renderArtikelen(){
   thead.innerHTML=`<tr style="position:sticky;top:0;background:var(--gray-bg);z-index:10">
     <th style="width:36px;min-width:36px;text-align:center"><input type="checkbox" id="chk-all" ${alleGeselecteerd?'checked':''} /></th>
     <th style="min-width:140px">Product ID ${makeColFilter('productId','Product ID','text',[])}</th>
+    <th style="min-width:110px;text-align:center">Service Artikel</th>
     <th style="min-width:280px">Name ${makeColFilter('name','Name','text',[])}</th>
     <th style="min-width:200px">Default Vendor ${makeColFilter('vendor','Leverancier','select',vendors)}</th>
     <th style="min-width:150px">Product ID Vendor ${makeColFilter('vendorId','Product ID Vendor','text',[])}</th>
@@ -4091,6 +4102,7 @@ function renderArtikelen(){
     return `<tr class="${sel?'row-selected':''}">
       <td style="text-align:center;width:36px"><input type="checkbox" class="chk-artikel" data-id="${a.id}" ${sel?'checked':''} /></td>
       <td><strong style="font-size:13px">${a.productId||'—'}</strong></td>
+      <td style="text-align:center"><button onclick="artikelToggleServiceArtikel('${a.id}')" style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;border:0.5px solid;cursor:pointer;${a.serviceArtikel==='ja'?'background:#dcfce7;color:#166534;border-color:#86efac':a.serviceArtikel==='nee'?'background:#fef2f2;color:#dc2626;border-color:#fca5a5':'background:var(--gray-bg);color:var(--gray-text);border-color:var(--gray-border)'}">${a.serviceArtikel==='ja'?'Ja':a.serviceArtikel==='nee'?'Nee':'—'}</button></td>
       <td style="font-size:13px">${a.name||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.defaultVendor||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.productIdVendor||'—'}</td>
