@@ -672,20 +672,28 @@ tr.row-selected td{background:var(--blue-light)}
               <label style="font-size:12px;color:var(--gray-text);white-space:nowrap">Veld aanpassen:</label>
               <select id="sel-bulk-kolom" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;min-width:160px">
                 <option value="">— Kies kolom —</option>
-                <option value="manufacturer">Manufacturer</option>
-                <option value="category">Category</option>
-                <option value="model">Model</option>
-                <option value="profitPct">Profit (%)</option>
-                <option value="vendorNo">Vendor No.</option>
-                <option value="reorderingPolicy">Reordering Policy</option>
+                <option value="name">Name</option>
+                <option value="serviceArtikel">Service Artikel</option>
                 <option value="defaultVendor">Default Vendor</option>
                 <option value="productIdVendor">Product ID Vendor</option>
                 <option value="productGroup">Product Group</option>
                 <option value="fsProductType">FS Product Type</option>
                 <option value="standardCost">Standard Cost</option>
                 <option value="serialNumber">Serial Number</option>
+                <option value="agreementProduct">Agreement Product</option>
+                <option value="mainProduct">Main Product</option>
                 <option value="ledgerTurnover">Ledger Turnover</option>
                 <option value="productPostingGroup">Product Posting Group</option>
+                <option value="itemCategoryCode">Item Category Code</option>
+                <option value="manufacturer">Manufacturer</option>
+                <option value="category">Category</option>
+                <option value="model">Model</option>
+                <option value="shelf">Shelf</option>
+                <option value="profitPct">Profit (%)</option>
+                <option value="vendorNo">Vendor No.</option>
+                <option value="vendorItemNo">Vendor Item No.</option>
+                <option value="leadTimeCalc">Lead Time Calculation</option>
+                <option value="reorderingPolicy">Reordering Policy</option>
               </select>
               <input type="text" id="inp-bulk-waarde" placeholder="Nieuwe waarde…" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;width:160px;outline:none" />
               <button class="btn btn-sm" style="background:var(--blue);color:#fff" onclick="bulkEditArtikel()">Toepassen</button>
@@ -2814,41 +2822,45 @@ const BC_KOLOMMEN = [
 
 function getArtikelVelden(){
   return [
-    { key:'',                 label:'— Niet koppelen —' },
-    { key:'productId',        label:'Product ID' },
-    { key:'name',             label:'Name' },
-    { key:'defaultVendor',    label:'Default Vendor' },
-    { key:'productIdVendor',  label:'Product ID Vendor' },
-    { key:'productGroup',     label:'Product Group' },
-    { key:'fsProductType',    label:'FS Product Type' },
-    { key:'standardCost',     label:'Standard Cost' },
-    { key:'listPrice',        label:'List Price' },
-    { key:'profitPct',        label:'Profit (%)' },
-    { key:'serialNumber',     label:'Serial Nr.' },
-    { key:'ledgerTurnover',   label:'Ledger Turnover' },
-    { key:'productPostingGroup', label:'Product Posting Group' },
-    { key:'manufacturer',     label:'Manufacturer' },
-    { key:'category',         label:'Category' },
-    { key:'model',            label:'Model' },
-    { key:'itemCategoryCode', label:'Item Category Code' },
-    { key:'shelf',            label:'Shelf' },
-    { key:'vendorNo',         label:'Vendor No.' },
-    { key:'reorderingPolicy', label:'Reordering Policy' },
-    { key:'serviceArtikel',   label:'Opnemen in Service Artikel' },
-    { key:'templateId',       label:'Template ID' },
-    { key:'t.type',           label:'Type (template)' },
-    { key:'t.uom',            label:'UoM (template)' },
-    { key:'t.costingMeth',    label:'Costing Method (template)' },
-    { key:'t.genPosting',     label:'Gen. Posting Group (template)' },
-    { key:'t.vatPosting',     label:'VAT Posting Group (template)' },
-    { key:'t.invenPosting',   label:'Inven. Posting Group (template)' },
-    { key:'t.priceProfit',    label:'Price/Profit (template)' },
-    { key:'t.subscriptie',    label:'Subscriptie (template)' },
-    { key:'t.replen',         label:'Replen. System (template)' },
-    { key:'t.assemblyPolicy', label:'Assembly Policy (template)' },
-    { key:'t.itemTracking',   label:'Item Tracking (template)' },
-    { key:'t.serNos',         label:'Ser. Nos. (template)' },
-    { key:'t.nrSerie',        label:'Nr. Serie (template)' },
+    { key:'',                   label:'— Niet koppelen —' },
+    { key:'productId',          label:'Product ID' },
+    { key:'serviceArtikel',     label:'Opnemen in Service Artikel' },
+    { key:'name',               label:'Name' },
+    { key:'defaultVendor',      label:'Default Vendor' },
+    { key:'productIdVendor',    label:'Product ID Vendor' },
+    { key:'productGroup',       label:'Product Group' },
+    { key:'fsProductType',      label:'FS Product Type' },
+    { key:'standardCost',       label:'Standard Cost' },
+    { key:'serialNumber',       label:'Serial Nr.' },
+    { key:'agreementProduct',   label:'Agreement Product' },
+    { key:'mainProduct',        label:'Main Product' },
+    { key:'ledgerTurnover',     label:'Ledger Turnover' },
+    { key:'productPostingGroup',label:'Product Posting Group' },
+    { key:'itemCategoryCode',   label:'Item Category Code' },
+    { key:'manufacturer',       label:'Manufacturer' },
+    { key:'category',           label:'Category' },
+    { key:'model',              label:'Model' },
+    { key:'shelf',              label:'Shelf' },
+    { key:'listPrice',          label:'List Price (Unit Price)' },
+    { key:'profitPct',          label:'Profit (%)' },
+    { key:'vendorNo',           label:'Vendor No.' },
+    { key:'vendorItemNo',       label:'Vendor Item No.' },
+    { key:'leadTimeCalc',       label:'Lead Time Calculation' },
+    { key:'reorderingPolicy',   label:'Reordering Policy' },
+    { key:'templateId',         label:'Template ID' },
+    { key:'t.type',             label:'Type (template)' },
+    { key:'t.uom',              label:'UoM (template)' },
+    { key:'t.costingMeth',      label:'Costing Method (template)' },
+    { key:'t.genPosting',       label:'Gen. Posting Group (template)' },
+    { key:'t.vatPosting',       label:'VAT Posting Group (template)' },
+    { key:'t.invenPosting',     label:'Inven. Posting Group (template)' },
+    { key:'t.priceProfit',      label:'Price/Profit (template)' },
+    { key:'t.subscriptie',      label:'Subscriptie (template)' },
+    { key:'t.replen',           label:'Replen. System (template)' },
+    { key:'t.assemblyPolicy',   label:'Assembly Policy (template)' },
+    { key:'t.itemTracking',     label:'Item Tracking (template)' },
+    { key:'t.serNos',           label:'Ser. Nos. (template)' },
+    { key:'t.nrSerie',          label:'Nr. Serie (template)' },
   ];
 }
 
@@ -3701,6 +3713,8 @@ const ARTIKEL_VAR_VELDEN = [
   { id:'shelf',              label:'Shelf',                      placeholder:'bijv. A-01' },
   { id:'profitPct',          label:'Profit (%)',                 placeholder:'bijv. 30' },
   { id:'vendorNo',           label:'Vendor No.',                 placeholder:'Leveranciersnummer' },
+  { id:'vendorItemNo',       label:'Vendor Item No.',            placeholder:'Leveranciers artikelnummer' },
+  { id:'leadTimeCalc',       label:'Lead Time Calculation',      placeholder:'bijv. 5D' },
   { id:'reorderingPolicy',   label:'Reordering Policy',          placeholder:'bijv. Fixed Reorder Qty' },
 ];
 
@@ -3846,6 +3860,7 @@ function renderArtikelenTbody(){
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.subscriptie||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.replen||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.vendorNo||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.vendorItemNo||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.assemblyPolicy||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.reorderingPolicy||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.itemTracking||'—'}</td>
@@ -4086,6 +4101,7 @@ function renderArtikelen(){
     <th style="min-width:180px;background:var(--amber-light);color:var(--amber)">Subscriptie</th>
     <th style="min-width:130px;background:var(--amber-light);color:var(--amber)">Replen. System</th>
     <th style="min-width:120px">Vendor No.</th>
+    <th style="min-width:150px">Vendor Item No.</th>
     <th style="min-width:150px;background:var(--amber-light);color:var(--amber)">Assembly Policy</th>
     <th style="min-width:160px">Reordering Policy</th>
     <th style="min-width:120px;background:var(--amber-light);color:var(--amber)">Item Tracking</th>
@@ -4145,6 +4161,7 @@ function renderArtikelen(){
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.subscriptie||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.replen||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.vendorNo||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-text)">${a.vendorItemNo||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.assemblyPolicy||'—'}</td>
       <td style="font-size:12px;color:var(--gray-text)">${a.reorderingPolicy||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.itemTracking||'—'}</td>
