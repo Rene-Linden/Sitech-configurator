@@ -4400,7 +4400,9 @@ window.editArtikel = function(id){
 
   const modal = document.getElementById('modal-artikel');
   console.log('modal element:', !!modal, 'classes:', modal?.className);
-  modal.style.cssText = 'display:flex !important; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:9999; align-items:center; justify-content:center; padding:1rem;';
+  // Verplaats modal naar body zodat geen parent overflow hem verbergt
+  if(modal.parentElement !== document.body) document.body.appendChild(modal);
+  modal.style.cssText = 'display:flex; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:99999; align-items:center; justify-content:center; padding:1rem;';
   modal.classList.add('open');
   console.log('modal opened, display:', modal.style.display);
 };
