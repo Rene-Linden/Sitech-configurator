@@ -7672,25 +7672,48 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
 
       function vindArtikelen(excelId){
         const key = excelId.toUpperCase();
-        // 1. Exacte match
+        // 1. Exacte match op productId veld
         const exact = mapProductId.get(key);
         if(exact) return [exact];
-        // 2. Prefix match (alleen zinvol als excelId geen streepje heeft)
+        // 2. Exacte match maar dan zonder suffix -99S, -STK, etc.
+        // Varianten toevoegen die in de app kunnen voorkomen
+        const varianten = [
+          key,
+          key + '-99S',
+          key + '-STK',
+          key + 'S',
+          key.replace(/-STK$/,''),
+          key.replace(/-HH$/,''),
+          key.replace(/-LR$/,''),
+          key.replace(/-E$/,''),
+          key.replace(/-30$/,''),
+          key.replace(/-11$/,''),
+          key.replace(/-P$/,''),
+        ];
+        for(const v of varianten){
+          const m = mapProductId.get(v);
+          if(m) return [m];
+        }
+        // 3. Prefix match (geen streepje in key)
         if(!key.includes('-')){
           const pref = mapPrefix.get(key);
           if(pref && pref.length) return pref;
         }
-        // 3. Contains match: zoek artikelen waarvan productId begint met excelId
-        const starts = alleProductIds.filter(a=>a.pid.startsWith(key+'-') || a.pid === key);
+        // 4. Starts-with match
+        const starts = alleProductIds.filter(a=>a.pid.startsWith(key+'-') || a.pid===key);
         if(starts.length) return starts.map(x=>alleArtikelen.find(a=>a.id===x.id)).filter(Boolean);
-        // 4. Omgekeerd: excelId bevat extra suffix die in productId niet zit
-        //    bijv. '132797-STK' → zoek '132797'
+        // 5. Omgekeerd: kortere versie (laatste segment weggooien)
         const parts = key.split('-');
-        if(parts.length > 1){
-          const shorter = parts.slice(0,-1).join('-');
-          const shorterMatch = mapProductId.get(shorter);
-          if(shorterMatch) return [shorterMatch];
+        for(let cut=parts.length-1; cut>0; cut--){
+          const shorter = parts.slice(0,cut).join('-');
+          const sm = mapProductId.get(shorter);
+          if(sm) return [sm];
+          const sp = mapPrefix.get(shorter);
+          if(sp && sp.length) return sp;
         }
+        // 6. Contains: zoek artike len waarvan pid dit excelId bevat
+        const contains = alleProductIds.filter(a=>a.pid.includes(key) || key.includes(a.pid));
+        if(contains.length===1) return [alleArtikelen.find(a=>a.id===contains[0].id)].filter(Boolean);
         return [];
       }
 
@@ -7737,24 +7760,26 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
       status.textContent = `✓ ${bijgewerkt} bijgewerkt${nietGevonden?`, ${nietGevonden} niet gevonden`:''}. Zie rapport hieronder.`;
 
       // Toon rapport
-      const nietGevondenIds = [];
+      const nietGevondenLijst = [];
       for(const r of dataRows){
         const pid = String(r[3]||'').trim();
         const loc = String(r[5]||'').trim();
         if(!pid || !loc) continue;
-        const exact = mapProductId.get(pid.toUpperCase());
-        const prefix = mapPrefix.get(pid.toUpperCase());
-        if(!exact && (!prefix || !prefix.length)) nietGevondenIds.push(pid);
+        if(vindArtikelen(pid).length === 0) nietGevondenLijst.push({pid, loc});
       }
 
-      // Toon samenvatting in status area
       const rapportEl = document.getElementById('locatie-upload-status');
       rapportEl.innerHTML = `
         <div style="margin-top:8px;padding:10px 14px;background:#f0fdf4;border:0.5px solid #86efac;border-radius:8px;font-size:12px">
           <strong style="color:#16a34a">✓ ${bijgewerkt} artikelen bijgewerkt</strong>
-          ${nietGevondenIds.length ? `
-          <div style="margin-top:6px;color:#dc2626"><strong>${nietGevondenIds.length} niet gevonden:</strong></div>
-          <div style="margin-top:4px;font-family:monospace;color:#64748b;max-height:120px;overflow-y:auto;white-space:pre-wrap">${nietGevondenIds.join(', ')}</div>` : ''}
+          ${nietGevondenLijst.length ? `
+          <div style="margin-top:8px;color:#dc2626"><strong>${nietGevondenLijst.length} niet gevonden in app (niet in Firestore):</strong></div>
+          <div style="margin-top:4px;overflow-y:auto;max-height:150px">
+            <table style="font-size:11px;border-collapse:collapse;width:100%">
+              <tr style="color:#64748b"><th style="text-align:left;padding:2px 8px">Product ID (ERP)</th><th style="text-align:left;padding:2px 8px">Locatie</th></tr>
+              ${nietGevondenLijst.map(x=>`<tr><td style="padding:2px 8px;font-family:monospace">${x.pid}</td><td style="padding:2px 8px">${x.loc}</td></tr>`).join('')}
+            </table>
+          </div>` : '<div style="color:#16a34a;margin-top:4px">Alle artikelen gematcht ✓</div>'}
         </div>`;
 
       // Herlaad artikelen volledig uit Firestore en refresh tabel
