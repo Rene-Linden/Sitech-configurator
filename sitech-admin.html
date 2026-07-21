@@ -850,6 +850,21 @@ tr.row-selected td{background:var(--blue-light)}
           </div>
         </div>
 
+        <!-- Sectie 3: Locatie data (Oud ERP) -->
+        <div class="card" style="margin-top:16px">
+          <div class="card-body">
+            <div style="font-size:14px;font-weight:600;margin-bottom:6px">Locatie data — Oud ERP</div>
+            <div style="font-size:12px;color:var(--gray-text);margin-bottom:12px">
+              Upload het locatiebestand uit het oude ERP. Kolom D (Product ID) wordt gematcht met artikelen. Kolom F (Location Warehouse) wordt opgeslagen als <strong>Shelf</strong> bij het bijbehorende artikel.
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-green" id="btn-locatie-upload">Excel uploaden</button>
+              <input type="file" id="locatie-upload-input" accept=".xlsx,.xls" style="display:none" />
+              <span id="locatie-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
+            </div>
+          </div>
+        </div>
+
         <!-- Archief -->
         <div>
           <div style="font-size:13px;font-weight:500;color:var(--gray-text);margin-bottom:8px">Uploadgeschiedenis</div>
@@ -7582,6 +7597,80 @@ document.getElementById('sitech-pl-upload-input').addEventListener('change', asy
       loadTrimbleArchief();
 
     } catch(err){
+      status.textContent='';
+      alert('Fout bij verwerken: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value='';
+});
+
+// LOCATIE DATA UPLOAD — Oud ERP
+document.getElementById('btn-locatie-upload').addEventListener('click',()=>
+  document.getElementById('locatie-upload-input').click()
+);
+
+document.getElementById('locatie-upload-input').addEventListener('change', async(event)=>{
+  const status = document.getElementById('locatie-upload-status');
+  const file   = event.target.files[0];
+  if(!file) return;
+  if(typeof XLSX==='undefined'){ alert('Excel-library nog niet geladen'); return; }
+
+  status.textContent = 'Bestand lezen…';
+
+  const reader = new FileReader();
+  reader.onload = async e=>{
+    try{
+      const wb   = XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+
+      // Rij 0 = header, data vanaf rij 1
+      // Kolom D (index 3) = Product ID, Kolom F (index 5) = Location Warehouse
+      const dataRows = rows.slice(1).filter(r=>String(r[3]||'').trim() && String(r[5]||'').trim());
+
+      status.textContent = `${dataRows.length} locatieregels lezen…`;
+
+      // Laad alle artikelen
+      const artSnap = await getDocs(collection(db,'artikelen'));
+      const alleArtikelen = artSnap.docs.map(d=>({id:d.id,...d.data()}));
+      const mapProductId = new Map(alleArtikelen.map(a=>[(a.productId||'').trim().toUpperCase(), a]));
+
+      let bijgewerkt=0, nietGevonden=0;
+      const updates = [];
+
+      for(const r of dataRows){
+        const productId = String(r[3]||'').trim();
+        const locatie   = String(r[5]||'').trim();
+        if(!productId || !locatie) continue;
+
+        const art = mapProductId.get(productId.toUpperCase());
+        if(!art){ nietGevonden++; continue; }
+
+        updates.push({ id: art.id, shelf: locatie });
+        bijgewerkt++;
+      }
+
+      // Schrijf in batches van 500
+      for(let i=0;i<updates.length;i+=500){
+        const batch = writeBatch(db);
+        updates.slice(i,i+500).forEach(u=>{
+          batch.update(doc(db,'artikelen',u.id), { shelf: u.shelf });
+          // Update in-memory
+          const inMem = artikelen.find(a=>a.id===u.id);
+          if(inMem) inMem.shelf = u.shelf;
+        });
+        await batch.commit();
+        status.textContent = `${Math.min(i+500,updates.length)} / ${updates.length} verwerkt…`;
+      }
+
+      status.textContent = `✓ ${bijgewerkt} artikelen bijgewerkt met locatie, ${nietGevonden} niet gevonden`;
+      setTimeout(()=>status.textContent='',8000);
+
+      // Refresh artikelentabel als die zichtbaar is
+      if(document.getElementById('panel-artikelen')?.classList.contains('active')) renderArtikelen();
+
+    }catch(err){
       status.textContent='';
       alert('Fout bij verwerken: '+err.message);
     }
