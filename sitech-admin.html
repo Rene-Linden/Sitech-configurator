@@ -3890,8 +3890,7 @@ function renderArtikelenTbody(){
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.itemTracking||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.serNos||'—'}</td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="btn btn-sm btn-edit-artikel" data-id="${a.id}">Bewerken</button>
-        <button class="btn btn-sm btn-red btn-del-artikel" style="margin-left:4px" data-id="${a.id}">Verwijderen</button>
+        <button class="btn btn-sm btn-red btn-del-artikel" data-id="${a.id}">Verwijderen</button>
       </td>
     </tr>`;
   }).join('') ||
@@ -4191,8 +4190,7 @@ function renderArtikelen(){
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.itemTracking||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.serNos||'—'}</td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="btn btn-sm btn-edit-artikel" data-id="${a.id}">Bewerken</button>
-        <button class="btn btn-sm btn-red btn-del-artikel" style="margin-left:4px" data-id="${a.id}">Verwijderen</button>
+        <button class="btn btn-sm btn-red btn-del-artikel" data-id="${a.id}">Verwijderen</button>
       </td>
     </tr>`;
   }).join('') ||
@@ -4356,22 +4354,48 @@ document.getElementById('btn-add-artikel').addEventListener('click', ()=>{
 });
 
 window.editArtikel = function(id){
-  try{
-    const a = artikelen.find(x=>x.id===id);
-    if(!a){ console.warn('Artikel niet gevonden:', id); return; }
-    const t = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId) || null;
-    document.getElementById('artikel-edit-id').value = id;
-    document.getElementById('artikel-template-badge').textContent = t
-      ? `Template: ${t.naam||a.templateId}`
-      : (a.templateId ? `Template: ${a.templateId}` : 'Geen template');
-    document.getElementById('modal-artikel-title').textContent = 'Artikel bewerken';
-    vulArtikelForm(t, a);
-    const modal = document.getElementById('modal-artikel');
-    modal.classList.add('open');
-    modal.style.display = 'flex';
-  }catch(e){
-    console.error('editArtikel fout:', e);
+  const a = artikelen.find(x=>x.id===id);
+  if(!a){ console.warn('niet gevonden',id); return; }
+  const t = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId) || null;
+
+  // Reset modal
+  document.getElementById('artikel-edit-id').value = id;
+  document.getElementById('modal-artikel-title').textContent = 'Artikel bewerken';
+  document.getElementById('artikel-template-badge').textContent = t?.naam || a.templateId || 'Geen template';
+
+  // Vul velden
+  const formEl = document.getElementById('artikel-form-velden');
+  formEl.innerHTML = '';
+  ARTIKEL_VAR_VELDEN.forEach(v=>{
+    const div = document.createElement('div');
+    div.className = 'fg';
+    const lbl = document.createElement('label');
+    lbl.textContent = v.label;
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.id = 'av-'+v.id;
+    inp.placeholder = v.placeholder||'';
+    inp.value = a[v.id]||'';
+    inp.style.cssText = 'width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px;outline:none';
+    div.appendChild(lbl);
+    div.appendChild(inp);
+    formEl.appendChild(div);
+  });
+
+  // Template velden
+  const vasteEl = document.getElementById('artikel-vaste-velden');
+  if(t && vasteEl){
+    const velden = [['Type',t.type],['UoM',t.uom],['Costing Method',t.costingMeth],
+      ['Gen. Posting',t.genPosting],['VAT',t.vatPosting],['Inven. Posting',t.invenPosting],
+      ['Price/Profit',t.priceProfit],['Subscriptie',t.subscriptie],['Replen.',t.replen],
+      ['Assembly Policy',t.assemblyPolicy],['Item Tracking',t.itemTracking],['Ser. Nos.',t.serNos]];
+    vasteEl.innerHTML = velden.map(([k,v])=>`<div style="padding:4px 0;border-bottom:0.5px solid var(--gray-border)"><strong>${k}:</strong> ${v||'—'}</div>`).join('');
   }
+
+  // Open modal
+  const modal = document.getElementById('modal-artikel');
+  modal.style.display = 'flex';
+  modal.classList.add('open');
 };
 
 function vulArtikelForm(t, data){
