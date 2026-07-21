@@ -7641,14 +7641,10 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
       );
 
       status.textContent = `${dataRows.length} locatieregels gevonden in sheet "${sheetNaam}"…`;
-      console.log('Eerste 3 dataRows:', dataRows.slice(0,3).map(r=>({d:r[3],f:r[5]})));
 
       // Laad alle artikelen vers uit Firestore
       const artSnap = await getDocs(collection(db,'artikelen'));
       const alleArtikelen = artSnap.docs.map(d=>({id:d.id,...d.data()}));
-      console.log(`Artikelen geladen: ${alleArtikelen.length}`);
-      console.log('Eerste 3 artikelen productId:', alleArtikelen.slice(0,3).map(a=>a.productId));
-
       // Bouw lookup op productId (uit veld) én op document-id
       const mapProductId = new Map();
       alleArtikelen.forEach(a=>{
@@ -7670,9 +7666,6 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
         updates.push({ id: art.id, shelf: locatie });
         bijgewerkt++;
       }
-
-      console.log(`Match resultaat: ${bijgewerkt} gevonden, ${nietGevonden} niet gevonden`);
-      if(updates.length) console.log('Eerste update:', updates[0]);
 
       if(!updates.length){
         status.textContent = `Geen matches gevonden. ${nietGevonden} product-IDs niet herkend. Controleer of de artikelen al geladen zijn.`;
@@ -7697,13 +7690,14 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
       }
       console.log(`Klaar: ${geschreven} geschreven naar Firestore`);
 
-      status.textContent = `✓ ${bijgewerkt} artikelen bijgewerkt met locatie${nietGevonden?`, ${nietGevonden} niet gevonden`:''}`;
+      status.textContent = `✓ ${geschreven} artikelen bijgewerkt met locatie${nietGevonden?`, ${nietGevonden} niet gevonden`:''}`;
       setTimeout(()=>status.textContent='',10000);
 
+      // Herlaad artikelen volledig uit Firestore en refresh tabel
+      const versSnap = await getDocs(collection(db,'artikelen'));
+      artikelen = versSnap.docs.map(d=>({id:d.id,...d.data()}));
       if(document.getElementById('panel-artikelen')?.classList.contains('active')){
-        getDocs(collection(db,'artikelen')).then(s=>{
-          artikelen=s.docs.map(d=>({id:d.id,...d.data()})); renderArtikelen();
-        });
+        renderArtikelen();
       }
 
     }catch(err){
