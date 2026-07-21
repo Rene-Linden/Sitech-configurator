@@ -661,7 +661,8 @@ tr.row-selected td{background:var(--blue-light)}
           <div id="artikel-selectie-bar" style="display:none;background:var(--blue-light);border:0.5px solid rgba(24,95,165,.2);border-radius:8px;padding:8px 14px;margin-bottom:8px;align-items:center;gap:10px;font-size:13px;flex-wrap:wrap">
             <span id="selectie-count" style="color:var(--blue);font-weight:500"></span>
 
-            <!-- Verplaatsen -->
+            <!-- Bewerken (alleen bij 1 geselecteerd) -->
+            <button id="btn-bewerk-geselecteerd" class="btn btn-sm btn-blue" onclick="bewerkGeselecteerd()" style="display:none">Bewerken</button>
             <div style="display:flex;align-items:center;gap:6px;border-right:1px solid rgba(24,95,165,.2);padding-right:10px">
               <label style="font-size:12px;color:var(--gray-text);white-space:nowrap">Verplaats naar:</label>
               <select id="sel-verplaats-template" style="padding:5px 8px;border:0.5px solid var(--gray-border);border-radius:6px;font-size:12px;min-width:180px"></select>
@@ -4228,12 +4229,21 @@ window.toggleArtikelFlag = async function(event){
   }
 };
 
+window.bewerkGeselecteerd = function(){
+  if(artikelSelectie.size !== 1){ alert('Selecteer precies 1 artikel om te bewerken'); return; }
+  const id = [...artikelSelectie][0];
+  editArtikel(id);
+};
+
 function updateSelectieBalk(){
   const bar = document.getElementById('artikel-selectie-bar');
   const cnt = artikelSelectie.size;
   const gefilterd = getGefilterdeArtikelen();
   if(cnt>0){
     bar.style.display='flex';
+    // Toon Bewerken knop alleen als precies 1 artikel geselecteerd
+    const bewerkBtn = document.getElementById('btn-bewerk-geselecteerd');
+    if(bewerkBtn) bewerkBtn.style.display = cnt===1 ? '' : 'none';
     const totaal = gefilterd.length;
     document.getElementById('selectie-count').innerHTML =
       `<strong>${cnt}</strong> artikel${cnt!==1?'en':''} geselecteerd` +
