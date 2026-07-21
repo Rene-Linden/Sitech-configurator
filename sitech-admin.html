@@ -7773,14 +7773,23 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
         <div style="margin-top:8px;padding:10px 14px;background:#f0fdf4;border:0.5px solid #86efac;border-radius:8px;font-size:12px">
           <strong style="color:#16a34a">✓ ${bijgewerkt} artikelen bijgewerkt</strong>
           ${nietGevondenLijst.length ? `
-          <div style="margin-top:8px;color:#dc2626"><strong>${nietGevondenLijst.length} niet gevonden in app (niet in Firestore):</strong></div>
-          <div style="margin-top:4px;overflow-y:auto;max-height:150px">
+          <div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <span style="color:#dc2626"><strong>${nietGevondenLijst.length} niet gevonden in app (niet in Firestore)</strong></span>
+            <button onclick="locatieNietGevondenToevoegen()" 
+              style="padding:5px 14px;background:var(--blue);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">
+              + Voeg ${nietGevondenLijst.length} artikelen toe
+            </button>
+          </div>
+          <div style="margin-top:6px;overflow-y:auto;max-height:150px">
             <table style="font-size:11px;border-collapse:collapse;width:100%">
               <tr style="color:#64748b"><th style="text-align:left;padding:2px 8px">Product ID (ERP)</th><th style="text-align:left;padding:2px 8px">Locatie</th></tr>
               ${nietGevondenLijst.map(x=>`<tr><td style="padding:2px 8px;font-family:monospace">${x.pid}</td><td style="padding:2px 8px">${x.loc}</td></tr>`).join('')}
             </table>
           </div>` : '<div style="color:#16a34a;margin-top:4px">Alle artikelen gematcht ✓</div>'}
         </div>`;
+
+      // Sla lijst op voor de toevoeg-knop
+      window._locatieNietGevonden = nietGevondenLijst;
 
       // Herlaad artikelen volledig uit Firestore en refresh tabel
       const versSnap = await getDocs(collection(db,'artikelen'));
@@ -7798,8 +7807,40 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
   event.target.value='';
 });
 
+window.locatieNietGevondenToevoegen = async function(){
+  const lijst = window._locatieNietGevonden;
+  if(!lijst || !lijst.length) return;
+  if(!confirm(`${lijst.length} nieuwe artikelen aanmaken met alleen Product ID en Shelf?\n\nDe overige velden (naam, template, etc.) kun je daarna invullen via de artikelenpagina.`)) return;
+
+  const status = document.getElementById('locatie-upload-status');
+  let aangemaakt = 0;
+
+  for(let i=0; i<lijst.length; i+=50){
+    const chunk = lijst.slice(i, i+50);
+    await Promise.all(chunk.map(async ({pid, loc})=>{
+      const id = 'art' + Date.now() + Math.random().toString(36).slice(2,6);
+      const data = { productId: pid, shelf: loc, name: '' };
+      await setDoc(doc(db,'artikelen',id), data);
+      // Voeg toe aan in-memory array
+      artikelen.push({id, ...data});
+      aangemaakt++;
+    }));
+    status.querySelector('strong').textContent = `✓ ${aangemaakt} / ${lijst.length} aangemaakt…`;
+  }
+
+  // Ververs artikelen uit Firestore
+  const versSnap = await getDocs(collection(db,'artikelen'));
+  artikelen = versSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+  status.querySelector('strong').textContent = `✓ ${aangemaakt} artikelen aangemaakt met shelf`;
+  status.querySelector('button')?.remove();
+  window._locatieNietGevonden = [];
+
+  showSaving(`${aangemaakt} artikelen aangemaakt`);
+  if(document.getElementById('panel-artikelen')?.classList.contains('active')) renderArtikelen();
+};
+
 function initStickyScroll(){
-  const wrap  = document.getElementById('artikel-tabel-wrap');
   const stick = document.getElementById('artikel-sticky-scroll');
   if(!wrap||!stick) return;
   let busy=false;
