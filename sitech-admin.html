@@ -646,6 +646,7 @@ tr.row-selected td{background:var(--blue-light)}
             <button class="btn btn-blue" id="btn-add-artikel">+ Artikel toevoegen</button>
             <button class="btn btn-green" id="btn-artikel-upload">Excel uploaden</button>
             <button class="btn" id="btn-artikel-download" style="border-color:rgba(59,109,17,.3);color:var(--green);background:var(--green-light)">Excel downloaden</button>
+            <button class="btn" id="btn-bc-export" style="border-color:rgba(24,95,165,.3);color:var(--blue);background:var(--blue-light)" title="Exporteer naar BC importformat (Artikel-I)">BC Export</button>
             <input type="file" id="artikel-upload-input" accept=".xlsx,.xls,.csv" style="display:none" />
             <span id="artikel-upload-status" style="font-size:13px;color:var(--gray-text)"></span>
           </div>
@@ -4518,8 +4519,70 @@ document.getElementById('btn-artikel-download').addEventListener('click', async(
   XLSX.writeFile(wb, `artikelen-${tid||'alle'}-${new Date().toISOString().slice(0,10)}.xlsx`);
 });
 
-// ============================================================
-// BOM SBU MODULE
+// BC EXPORT — gebaseerd op Artikel-I.xlsx formaat + koppeling uit Tabel Artikeldetails
+// NL headers komen uit Artikel-I.xlsx, in dezelfde volgorde als BC_KOLOMMEN (Engels)
+const ARTIKEL_I_NL_HEADERS = ["Nr.","Omschrijving","Opnemen in serviceartikel-BOM","Omschrijving 2","Geblokkeerd","Soort","Basiseenheid","Gewijzigd op","GTIN","Artikelcategoriecode","Producentencode","Serviceartikelgroep","Belasting gebruikte onderdelen verplicht","Autom. tekstuitbreiding","Gemeenschappelijk artikelnr.","Inkoopcode","Variant verplicht indien aanwezig","Statistiekgroep","Alt. nummer","Alternatief artikel","Oud nr.","Valutacode","Beschikbaar op huurlocatie","Categorie","Subcategorie","Reeks","Model","Producentennaam","Categorienaam","Subcategorienaam","Reeksnaam","Modelnaam","Schapnr.","Op basis van catalogusartikel","Zoeknaam","Voorraad","Aantal in inkooporder","Aantal in productieorder","Aantal op materiaalregels","Aantal in verkooporder","Aantal in serviceorder","Aantal in projectorder","Aantal in assemblageorder","Aantal op assemblagecomponent","Aantal in verkoopraamcontract","Aantal in inkoopraamcontract","Voorraadwaarschuwing","Negatieve voorraad voorkomen","Nettogewicht","Brutogewicht","Volume","Eenheidslengte","Eenheidsbreedte","Eenheidshoogte","Meerontvangstcode","Transferorderontv. (Aantal)","Transferorderverz. (Aantal)","Aantal in transit","Huurklasse","Huurklasse2","Objectcategoriecode","Huurcomponent","Beschikbaar aantal te huur","Beschikbaar voor huur","Verkoopprijs onderdeel","Vervangingsprijs","Waarderingsmethode","Vaste verrekenprijs","Kostprijs","Indirecte kosten %","Laatste directe kosten","Geboekt aantal","Kostprijs geherwaardeerd","Uitgesloten van kostprijsherwaardering","Kosten naar GB boeken","Voorraadwaarde nul","Productboekingsgroep","Btw-productboekingsgroep","Tax Group Code","Withholding Tax Prod. Post. Group","Voorraadboekingsgroep","Code standaarduitstelsjabloon","Tariefcode","Code van land/regio van oorsprong","Uitsluiten van Intrastat-rapport","Aanvullende eenheid","Geen contantkorting","Eenheidsprijs","Inclusief btw","Prijs/Winst berekenen","Winst %","Factuurkorting berekenen","Artikelkortingsgroep","Verk.-eenheid","Abonnementsoptie","Verkoop geblokkeerd","Service geblokkeerd","Gebruikers-id applicatiewerkblad","Btw-bedr.-boekingsgr. (Prijs)","Levertermijn","Leveranciersnr.","Artikelnr. leverancier","Inkoopeenheid","Inkoop geblokkeerd","Referentie van leverancier van gebruiksgegevens bestaat","Productiebeleid","Bewerkingsplannr.","Productiestuklijstnr.","Afrondingsprecisie","Afboekingsmethode","Overheadtarief","Uitval %","Lotgrootte","Pickoverschrijding in magazijn toestaan","Productie geblokkeerd","Assemblagebeleid","Assemblagestuklijst","Bestelbeleid","Reserveren","Ordertraceringsmethode","SKU bestaat","Dempingsperiode","Dempingsaantal","Kritiek","Veiligheidstijd","Veiligheidsvoorraad","Inclusief voorraad","Lotaccumulatieperiode","Herplanningsperiode","Bestelpunt","Bestelaantal","Maximale voorraad","Overflowniveau","Tijdsinterval","Min. bestelaantal","Max. bestelaantal","Vaste lotgrootte","Artikeltraceringscode","Serienummers","Lotnrs.","Verloopdatumberekening","Magazijnklassecode","Speciaal materieel","Opslagsjabloon","Opslageenheid","Code van inventarisatieperiode","Datum van laatste inventarisatie","Laatste update van tellingsperiode","Begindatum van volgende telling","Einddatum volgende telling","Identificatie","Cross-docken gebruiken","GHG-krediet","Koolstofkrediet per eenheid","Nr. van duurzaamheidscertificaat","Naam van duurzaamheidscertificaat","Standaardduurzaamheidsrekening","Standaard-CO2-uitstoot","Standaard-CH4-uitstoot","Standaard-N2O-uitstoot","CO2e per eenheid","Artikel in kwestie","Recyclepercentage","Classificatie van energie-efficiëntie","Informatie over einde van levensduur","Bron van uitstootgegevens","Uitstoot geverifieerd","CBAM-naleving","EPR-categorie","Materiaalsamenstellingsnr.","Totaal EPR-gewicht","EPR-kosten per eenheid","Vereisten voor buitengebruikstelling aan einde levensduur","Methode voor het bijhouden van koolstof","Type productclassificatie","Productclassificatiecode","Productclassificatienaam","Globale dimensiecode 1","Globale dimensiecode 2","Shortcutdimensiecode 3","Shortcutdimensiecode 4","Shortcutdimensiecode 5","Shortcutdimensiecode 6","Shortcutdimensiecode 7","Shortcutdimensiecode 8"];
+
+document.getElementById('btn-bc-export').addEventListener('click', async()=>{
+  if(typeof XLSX==='undefined'){ alert('Excel-library nog niet geladen'); return; }
+  const btn = document.getElementById('btn-bc-export');
+  btn.textContent='Laden…'; btn.disabled=true;
+  try{
+    // Laad koppeling
+    const kopSnap = await getDocs(collection(db,'artikel_koppeling'));
+    const koppeling = {}; // bcKolom → artikelVeldKey
+    kopSnap.docs.forEach(d=>{ koppeling[d.data().bcKolom||''] = d.data().veld||''; });
+
+    // Laad artikelen
+    if(!artikelen.length){
+      const snap = await getDocs(collection(db,'artikelen'));
+      artikelen = snap.docs.map(d=>({id:d.id,...d.data()}));
+    }
+    const tid = document.getElementById('sel-template-filter').value;
+    const teExp = tid ? artikelen.filter(a=>a.templateId===tid) : artikelen;
+
+    // Helper: haal veldwaarde op voor een artikel + template
+    function getVeldWaarde(a, t, veldKey){
+      if(!veldKey) return '';
+      // Template velden (prefix t.)
+      if(veldKey.startsWith('t.')){
+        const tf = veldKey.slice(2);
+        return t[tf]||'';
+      }
+      // Berekende velden
+      if(veldKey==='listPrice'){
+        const pp=(t.priceProfit||'').toLowerCase();
+        const cost=parseFloat(a.standardCost||0), pct=parseFloat(a.profitPct||'');
+        if((pp.includes('kosten')||pp.includes('prijs'))&&cost&&!isNaN(pct)&&pct!==0)
+          return parseFloat((cost*(1+pct/100)).toFixed(2));
+        return a.listPrice||'';
+      }
+      return a[veldKey]!==undefined&&a[veldKey]!==null ? a[veldKey] : '';
+    }
+
+    // Bouw rijen: header = NL namen, data = per kolom de gekoppelde waarde
+    const dataRows = teExp.map(a=>{
+      const t = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId)||{};
+      return BC_KOLOMMEN.map(bcKol=>{
+        const veldKey = koppeling[bcKol]||'';
+        return getVeldWaarde(a, t, veldKey);
+      });
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([ARTIKEL_I_NL_HEADERS, ...dataRows]);
+    // Kolombreedte
+    ws['!cols'] = ARTIKEL_I_NL_HEADERS.map(()=>({wch:20}));
+    ws['!cols'][0] = {wch:18}; // Nr.
+    ws['!cols'][1] = {wch:50}; // Omschrijving
+
+    const wb2 = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb2, ws, 'Sheet1');
+    const datum = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb2, `Artikel-I-export-${datum}.xlsx`);
+  }finally{
+    btn.textContent='BC Export'; btn.disabled=false;
+  }
+});
 // ============================================================
 const SALES_PRIJSLIJST_MEI_2026 = {
   "SBU-0141": 1050,
