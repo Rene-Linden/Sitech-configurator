@@ -4359,17 +4359,19 @@ document.getElementById('btn-add-artikel').addEventListener('click', ()=>{
 });
 
 window.editArtikel = function(id){
+  console.log('editArtikel', id, 'artikelen count:', artikelen.length);
   const a = artikelen.find(x=>x.id===id);
+  console.log('artikel gevonden:', !!a);
   if(!a){ console.warn('niet gevonden',id); return; }
   const t = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId) || null;
+  console.log('template:', t?.id);
 
-  // Reset modal
   document.getElementById('artikel-edit-id').value = id;
   document.getElementById('modal-artikel-title').textContent = 'Artikel bewerken';
   document.getElementById('artikel-template-badge').textContent = t?.naam || a.templateId || 'Geen template';
 
-  // Vul velden
   const formEl = document.getElementById('artikel-form-velden');
+  console.log('formEl:', !!formEl);
   formEl.innerHTML = '';
   ARTIKEL_VAR_VELDEN.forEach(v=>{
     const div = document.createElement('div');
@@ -4387,7 +4389,6 @@ window.editArtikel = function(id){
     formEl.appendChild(div);
   });
 
-  // Template velden
   const vasteEl = document.getElementById('artikel-vaste-velden');
   if(t && vasteEl){
     const velden = [['Type',t.type],['UoM',t.uom],['Costing Method',t.costingMeth],
@@ -4397,10 +4398,11 @@ window.editArtikel = function(id){
     vasteEl.innerHTML = velden.map(([k,v])=>`<div style="padding:4px 0;border-bottom:0.5px solid var(--gray-border)"><strong>${k}:</strong> ${v||'—'}</div>`).join('');
   }
 
-  // Open modal
   const modal = document.getElementById('modal-artikel');
-  modal.style.display = 'flex';
+  console.log('modal element:', !!modal, 'classes:', modal?.className);
+  modal.style.cssText = 'display:flex !important; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:9999; align-items:center; justify-content:center; padding:1rem;';
   modal.classList.add('open');
+  console.log('modal opened, display:', modal.style.display);
 };
 
 function vulArtikelForm(t, data){
