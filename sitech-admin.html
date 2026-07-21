@@ -2081,7 +2081,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('tbl-artikelen').addEventListener('click', function(e){
     const editBtn = e.target.closest('.btn-edit-artikel');
     const delBtn  = e.target.closest('.btn-del-artikel');
-    if(editBtn){ e.stopPropagation(); editArtikel(editBtn.dataset.id); }
+    if(editBtn){ alert('delegation: ' + editBtn.dataset.id); e.stopPropagation(); editArtikel(editBtn.dataset.id); }
     if(delBtn) { e.stopPropagation(); deleteArtikel(delBtn.dataset.id); }
   });
   const sess = sessionStorage.getItem('adm_sess');
@@ -4346,6 +4346,7 @@ document.getElementById('btn-add-artikel').addEventListener('click', ()=>{
 });
 
 window.editArtikel = function(id){
+  alert('editArtikel aangeroepen: ' + id);
   try{
     const a = artikelen.find(x=>x.id===id);
     if(!a){ alert('Artikel niet gevonden (id: '+id+')'); return; }
