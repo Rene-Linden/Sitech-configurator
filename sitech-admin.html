@@ -7652,6 +7652,17 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
         mapProductId.set(a.id.trim().toUpperCase(), a);
       });
 
+      // Extra: prefix-lookup — alle artikelen per prefix
+      const mapPrefix = new Map(); // prefix → [art, art, ...]
+      alleArtikelen.forEach(a=>{
+        const pid = (a.productId||'').trim().toUpperCase();
+        const prefix = pid.split('-')[0];
+        if(prefix){
+          if(!mapPrefix.has(prefix)) mapPrefix.set(prefix, []);
+          mapPrefix.get(prefix).push(a);
+        }
+      });
+
       let bijgewerkt=0, nietGevonden=0;
       const updates = [];
 
@@ -7660,11 +7671,20 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
         const locatie   = String(r[5]||'').trim();
         if(!productId || !locatie) continue;
 
-        const art = mapProductId.get(productId.toUpperCase());
-        if(!art){ nietGevonden++; continue; }
-
-        updates.push({ id: art.id, shelf: locatie });
-        bijgewerkt++;
+        const exactMatch = mapProductId.get(productId.toUpperCase());
+        if(exactMatch){
+          updates.push({ id: exactMatch.id, shelf: locatie });
+          bijgewerkt++;
+        } else {
+          // Probeer prefix-match: bijv. '122206' matcht '122206-99S', '122206-STK', etc.
+          const prefixMatches = mapPrefix.get(productId.toUpperCase());
+          if(prefixMatches && prefixMatches.length){
+            prefixMatches.forEach(a=>updates.push({ id: a.id, shelf: locatie }));
+            bijgewerkt += prefixMatches.length;
+          } else {
+            nietGevonden++;
+          }
+        }
       }
 
       if(!updates.length){
