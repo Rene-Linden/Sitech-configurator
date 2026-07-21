@@ -4354,19 +4354,27 @@ function vulArtikelForm(t, data){
   formEl.innerHTML = ARTIKEL_VAR_VELDEN.map(v=>`
     <div class="fg">
       <label>${v.label}</label>
-      <input type="text" id="av-${v.id}" placeholder="${v.placeholder}" value="${data[v.id]||''}"
+      <input type="text" id="av-${v.id}" placeholder="${v.placeholder||''}"
         style="width:100%;padding:8px 10px;border:0.5px solid var(--gray-border);border-radius:7px;font-size:13px;outline:none" />
     </div>`).join('');
+  // Vul waarden veilig in via setAttribute om HTML-injectie te voorkomen
+  ARTIKEL_VAR_VELDEN.forEach(v=>{
+    const el = document.getElementById('av-'+v.id);
+    if(el) el.value = data[v.id]||'';
+  });
   if(t){
     const vasteVelden = [
       ['Type',t.type],['UoM',t.uom],['Costing Method',t.costingMeth],
       ['Gen. Posting',t.genPosting],['VAT',t.vatPosting],['Inven. Posting',t.invenPosting],
       ['Price/Profit',t.priceProfit],['Subscriptie',t.subscriptie],['Replen.',t.replen],
       ['Assembly Policy',t.assemblyPolicy||'—'],['Item Tracking',t.itemTracking],['Ser. Nos.',t.serNos],
-      ['Include in BoM',t.includeServiceBom],
+      ['Nr. Serie',t.nrSerie],
     ];
     document.getElementById('artikel-vaste-velden').innerHTML =
-      vasteVelden.map(([k,v])=>`<div style="padding:4px 0;border-bottom:0.5px solid var(--gray-border)"><strong>${k}:</strong> ${v}</div>`).join('');
+      vasteVelden.map(([k,v])=>`<div style="padding:4px 0;border-bottom:0.5px solid var(--gray-border)"><strong>${k}:</strong> ${v||'—'}</div>`).join('');
+  } else {
+    document.getElementById('artikel-vaste-velden').innerHTML =
+      '<div style="color:var(--gray-text);font-size:12px">Geen template gekoppeld — template-velden worden automatisch ingevuld na koppeling.</div>';
   }
 }
 
