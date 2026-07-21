@@ -4299,30 +4299,30 @@ window.verplaatsNaarTemplate = async function(){
 };
 
 window.bulkEditArtikel = async function(){
-  const ids   = [...artikelSelectie];
-  const kolom = document.getElementById('sel-bulk-kolom').value;
-  const waarde= document.getElementById('inp-bulk-waarde').value.trim();
+  const ids    = [...artikelSelectie];
+  const kolom  = document.getElementById('sel-bulk-kolom').value;
+  const waarde = document.getElementById('inp-bulk-waarde').value.trim();
   if(!ids.length){ alert('Selecteer eerst artikelen'); return; }
   if(!kolom){ alert('Kies een kolom om aan te passen'); return; }
-  if(!waarde && waarde!==''){ return; }
   const kolomNaam = document.getElementById('sel-bulk-kolom').options[document.getElementById('sel-bulk-kolom').selectedIndex].text;
-  if(!confirm(`"${kolomNaam}" instellen op "${waarde||'(leeg)'}" voor ${ids.length} artikel${ids.length!==1?'en':''}?`)) return;
+  if(!confirm(`"${kolomNaam}" instellen op "${waarde||'(leeg)'}" voor ${ids.length} geselecteerde artikel${ids.length!==1?'en':''}?\n\nAlleen de ${ids.length} geselecteerde artikelen worden aangepast.`)) return;
 
   const status = document.getElementById('artikel-upload-status');
-  status.textContent = `${ids.length} artikelen bijwerken…`;
-
+  let verwerkt = 0;
   for(let i=0;i<ids.length;i+=500){
     const batch = writeBatch(db);
     ids.slice(i,i+500).forEach(id=>{
       batch.update(doc(db,'artikelen',id),{ [kolom]: waarde });
       const a = artikelen.find(x=>x.id===id);
       if(a) a[kolom] = waarde;
+      verwerkt++;
     });
     await batch.commit();
+    status.textContent = `${verwerkt} / ${ids.length} bijgewerkt…`;
   }
   document.getElementById('inp-bulk-waarde').value='';
   document.getElementById('sel-bulk-kolom').value='';
-  status.textContent=`✓ ${ids.length} artikel${ids.length!==1?'en':''} bijgewerkt`;
+  status.textContent = `✓ ${ids.length} artikel${ids.length!==1?'en':''} bijgewerkt`;
   setTimeout(()=>status.textContent='',3000);
   renderArtikelen();
 };
