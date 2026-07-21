@@ -3882,12 +3882,20 @@ function renderArtikelenTbody(){
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.itemTracking||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.serNos||'—'}</td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="btn btn-sm" onclick="editArtikel('${a.id}')">Bewerken</button>
-        <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteArtikel('${a.id}')">Verwijderen</button>
+        <button class="btn btn-sm btn-edit-artikel" data-id="${a.id}">Bewerken</button>
+        <button class="btn btn-sm btn-red btn-del-artikel" style="margin-left:4px" data-id="${a.id}">Verwijderen</button>
       </td>
     </tr>`;
   }).join('') ||
   `<tr><td colspan="30" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen artikelen gevonden</td></tr>`;
+
+  // Event delegation voor bewerken/verwijderen
+  tbody.querySelectorAll('.btn-edit-artikel').forEach(btn=>{
+    btn.addEventListener('click', e=>{ e.stopPropagation(); editArtikel(btn.dataset.id); });
+  });
+  tbody.querySelectorAll('.btn-del-artikel').forEach(btn=>{
+    btn.addEventListener('click', e=>{ e.stopPropagation(); deleteArtikel(btn.dataset.id); });
+  });
 
   // Checkbox events
   tbody.querySelectorAll('.chk-artikel').forEach(chk=>{
@@ -4183,12 +4191,20 @@ function renderArtikelen(){
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.itemTracking||'—'}</td>
       <td style="font-size:12px;color:var(--amber);background:rgba(133,79,11,.04)">${t.serNos||'—'}</td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="btn btn-sm" onclick="editArtikel('${a.id}')">Bewerken</button>
-        <button class="btn btn-sm btn-red" style="margin-left:4px" onclick="deleteArtikel('${a.id}')">Verwijderen</button>
+        <button class="btn btn-sm btn-edit-artikel" data-id="${a.id}">Bewerken</button>
+        <button class="btn btn-sm btn-red btn-del-artikel" style="margin-left:4px" data-id="${a.id}">Verwijderen</button>
       </td>
     </tr>`;
   }).join('') ||
   `<tr><td colspan="24" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen artikelen gevonden</td></tr>`;
+
+  // Event delegation voor bewerken/verwijderen
+  document.getElementById('tbl-artikelen-body').querySelectorAll('.btn-edit-artikel').forEach(btn=>{
+    btn.addEventListener('click', e=>{ e.stopPropagation(); editArtikel(btn.dataset.id); });
+  });
+  document.getElementById('tbl-artikelen-body').querySelectorAll('.btn-del-artikel').forEach(btn=>{
+    btn.addEventListener('click', e=>{ e.stopPropagation(); deleteArtikel(btn.dataset.id); });
+  });
 
   document.getElementById('tbl-artikelen-body').querySelectorAll('.chk-artikel').forEach(chk=>{
     chk.addEventListener('change', function(){
