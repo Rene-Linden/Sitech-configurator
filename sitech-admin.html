@@ -7641,16 +7641,18 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
       );
 
       status.textContent = `${dataRows.length} locatieregels gevonden in sheet "${sheetNaam}"…`;
+      console.log('Eerste 3 dataRows:', dataRows.slice(0,3).map(r=>({d:r[3],f:r[5]})));
 
       // Laad alle artikelen vers uit Firestore
       const artSnap = await getDocs(collection(db,'artikelen'));
       const alleArtikelen = artSnap.docs.map(d=>({id:d.id,...d.data()}));
+      console.log(`Artikelen geladen: ${alleArtikelen.length}`);
+      console.log('Eerste 3 artikelen productId:', alleArtikelen.slice(0,3).map(a=>a.productId));
 
       // Bouw lookup op productId (uit veld) én op document-id
       const mapProductId = new Map();
       alleArtikelen.forEach(a=>{
         if(a.productId) mapProductId.set(a.productId.trim().toUpperCase(), a);
-        // Soms is doc-id gelijk aan productId
         mapProductId.set(a.id.trim().toUpperCase(), a);
       });
 
@@ -7669,6 +7671,9 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
         bijgewerkt++;
       }
 
+      console.log(`Match resultaat: ${bijgewerkt} gevonden, ${nietGevonden} niet gevonden`);
+      if(updates.length) console.log('Eerste update:', updates[0]);
+
       if(!updates.length){
         status.textContent = `Geen matches gevonden. ${nietGevonden} product-IDs niet herkend. Controleer of de artikelen al geladen zijn.`;
         return;
@@ -7678,7 +7683,7 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
       for(let i=0;i<updates.length;i+=500){
         const batch = writeBatch(db);
         updates.slice(i,i+500).forEach(u=>{
-          batch.update(doc(db,'artikelen',u.id), { shelf: u.shelf });
+          batch.set(doc(db,'artikelen',u.id), { shelf: u.shelf }, { merge: true });
           const inMem = artikelen.find(a=>a.id===u.id);
           if(inMem) inMem.shelf = u.shelf;
         });
