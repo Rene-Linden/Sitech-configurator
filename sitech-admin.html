@@ -4359,19 +4359,15 @@ document.getElementById('btn-add-artikel').addEventListener('click', ()=>{
 });
 
 window.editArtikel = function(id){
-  console.log('editArtikel', id, 'artikelen count:', artikelen.length);
   const a = artikelen.find(x=>x.id===id);
-  console.log('artikel gevonden:', !!a);
-  if(!a){ console.warn('niet gevonden',id); return; }
+  if(!a) return;
   const t = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId) || null;
-  console.log('template:', t?.id);
 
   document.getElementById('artikel-edit-id').value = id;
   document.getElementById('modal-artikel-title').textContent = 'Artikel bewerken';
   document.getElementById('artikel-template-badge').textContent = t?.naam || a.templateId || 'Geen template';
 
   const formEl = document.getElementById('artikel-form-velden');
-  console.log('formEl:', !!formEl);
   formEl.innerHTML = '';
   ARTIKEL_VAR_VELDEN.forEach(v=>{
     const div = document.createElement('div');
@@ -4399,12 +4395,9 @@ window.editArtikel = function(id){
   }
 
   const modal = document.getElementById('modal-artikel');
-  console.log('modal element:', !!modal, 'classes:', modal?.className);
-  // Verplaats modal naar body zodat geen parent overflow hem verbergt
   if(modal.parentElement !== document.body) document.body.appendChild(modal);
-  modal.style.cssText = 'display:flex; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:99999; align-items:center; justify-content:center; padding:1rem;';
+  modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;align-items:center;justify-content:center;padding:1rem;';
   modal.classList.add('open');
-  console.log('modal opened, display:', modal.style.display);
 };
 
 function vulArtikelForm(t, data){
