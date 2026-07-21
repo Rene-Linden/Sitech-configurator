@@ -2077,6 +2077,13 @@ window.doLogout = function(){
 };
 
 document.addEventListener('DOMContentLoaded', ()=>{
+  // Permanente event delegation voor artikelen tabel — overleeft innerHTML vervangingen
+  document.getElementById('tbl-artikelen').addEventListener('click', function(e){
+    const editBtn = e.target.closest('.btn-edit-artikel');
+    const delBtn  = e.target.closest('.btn-del-artikel');
+    if(editBtn){ e.stopPropagation(); editArtikel(editBtn.dataset.id); }
+    if(delBtn) { e.stopPropagation(); deleteArtikel(delBtn.dataset.id); }
+  });
   const sess = sessionStorage.getItem('adm_sess');
   if(sess){
     try{
@@ -3889,14 +3896,6 @@ function renderArtikelenTbody(){
   }).join('') ||
   `<tr><td colspan="30" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen artikelen gevonden</td></tr>`;
 
-  // Event delegation voor bewerken/verwijderen
-  tbody.querySelectorAll('.btn-edit-artikel').forEach(btn=>{
-    btn.addEventListener('click', e=>{ e.stopPropagation(); editArtikel(btn.dataset.id); });
-  });
-  tbody.querySelectorAll('.btn-del-artikel').forEach(btn=>{
-    btn.addEventListener('click', e=>{ e.stopPropagation(); deleteArtikel(btn.dataset.id); });
-  });
-
   // Checkbox events
   tbody.querySelectorAll('.chk-artikel').forEach(chk=>{
     chk.addEventListener('change', function(){
@@ -4197,14 +4196,6 @@ function renderArtikelen(){
     </tr>`;
   }).join('') ||
   `<tr><td colspan="24" style="text-align:center;color:var(--gray-text);padding:1.5rem">Geen artikelen gevonden</td></tr>`;
-
-  // Event delegation voor bewerken/verwijderen
-  document.getElementById('tbl-artikelen-body').querySelectorAll('.btn-edit-artikel').forEach(btn=>{
-    btn.addEventListener('click', e=>{ e.stopPropagation(); editArtikel(btn.dataset.id); });
-  });
-  document.getElementById('tbl-artikelen-body').querySelectorAll('.btn-del-artikel').forEach(btn=>{
-    btn.addEventListener('click', e=>{ e.stopPropagation(); deleteArtikel(btn.dataset.id); });
-  });
 
   document.getElementById('tbl-artikelen-body').querySelectorAll('.chk-artikel').forEach(chk=>{
     chk.addEventListener('change', function(){
