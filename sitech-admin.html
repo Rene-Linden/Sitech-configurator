@@ -2081,7 +2081,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('tbl-artikelen').addEventListener('click', function(e){
     const editBtn = e.target.closest('.btn-edit-artikel');
     const delBtn  = e.target.closest('.btn-del-artikel');
-    if(editBtn){ alert('delegation: ' + editBtn.dataset.id); e.stopPropagation(); editArtikel(editBtn.dataset.id); }
+    if(editBtn){ e.stopPropagation(); editArtikel(editBtn.dataset.id); }
     if(delBtn) { e.stopPropagation(); deleteArtikel(delBtn.dataset.id); }
   });
   const sess = sessionStorage.getItem('adm_sess');
@@ -2222,8 +2222,8 @@ window.showPanel = function(name,el){
     else renderSitech();
   }
 };
-window.openModal  = id => document.getElementById(id).classList.add('open');
-window.closeModal = id => document.getElementById(id).classList.remove('open');
+window.openModal  = id => { const m=document.getElementById(id); m.classList.add('open'); m.style.display='flex'; };
+window.closeModal = id => { const m=document.getElementById(id); m.classList.remove('open'); m.style.display=''; };
 
 // ============================================================
 // MERKEN
@@ -4346,19 +4346,21 @@ document.getElementById('btn-add-artikel').addEventListener('click', ()=>{
 });
 
 window.editArtikel = function(id){
-  alert('editArtikel aangeroepen: ' + id);
   try{
     const a = artikelen.find(x=>x.id===id);
-    if(!a){ alert('Artikel niet gevonden (id: '+id+')'); return; }
+    if(!a){ console.warn('Artikel niet gevonden:', id); return; }
     const t = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId) || null;
     document.getElementById('artikel-edit-id').value = id;
-    document.getElementById('artikel-template-badge').textContent = t ? `Template: ${t.naam||a.templateId}` : (a.templateId ? `Template: ${a.templateId} (niet geladen)` : 'Geen template');
+    document.getElementById('artikel-template-badge').textContent = t
+      ? `Template: ${t.naam||a.templateId}`
+      : (a.templateId ? `Template: ${a.templateId}` : 'Geen template');
     document.getElementById('modal-artikel-title').textContent = 'Artikel bewerken';
     vulArtikelForm(t, a);
-    openModal('modal-artikel');
+    const modal = document.getElementById('modal-artikel');
+    modal.classList.add('open');
+    modal.style.display = 'flex';
   }catch(e){
-    alert('Fout bij openen artikel: '+e.message);
-    console.error(e);
+    console.error('editArtikel fout:', e);
   }
 };
 
