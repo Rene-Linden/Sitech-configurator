@@ -7679,17 +7679,23 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
         return;
       }
 
-      // Schrijf in batches van 500
-      for(let i=0;i<updates.length;i+=500){
-        const batch = writeBatch(db);
-        updates.slice(i,i+500).forEach(u=>{
-          batch.set(doc(db,'artikelen',u.id), { shelf: u.shelf }, { merge: true });
-          const inMem = artikelen.find(a=>a.id===u.id);
-          if(inMem) inMem.shelf = u.shelf;
-        });
-        await batch.commit();
-        status.textContent = `${Math.min(i+500,updates.length)} / ${updates.length} verwerkt…`;
+      // Schrijf individueel via updateDoc (respecteert Firestore beveiligingsregels)
+      let geschreven = 0;
+      const CHUNK = 50;
+      for(let i=0;i<updates.length;i+=CHUNK){
+        const chunk = updates.slice(i,i+CHUNK);
+        await Promise.all(chunk.map(u=>
+          updateDoc(doc(db,'artikelen',u.id), { shelf: u.shelf })
+            .then(()=>{
+              const inMem = artikelen.find(a=>a.id===u.id);
+              if(inMem) inMem.shelf = u.shelf;
+              geschreven++;
+            })
+            .catch(err=>console.warn(`Fout bij artikel ${u.id}:`, err.message))
+        ));
+        status.textContent = `${geschreven} / ${updates.length} geschreven…`;
       }
+      console.log(`Klaar: ${geschreven} geschreven naar Firestore`);
 
       status.textContent = `✓ ${bijgewerkt} artikelen bijgewerkt met locatie${nietGevonden?`, ${nietGevonden} niet gevonden`:''}`;
       setTimeout(()=>status.textContent='',10000);
