@@ -7652,8 +7652,8 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
         mapProductId.set(a.id.trim().toUpperCase(), a);
       });
 
-      // Extra: prefix-lookup — alle artikelen per prefix
-      const mapPrefix = new Map(); // prefix → [art, art, ...]
+      // Prefix-lookup — alle artikelen per prefix (voor nummers zonder suffix)
+      const mapPrefix = new Map();
       alleArtikelen.forEach(a=>{
         const pid = (a.productId||'').trim().toUpperCase();
         const prefix = pid.split('-')[0];
@@ -7663,6 +7663,37 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
         }
       });
 
+      // Contains-lookup — voor IDs waarbij het Excel-ID voorkomt als deel van productId
+      // bijv. '109941-01' matcht '109941-01-99S'
+      const alleProductIds = alleArtikelen.map(a=>({
+        id: a.id,
+        pid: (a.productId||'').trim().toUpperCase()
+      }));
+
+      function vindArtikelen(excelId){
+        const key = excelId.toUpperCase();
+        // 1. Exacte match
+        const exact = mapProductId.get(key);
+        if(exact) return [exact];
+        // 2. Prefix match (alleen zinvol als excelId geen streepje heeft)
+        if(!key.includes('-')){
+          const pref = mapPrefix.get(key);
+          if(pref && pref.length) return pref;
+        }
+        // 3. Contains match: zoek artikelen waarvan productId begint met excelId
+        const starts = alleProductIds.filter(a=>a.pid.startsWith(key+'-') || a.pid === key);
+        if(starts.length) return starts.map(x=>alleArtikelen.find(a=>a.id===x.id)).filter(Boolean);
+        // 4. Omgekeerd: excelId bevat extra suffix die in productId niet zit
+        //    bijv. '132797-STK' → zoek '132797'
+        const parts = key.split('-');
+        if(parts.length > 1){
+          const shorter = parts.slice(0,-1).join('-');
+          const shorterMatch = mapProductId.get(shorter);
+          if(shorterMatch) return [shorterMatch];
+        }
+        return [];
+      }
+
       let bijgewerkt=0, nietGevonden=0;
       const updates = [];
 
@@ -7671,19 +7702,12 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
         const locatie   = String(r[5]||'').trim();
         if(!productId || !locatie) continue;
 
-        const exactMatch = mapProductId.get(productId.toUpperCase());
-        if(exactMatch){
-          updates.push({ id: exactMatch.id, shelf: locatie });
-          bijgewerkt++;
+        const gevonden = vindArtikelen(productId);
+        if(gevonden.length){
+          gevonden.forEach(a=>updates.push({ id: a.id, shelf: locatie }));
+          bijgewerkt += gevonden.length;
         } else {
-          // Probeer prefix-match: bijv. '122206' matcht '122206-99S', '122206-STK', etc.
-          const prefixMatches = mapPrefix.get(productId.toUpperCase());
-          if(prefixMatches && prefixMatches.length){
-            prefixMatches.forEach(a=>updates.push({ id: a.id, shelf: locatie }));
-            bijgewerkt += prefixMatches.length;
-          } else {
-            nietGevonden++;
-          }
+          nietGevonden++;
         }
       }
 
