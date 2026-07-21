@@ -4339,14 +4339,19 @@ document.getElementById('btn-add-artikel').addEventListener('click', ()=>{
 });
 
 window.editArtikel = function(id){
-  const a = artikelen.find(x=>x.id===id);
-  if(!a) return;
-  const t = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId);
-  document.getElementById('artikel-edit-id').value = id;
-  document.getElementById('artikel-template-badge').textContent = `Template: ${t?.naam||a.templateId}`;
-  document.getElementById('modal-artikel-title').textContent = 'Artikel bewerken';
-  vulArtikelForm(t, a);
-  openModal('modal-artikel');
+  try{
+    const a = artikelen.find(x=>x.id===id);
+    if(!a){ alert('Artikel niet gevonden (id: '+id+')'); return; }
+    const t = ARTIKEL_TEMPLATES.find(x=>x.id===a.templateId) || null;
+    document.getElementById('artikel-edit-id').value = id;
+    document.getElementById('artikel-template-badge').textContent = t ? `Template: ${t.naam||a.templateId}` : (a.templateId ? `Template: ${a.templateId} (niet geladen)` : 'Geen template');
+    document.getElementById('modal-artikel-title').textContent = 'Artikel bewerken';
+    vulArtikelForm(t, a);
+    openModal('modal-artikel');
+  }catch(e){
+    alert('Fout bij openen artikel: '+e.message);
+    console.error(e);
+  }
 };
 
 function vulArtikelForm(t, data){
