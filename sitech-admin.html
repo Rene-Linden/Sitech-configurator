@@ -7854,6 +7854,7 @@ window.locatieNietGevondenToevoegen = async function(){
 };
 
 function initStickyScroll(){
+  const wrap  = document.getElementById('artikel-tabel-wrap');
   const stick = document.getElementById('artikel-sticky-scroll');
   if(!wrap||!stick) return;
   let busy=false;
