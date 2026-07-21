@@ -7785,16 +7785,22 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
       const updates = [];
 
       for(const r of dataRows){
-        const productId = String(r[3]||'').trim();
-        const locatie   = String(r[5]||'').trim();
-        if(!productId || !locatie) continue;
+        const productId   = String(r[3]||'').trim();
+        const locatie     = String(r[5]||'').trim();
+        const vendorItemNo= String(r[9]||'').trim();
+        if(!productId) continue;
 
         const gevonden = vindArtikelen(productId);
         if(gevonden.length){
-          gevonden.forEach(a=>updates.push({ id: a.id, shelf: locatie }));
+          gevonden.forEach(a=>{
+            const update = {};
+            if(locatie)      update.shelf       = locatie;
+            if(vendorItemNo) update.vendorItemNo = vendorItemNo;
+            updates.push({ id: a.id, ...update });
+          });
           bijgewerkt += gevonden.length;
         } else {
-          nietGevonden++;
+          if(locatie) nietGevonden++;
         }
       }
 
@@ -7808,15 +7814,16 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
       const CHUNK = 50;
       for(let i=0;i<updates.length;i+=CHUNK){
         const chunk = updates.slice(i,i+CHUNK);
-        await Promise.all(chunk.map(u=>
-          updateDoc(doc(db,'artikelen',u.id), { shelf: u.shelf })
+        await Promise.all(chunk.map(u=>{
+          const {id, ...velden} = u;
+          return updateDoc(doc(db,'artikelen',id), velden)
             .then(()=>{
-              const inMem = artikelen.find(a=>a.id===u.id);
-              if(inMem) inMem.shelf = u.shelf;
+              const inMem = artikelen.find(a=>a.id===id);
+              if(inMem) Object.assign(inMem, velden);
               geschreven++;
             })
-            .catch(err=>console.warn(`Fout bij artikel ${u.id}:`, err.message))
-        ));
+            .catch(err=>console.warn(`Fout bij artikel ${id}:`, err.message));
+        }));
         status.textContent = `${geschreven} / ${updates.length} geschreven…`;
       }
       console.log(`Klaar: ${geschreven} geschreven naar Firestore`);
@@ -7828,8 +7835,8 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
       for(const r of dataRows){
         const pid = String(r[3]||'').trim();
         const loc = String(r[5]||'').trim();
-        if(!pid || !loc) continue;
-        if(vindArtikelen(pid).length === 0) nietGevondenLijst.push({pid, loc});
+        if(!pid) continue;
+        if(vindArtikelen(pid).length === 0) nietGevondenLijst.push({pid, loc: loc||'—'});
       }
 
       const rapportEl = document.getElementById('locatie-upload-status');
