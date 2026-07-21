@@ -7710,8 +7710,28 @@ document.getElementById('locatie-upload-input').addEventListener('change', async
       }
       console.log(`Klaar: ${geschreven} geschreven naar Firestore`);
 
-      status.textContent = `✓ ${geschreven} artikelen bijgewerkt met locatie${nietGevonden?`, ${nietGevonden} niet gevonden`:''}`;
-      setTimeout(()=>status.textContent='',10000);
+      status.textContent = `✓ ${bijgewerkt} bijgewerkt${nietGevonden?`, ${nietGevonden} niet gevonden`:''}. Zie rapport hieronder.`;
+
+      // Toon rapport
+      const nietGevondenIds = [];
+      for(const r of dataRows){
+        const pid = String(r[3]||'').trim();
+        const loc = String(r[5]||'').trim();
+        if(!pid || !loc) continue;
+        const exact = mapProductId.get(pid.toUpperCase());
+        const prefix = mapPrefix.get(pid.toUpperCase());
+        if(!exact && (!prefix || !prefix.length)) nietGevondenIds.push(pid);
+      }
+
+      // Toon samenvatting in status area
+      const rapportEl = document.getElementById('locatie-upload-status');
+      rapportEl.innerHTML = `
+        <div style="margin-top:8px;padding:10px 14px;background:#f0fdf4;border:0.5px solid #86efac;border-radius:8px;font-size:12px">
+          <strong style="color:#16a34a">✓ ${bijgewerkt} artikelen bijgewerkt</strong>
+          ${nietGevondenIds.length ? `
+          <div style="margin-top:6px;color:#dc2626"><strong>${nietGevondenIds.length} niet gevonden:</strong></div>
+          <div style="margin-top:4px;font-family:monospace;color:#64748b;max-height:120px;overflow-y:auto;white-space:pre-wrap">${nietGevondenIds.join(', ')}</div>` : ''}
+        </div>`;
 
       // Herlaad artikelen volledig uit Firestore en refresh tabel
       const versSnap = await getDocs(collection(db,'artikelen'));
