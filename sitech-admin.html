@@ -4139,9 +4139,14 @@ function renderArtikelen(){
 
   document.getElementById('chk-all').addEventListener('change', function(){
     if(this.checked){
-      // Selecteer alle gefilterde artikelen (alle pagina's)
+      // Wis eerst alle geselecteerden die NIET in de gefilterde set zitten
+      // zodat je alleen de gefilterde artikelen overhoudt
+      const gefilterdIds = new Set(gefilterd.map(a=>a.id));
+      [...artikelSelectie].forEach(id=>{ if(!gefilterdIds.has(id)) artikelSelectie.delete(id); });
+      // Voeg alle gefilterde toe
       gefilterd.forEach(a=>artikelSelectie.add(a.id));
     } else {
+      // Deselecteer alleen de gefilterde artikelen
       gefilterd.forEach(a=>artikelSelectie.delete(a.id));
     }
     updateSelectieBalk();
